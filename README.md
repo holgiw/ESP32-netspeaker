@@ -101,6 +101,8 @@ Basis-Topic (Standard `netspeaker/<hostname>`): `…/say` (Text oder JSON `{"tex
 - Das Log in die Datei ist standardmäßig aus (Tab *Log*, oder `/api/log`); die serielle Ausgabe läuft immer.
 - Das Gerät hat keine Anmeldung und ist für das Heimnetz gedacht. Es gibt kein OTA (keine OTA-Partition, kein offener Update-Port); Updates nur per USB.
 
+**Vorbelegter Sender:** Ein neues Gerät trägt auf Platz 1 den Sender *RSA* ein (`DEFAULT_STATION_NAME` und `DEFAULT_STATION_URL` in `config.h`). Das gilt, solange Platz 1 leer ist (neues Gerät oder gelöschter Platz); ein belegter Platz bleibt unverändert.
+
 ## Zuverlässigkeit
 
 - **WLAN:** Der Treiber verbindet nach einem Abriss selbst neu. Bleibt die Verbindung länger als 6 s weg, probiert das Gerät der Reihe nach alle gespeicherten Netze (je 10 s), ohne die Hauptschleife zu blockieren, mit Abständen von 2 bis 15 s. Nach 10 Minuten ohne WLAN startet es neu; hat es den Zugangspunkt `netspeaker-setup-…` geöffnet, bleibt dieser stehen. Nach dem Wiederkommen werden mDNS und MQTT sofort neu aufgebaut.
@@ -214,6 +216,8 @@ See the German section above; the commands and topics are the same. Parameters c
 - Volume: explicit value (`vol`) before the volume of the stored station before the general volume. Every playback sets it anew; the general volume does not change because of it.
 - Logging to the file is off by default (*Log* tab, or `/api/log`); the serial output always runs.
 - The device has no login and is meant for the home network. There is no OTA (no OTA partition, no open update port); updates only via USB.
+
+**Preset station:** A new device puts the station *RSA* into slot 1 (`DEFAULT_STATION_NAME` and `DEFAULT_STATION_URL` in `config.h`). This applies as long as slot 1 is empty (new device or deleted slot); an occupied slot stays as it is.
 
 ## Reliability
 

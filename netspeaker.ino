@@ -421,6 +421,14 @@ void loadSettings() {
         cfg.radioUrl[i] = prefs.getString(("ru" + String(i + 1)).c_str(), "");
         cfg.radioVol[i] = prefs.getInt(("rv" + String(i + 1)).c_str(), -1);
     }
+
+    // Ist Platz 1 leer, wird er mit dem Standardsender vorbelegt.
+    // If slot 1 is empty, it is preset with the default station.
+
+    if (cfg.radioUrl[0].isEmpty()) {
+        cfg.radioName[0] = DEFAULT_STATION_NAME;
+        cfg.radioUrl[0] = DEFAULT_STATION_URL;
+    }
 }
 
 // ---------------------------------------------------------------------------

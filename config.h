@@ -29,6 +29,12 @@
 // SD-Karte (SPI): Standard-Pins des Moduls am ESP32-S3; im Audio-Tab aenderbar. SD_LIST_MAX Eintraege pro Ordner werden angezeigt.
 // SD card (SPI): default pins of the module on the ESP32-S3; changeable in the Audio tab. SD_LIST_MAX entries per folder are shown.
 
+// Vorbelegter Sender auf Platz 1; gilt, solange Platz 1 leer ist (neues Geraet oder geloeschter Platz).
+// Preset station in slot 1; applies as long as slot 1 is empty (new device or deleted slot).
+
+#define DEFAULT_STATION_NAME "RSA"
+#define DEFAULT_STATION_URL "https://rsa.streamabc.net/regc-rsalive-mp3-192-5989815"
+
 #define DEFAULT_SD_CS 13
 #define DEFAULT_SD_SCK 11
 #define DEFAULT_SD_MOSI 12
