@@ -31,6 +31,8 @@ Die Links sind nur Beispiele; andere Module mit denselben Anschlüssen funktioni
 
 ### SD-Kartenleser (optional)
 
+> **Hinweis:** Die SD-Karten-Unterstützung ist noch nicht produktiv getestet. Es war noch keine Hardware angeschlossen; geprüft wurden nur die Fehlerfälle ohne Karte. Verhalten, Tempo und Dateimanager können sich mit einer echten Karte anders verhalten.
+
 Das Modul arbeitet mit 3,3 V über SPI und braucht keinen Pegelwandler. Es nimmt Micro-SD-Karten bis 2 GB und Micro-SDHC-Karten bis 32 GB, formatiert als FAT32.
 
 | SD-Modul | ESP32-S3 (Standard) |
@@ -151,6 +153,8 @@ Speaker 4–8 Ω on the two outputs, neither to GND. A 100–470 µF capacitor n
 The links are only examples; other modules with the same connections work as well.
 
 ### SD card reader (optional)
+
+> **Note:** SD card support has not been tested in production yet. No hardware was connected; only the error cases without a card were checked. Behavior, speed and the file manager may differ with a real card.
 
 The module works at 3.3 V over SPI and needs no level shifter. It takes micro SD cards up to 2 GB and micro SDHC cards up to 32 GB, formatted as FAT32.
 
