@@ -1,0 +1,4 @@
+build_netspeaker/
+*-settings.txt
+wiring_svg.h.bak
+*.bak

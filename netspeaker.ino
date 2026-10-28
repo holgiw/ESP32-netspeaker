@@ -1,0 +1,2701 @@
+// NetSpeaker: Texte per VoiceRSS ansagen und MP3 abspielen (ESP32-S3 + MAX98357A I2S-Verstaerker).
+// NetSpeaker: speak texts via VoiceRSS and play MP3 (ESP32-S3 + MAX98357A I2S amplifier).
+//
+// Board: ESP32-S3 mit 4 MB Flash und 2 MB PSRAM. Flash 4MB, Partitionsschema "No OTA (2MB APP/2MB SPIFFS)",
+// PSRAM (QSPI) und USB CDC On Boot aktivieren. Es gibt keine OTA-Partition, Updates nur per USB.
+// Board: ESP32-S3 with 4 MB flash and 2 MB PSRAM. Flash 4MB, partition scheme "No OTA (2MB APP/2MB SPIFFS)",
+// enable PSRAM (QSPI) and USB CDC On Boot. There is no OTA partition, updates only via USB.
+//
+// Bibliotheken: "ESP32-audioI2S" von schreibfaul1 (Version 4.0.0; audio->loop() muss regelmaessig aus loop() laufen)
+// und "PubSubClient" von Nick O'Leary.
+// Libraries: "ESP32-audioI2S" by schreibfaul1 (version 4.0.0; audio->loop() must run regularly from loop())
+// and "PubSubClient" by Nick O'Leary.
+//
+// Verdrahtung / wiring: BCLK -> GPIO3, LRC -> GPIO4, DIN -> GPIO2 (aenderbar / changeable), VIN -> 5 V, GND -> GND.
+
+#include <WiFi.h>
+#include <WiFiUdp.h>
+#include <WiFiClientSecure.h>
+#include <WebServer.h>
+#include <ESPmDNS.h>
+#include <Preferences.h>
+#include <LittleFS.h>
+#include <SPI.h>
+#include <SD.h>
+#include <algorithm>
+#include <vector>
+#include <HTTPClient.h>
+#include <PubSubClient.h>
+#include <Audio.h>
+#include <atomic>
+#include "mp3_decoder/mp3_decoder.h"
+#include <esp_task_wdt.h>
+#include <time.h>
+
+#include "config.h"
+
+// ---------------------------------------------------------------------------
+// Einstellungen / settings
+
+struct Settings {
+    String host;
+    String ssid[3];
+    String pass[3];
+    String ntp1;
+    String ntp2;
+    String tz;
+    String vkey;
+    String vlang;
+    String vvoice;
+    String vfmt;
+    String mqttServer;
+    String mqttBase;
+    int vrate;
+    int vol;
+    int bclk;
+    int lrc;
+    int din;
+    int mqttPort;
+    bool logEnabled;
+    String radioName[RADIO_SLOTS];
+    String radioUrl[RADIO_SLOTS];
+    int radioVol[RADIO_SLOTS];
+    int fadeMs;
+    int switchFadeMs;
+    bool autoStart;
+    bool mixAnn;
+    int duckPct;
+    int volRampMs;
+    bool resumeLast;
+    String lastUrl;
+    int lastVol;
+    bool sdOn;
+    int sdCs;
+    int sdSck;
+    int sdMosi;
+    int sdMiso;
+    String titleMatch;
+    int titleVol;
+};
+
+Settings cfg;
+Preferences prefs;
+
+// ---------------------------------------------------------------------------
+// Laufzeitzustand / runtime state
+
+enum PlayState { PS_IDLE, PS_LOADING, PS_PLAYING };
+enum PendingType { PEND_NONE, PEND_SAY, PEND_URL, PEND_FILE, PEND_STOP };
+
+struct Pending {
+    PendingType type = PEND_NONE;
+    String text;
+    String lang;
+    String voice;
+    int rate = 99;
+    int vol = -1;
+    bool resume = false;
+    bool force = false;
+};
+
+Pending pending;
+
+// Eintrag einer Ordnerliste der SD-Karte und aufgeloester Dateiname; die Typen stehen oben, weil die Arduino-IDE Funktionsprototypen vor die Funktionen setzt.
+// Entry of a folder list of the SD card and a resolved file name; the types are up here because the Arduino IDE puts function prototypes before the functions.
+
+struct SdEntry {
+    String name;
+    bool dir;
+    uint32_t size;
+};
+
+struct FileRef {
+    bool ok = false;
+    bool sd = false;
+    String path;
+    String shown;
+};
+
+// Warteschlange fuer Ansagen und MP3-Dateien: sie werden nacheinander abgespielt, Stopp leert sie.
+// Queue for announcements and MP3 files: they are played one after another, stop empties it.
+
+Pending annQueue[ANN_QUEUE_LEN];
+int annCount = 0;
+
+bool annPush(const Pending& p) {
+    if (annCount >= ANN_QUEUE_LEN) return false;
+    annQueue[annCount++] = p;
+    return true;
+}
+
+bool annPop(Pending& out) {
+    if (annCount == 0) return false;
+    out = annQueue[0];
+    for (int i = 1; i < annCount; i++) annQueue[i - 1] = annQueue[i];
+    annCount--;
+    annQueue[annCount] = Pending();
+    return true;
+}
+
+void annClear() {
+    for (int i = 0; i < ANN_QUEUE_LEN; i++) annQueue[i] = Pending();
+    annCount = 0;
+}
+volatile PlayState playState = PS_IDLE;
+String lastError;
+unsigned long playStartMillis = 0;
+bool voiceBusy = false;
+bool voiceEver = false;
+bool voiceLastOk = false;
+
+bool fsReady = false;
+bool apActive = false;
+unsigned long lastMqttTry = 0;
+
+// Verbindungsueberwachung: Zaehler und Zeitpunkte fuer WLAN und MQTT.
+// Connection supervision: counters and timestamps for WiFi and MQTT.
+
+volatile bool gotIpFlag = false;
+volatile uint8_t lastDisconnectReason = 0;
+unsigned long wifiLostAt = 0;
+unsigned long wifiNextTry = 0;
+unsigned long wifiBackoff = WIFI_BACKOFF_START_MS;
+unsigned long wifiTryStart = 0;
+unsigned long wifiReconnects = 0;
+int wifiTryIdx = -1;
+unsigned long mqttBackoff = MQTT_BACKOFF_START_MS;
+unsigned long mqttReconnects = 0;
+bool mqttWasConnected = false;
+IPAddress mqttIp;
+bool mqttIpValid = false;
+String mqttIpFor;
+unsigned long loadStartMillis = 0;
+
+// Webradio, das laufen soll: wird nach einem Abriss automatisch neu verbunden (nur Live-Streams, nicht nach Stopp).
+// Web radio that should be running: reconnected automatically after a drop (live streams only, not after a stop).
+
+String wantRadioUrl;
+int wantRadioVol = -1;
+bool wantRadioLive = true;
+bool streamWaitingReady = false;
+unsigned long streamWaitSince = 0;
+uint32_t streamLastFill = 0;
+int streamStalls = 0;
+unsigned long radioRetryAt = 0;
+unsigned long radioRetryDelay = RADIO_RETRY_START_MS;
+
+// Selbstschutz.
+// Self protection.
+
+bool safeMode = false;
+int bootCrashes = 0;
+bool bootMarkedStable = false;
+unsigned long heapLowSince = 0;
+bool mqttEverConnected = false;
+String lastPublishedState;
+
+SemaphoreHandle_t logMutex = nullptr;
+WebServer webserver(80);
+Audio* audio = nullptr;
+WiFiClient mqttNet;
+PubSubClient mqttClient(mqttNet);
+
+// ---------------------------------------------------------------------------
+// Log / log
+
+// Die serielle Ausgabe laeuft immer; in die Logdatei wird nur geschrieben, wenn das Log eingeschaltet ist (Standard: aus).
+// The serial output always runs; the log file is written only when logging is switched on (default: off).
+
+void logLine(const String& msg) {
+    char stamp[40];
+    time_t now = time(nullptr);
+
+    // Ohne gueltige Zeit (vor dem ersten NTP-Abgleich) zaehlt die Zeit seit dem Start.
+    // Without a valid time (before the first NTP sync) the time since boot is used.
+
+    if (now > 1700000000L) {
+        struct tm timeinfo;
+        localtime_r(&now, &timeinfo);
+        strftime(stamp, sizeof(stamp), "[%Y-%m-%d %H:%M:%S", &timeinfo);
+        snprintf(stamp + strlen(stamp), sizeof(stamp) - strlen(stamp), ".%03lu] ", millis() % 1000);
+    } else {
+        snprintf(stamp, sizeof(stamp), "[%lu ms] ", millis());
+    }
+    String line = String(stamp) + msg;
+    Serial.println(line);
+    if (!cfg.logEnabled || !fsReady || !logMutex) return;
+    if (xSemaphoreTake(logMutex, pdMS_TO_TICKS(200)) != pdTRUE) return;
+    File f = LittleFS.open(LOG_FILE, FILE_APPEND);
+    if (f) {
+        if (f.size() > LOG_MAX_BYTES) {
+            f.close();
+            LittleFS.remove(LOG_OLD_FILE);
+            LittleFS.rename(LOG_FILE, LOG_OLD_FILE);
+            f = LittleFS.open(LOG_FILE, FILE_WRITE);
+        }
+        if (f) {
+            f.println(line);
+            f.close();
+        }
+    }
+    xSemaphoreGive(logMutex);
+}
+
+void clearLogFiles() {
+    if (!fsReady || !logMutex) return;
+    if (xSemaphoreTake(logMutex, pdMS_TO_TICKS(500)) != pdTRUE) return;
+    LittleFS.remove(LOG_FILE);
+    LittleFS.remove(LOG_OLD_FILE);
+    xSemaphoreGive(logMutex);
+}
+// ---------------------------------------------------------------------------
+// Hilfsfunktionen / helpers
+
+String defaultHost() {
+    uint64_t mac = ESP.getEfuseMac();
+    char buf[8];
+    snprintf(buf, sizeof(buf), "%02x%02x%02x", (unsigned)((mac >> 24) & 0xff), (unsigned)((mac >> 32) & 0xff), (unsigned)((mac >> 40) & 0xff));
+    return String(PROJECT_NAME) + "-" + buf;
+}
+
+// Hostname bereinigen: Kleinbuchstaben, nur a-z 0-9 und Bindestrich, hoechstens 31 Zeichen, leer = Standardname.
+// Clean the hostname: lower case, only a-z 0-9 and hyphen, at most 31 characters, empty = default name.
+
+String cleanHost(String s) {
+    s.toLowerCase();
+    String out;
+    for (size_t i = 0; i < s.length() && out.length() < 31; i++) {
+        char c = s[i];
+        if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-') out += c;
+    }
+    while (out.startsWith("-")) out.remove(0, 1);
+    while (out.endsWith("-")) out.remove(out.length() - 1);
+    if (out.isEmpty()) return defaultHost();
+    return out;
+}
+
+String urlEncode(const String& s) {
+    String out;
+    char buf[4];
+    for (size_t i = 0; i < s.length(); i++) {
+        uint8_t c = (uint8_t)s[i];
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.' || c == '~') {
+            out += (char)c;
+        } else {
+            snprintf(buf, sizeof(buf), "%%%02X", c);
+            out += buf;
+        }
+    }
+    return out;
+}
+
+String jsonEscape(const String& s) {
+    String out;
+    for (size_t i = 0; i < s.length(); i++) {
+        char c = s[i];
+        if (c == '"' || c == '\\') {
+            out += '\\';
+            out += c;
+        } else if (c == '\n') {
+            out += "\\n";
+        } else if ((uint8_t)c >= 0x20) {
+            out += c;
+        }
+    }
+    return out;
+}
+
+bool timeIsValid() {
+    return time(nullptr) > 1700000000L;
+}
+
+// Minimaler JSON-Leser fuer flache Objekte: liefert den Wert zu key (Text oder Zahl), leer wenn der Schluessel fehlt.
+// Minimal JSON reader for flat objects: returns the value for key (text or number), empty if the key is missing.
+
+String jsonGet(const String& body, const String& key) {
+    int k = body.indexOf("\"" + key + "\"");
+    if (k < 0) return "";
+    int colon = body.indexOf(':', k + key.length() + 2);
+    if (colon < 0) return "";
+    int p = colon + 1;
+    while (p < (int)body.length() && (body[p] == ' ' || body[p] == '\t' || body[p] == '\n' || body[p] == '\r')) p++;
+    String out;
+    if (p < (int)body.length() && body[p] == '"') {
+        for (p++; p < (int)body.length() && body[p] != '"'; p++) {
+            if (body[p] == '\\' && p + 1 < (int)body.length()) {
+                p++;
+                out += body[p] == 'n' ? '\n' : body[p];
+            } else {
+                out += body[p];
+            }
+        }
+    } else {
+        for (; p < (int)body.length() && body[p] != ',' && body[p] != '}'; p++) out += body[p];
+        out.trim();
+    }
+    return out;
+}
+bool pinAllowed(int pin) {
+    return (pin >= 1 && pin <= 18) || pin == 21 || (pin >= 38 && pin <= 42) || pin == 47 || pin == 48;
+}
+
+String mqttBaseTopic() {
+    if (cfg.mqttBase.length() > 0) return cfg.mqttBase;
+    return String(PROJECT_NAME) + "/" + cfg.host;
+}
+
+// ---------------------------------------------------------------------------
+// Einstellungen laden und speichern / load and save settings
+
+void loadSettings() {
+    prefs.begin(PROJECT_NVS, false);
+
+    // Frueher lag die Lautstaerke auf der Skala 0 bis 21; gespeicherte Werte einmalig auf 0 bis VOLUME_MAX umrechnen.
+    // The volume used to be on the scale 0 to 21; convert stored values once to 0 to VOLUME_MAX.
+
+    int storedScale = prefs.getInt("vscale", 21);
+    if (storedScale != VOLUME_MAX && storedScale > 0) {
+        const char* volKeys[] = {"vol", "tvol"};
+        for (int k = 0; k < 2; k++) {
+            if (prefs.isKey(volKeys[k])) prefs.putInt(volKeys[k], (prefs.getInt(volKeys[k], 0) * VOLUME_MAX + storedScale / 2) / storedScale);
+        }
+        for (int i = 1; i <= RADIO_SLOTS; i++) {
+            String key = "rv" + String(i);
+            int old = prefs.getInt(key.c_str(), -1);
+            if (old >= 0) prefs.putInt(key.c_str(), (old * VOLUME_MAX + storedScale / 2) / storedScale);
+        }
+        prefs.putInt("vscale", VOLUME_MAX);
+    }
+
+    // Gespeicherten Hostnamen mit ungueltigen Zeichen einmalig korrigieren und zurueckschreiben.
+    // Correct a stored hostname with invalid characters once and write it back.
+
+    String stored = prefs.getString("host", "");
+    if (stored.length() > 0) {
+        String cleaned = cleanHost(stored);
+        if (cleaned != stored) {
+            prefs.putString("host", cleaned);
+            logLine("[Hostname] invalid characters corrected: \"" + stored + "\" -> \"" + cleaned + "\"");
+            stored = cleaned;
+        }
+    }
+    cfg.host = stored.length() > 0 ? stored : defaultHost();
+    for (int i = 0; i < 3; i++) {
+        cfg.ssid[i] = prefs.getString(("ssid" + String(i + 1)).c_str(), "");
+        cfg.pass[i] = prefs.getString(("pass" + String(i + 1)).c_str(), "");
+    }
+    cfg.ntp1 = prefs.getString("ntp1", "pool.ntp.org");
+    cfg.ntp2 = prefs.getString("ntp2", "time.google.com");
+    cfg.tz = prefs.getString("tz", "CET-1CEST,M3.5.0,M10.5.0/3");
+    cfg.vkey = prefs.getString("vkey", "");
+    cfg.vlang = prefs.getString("vlang", "de-de");
+    cfg.vvoice = prefs.getString("vvoice", "");
+    cfg.vfmt = prefs.getString("vfmt", "22khz_16bit_mono");
+    cfg.vrate = prefs.getInt("vrate", 0);
+    cfg.vol = constrain(prefs.getInt("vol", 57), 0, VOLUME_MAX);
+    cfg.bclk = prefs.getInt("bclk", DEFAULT_PIN_BCLK);
+    cfg.lrc = prefs.getInt("lrc", DEFAULT_PIN_LRC);
+    cfg.din = prefs.getInt("din", DEFAULT_PIN_DIN);
+    cfg.mqttServer = prefs.getString("mq_srv", "");
+    cfg.mqttPort = prefs.getInt("mq_port", 1883);
+    cfg.mqttBase = prefs.getString("mq_base", "");
+    cfg.logEnabled = prefs.getBool("log", false);
+    cfg.fadeMs = constrain(prefs.getInt("fade", FADE_DEFAULT_MS), 0, FADE_MAX_MS);
+    cfg.switchFadeMs = constrain(prefs.getInt("swfade", SWITCH_FADE_DEFAULT_MS), 0, FADE_MAX_MS);
+    cfg.autoStart = prefs.getBool("autostart", false);
+    cfg.mixAnn = prefs.getBool("mix", true);
+    cfg.duckPct = constrain(prefs.getInt("duck", 35), 0, 100);
+    cfg.volRampMs = constrain(prefs.getInt("vramp", VOLUME_RAMP_DEFAULT_MS), 0, VOLUME_RAMP_MAX_MS);
+    cfg.resumeLast = prefs.getBool("rlast", false);
+    cfg.lastUrl = prefs.getString("rsurl", "");
+    cfg.lastVol = prefs.getInt("rsvol", -1);
+    cfg.sdOn = prefs.getBool("sdon", true);
+    cfg.sdCs = prefs.getInt("sdcs", DEFAULT_SD_CS);
+    cfg.sdSck = prefs.getInt("sdsck", DEFAULT_SD_SCK);
+    cfg.sdMosi = prefs.getInt("sdmosi", DEFAULT_SD_MOSI);
+    cfg.sdMiso = prefs.getInt("sdmiso", DEFAULT_SD_MISO);
+    cfg.titleMatch = prefs.getString("tmatch", "Cambodia");
+    cfg.titleVol = constrain(prefs.getInt("tvol", 86), 0, VOLUME_MAX);
+    for (int i = 0; i < RADIO_SLOTS; i++) {
+        cfg.radioName[i] = prefs.getString(("rn" + String(i + 1)).c_str(), "");
+        cfg.radioUrl[i] = prefs.getString(("ru" + String(i + 1)).c_str(), "");
+        cfg.radioVol[i] = prefs.getInt(("rv" + String(i + 1)).c_str(), -1);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Wiedergabe / playback
+
+void publishStatus(bool force = false);
+void onAudioEvent(Audio::msg_t m);
+void mixStop();
+
+// Die Audio-Bibliothek ruft den Rueckruf aus ihrem eigenen Task auf. Dort wird nur in eine Warteschlange geschrieben,
+// die Hauptschleife arbeitet die Ereignisse ab; so greifen nie zwei Tasks auf Strings, MQTT oder den Zustand zu.
+// The audio library calls the callback from its own task. There it only writes to a queue, the main loop handles the
+// events; this way two tasks never touch strings, MQTT or the state at the same time.
+
+#define AUDIO_EVT_QUEUE_LEN 40
+
+struct AudioEvt {
+    uint8_t type;
+    char text[168];
+};
+
+QueueHandle_t audioEvtQueue = nullptr;
+
+// Das Audio-Objekt belegt viel internen RAM und wird nur zum Abspielen angelegt; sonst fehlt der Platz fuer die TLS-Verbindung.
+// The audio object uses a lot of internal RAM and exists only while playing; otherwise there is no room for the TLS connection.
+
+int currentVolume = 57;
+unsigned long volChangedAt = 0;
+int lastPublishedVol = -1;
+int lastPublishedGeneral = -1;
+
+// MQTT-Neustart: Zeitpunkt des angeforderten Neustarts (0 = keiner) und Zeitpunkt des letzten Abonnierens.
+// MQTT restart: time of the requested restart (0 = none) and time of the last subscribe.
+
+unsigned long restartAt = 0;
+unsigned long mqttSubscribedAt = 0;
+const unsigned long MQTT_RESTART_IGNORE_MS = 3000;
+
+// Laeuft ein Webradio und kommt eine Ansage oder Datei, merken wir uns Stream und Lautstaerke und setzen den Stream danach fort.
+// If a web radio is playing and an announcement or file arrives, we remember stream and volume and resume the stream afterwards.
+
+String streamUrl;
+bool streamActive = false;
+
+// Was gerade laeuft: nowKind ist "radio", "file", "speech" oder leer; nowName/nowTitle kommen aus den Stream-Metadaten.
+// What is playing right now: nowKind is "radio", "file", "speech" or empty; nowName/nowTitle come from the stream metadata.
+
+String nowKind;
+String nowFile;
+String nowName;
+String nowTitle;
+String lastPublishedNow;
+String resumeUrl;
+int resumeVolume = 57;
+
+// Einblenden nach der Fortsetzung: wartet auf "stream ready", steigt dann in fadeMs von 0 auf fadeInTarget.
+// Fade-in after the resume: waits for "stream ready", then rises from 0 to fadeInTarget within fadeMs.
+
+bool fadeInWaiting = false;
+bool fadeInActive = false;
+unsigned long fadeInStart = 0;
+int fadeInTarget = 0;
+int fadeInMs = 700;
+// Sanftes Aendern der Radio-Lautstaerke (Ducking): Start, Ziel und Dauer; die Schritte macht rampStep() in der Hauptschleife.
+// Gentle change of the radio volume (ducking): start, target and duration; rampStep() makes the steps in the main loop.
+
+struct VolRamp {
+    bool on = false;
+    int from = 0;
+    int to = 0;
+    int now = 0;
+    unsigned long t0 = 0;
+    int ms = 0;
+};
+VolRamp volRamp;
+
+// Der Radio-Pegel ist wegen einer laufenden Ansage abgesenkt.
+// The radio level is lowered because of a running announcement.
+
+bool mixDucked = false;
+
+void ensureAudio() {
+    if (audio) return;
+    audio = new Audio();
+    Audio::audio_info_callback = onAudioEvent;
+    audio->setPinout(pinAllowed(cfg.bclk) ? cfg.bclk : DEFAULT_PIN_BCLK, pinAllowed(cfg.lrc) ? cfg.lrc : DEFAULT_PIN_LRC, pinAllowed(cfg.din) ? cfg.din : DEFAULT_PIN_DIN);
+    audio->setVolumeSteps(VOLUME_MAX * VOL_FINE);
+    audio->setVolume(currentVolume * VOL_FINE);
+    volRamp.on = false;
+    volRamp.now = currentVolume * VOL_FINE;
+    logLine("[AUDIO] created, free heap " + String(ESP.getFreeHeap()));
+}
+
+void releaseAudio() {
+    mixStop();
+    if (!audio) return;
+    audio->stopSong();
+    delete audio;
+    audio = nullptr;
+    if (audioEvtQueue) xQueueReset(audioEvtQueue);
+    logLine("[AUDIO] released, free heap " + String(ESP.getFreeHeap()));
+}
+
+bool titleBoost = false;
+int titleSavedVol = 0;
+int titleBoostVol = 0;
+
+void applyVolume(int v);
+
+// Beendet eine Lautstaerke-Anhebung durch die Titelregel.
+// Ends a volume raise made by the title rule.
+
+void titleBoostEnd() {
+    if (!titleBoost) return;
+    titleBoost = false;
+    applyVolume(titleSavedVol);
+}
+
+void applyVolume(int v) {
+    if (v < 0) v = 0;
+    if (v > VOLUME_MAX) v = VOLUME_MAX;
+    currentVolume = v;
+    volChangedAt = millis();
+    if (streamActive && nowKind == "radio" && !mixDucked) wantRadioVol = v;
+    volRamp.on = false;
+    volRamp.now = v * VOL_FINE;
+    if (audio) audio->setVolume(v * VOL_FINE);
+}
+
+// Ziel in feinen Einheiten (Lautstaerke mal VOL_FINE).
+// Target in fine units (volume times VOL_FINE).
+
+void volRampTo(int to, int ms) {
+    if (!audio) return;
+    volRamp.from = volRamp.now;
+    volRamp.now = volRamp.from;
+    volRamp.to = to;
+    volRamp.ms = ms;
+    volRamp.t0 = millis();
+    volRamp.on = true;
+}
+
+void volRampStep() {
+    if (!volRamp.on) return;
+    if (!audio) {
+        volRamp.on = false;
+        return;
+    }
+    unsigned long dt = millis() - volRamp.t0;
+    int v = volRamp.to;
+    if (volRamp.ms > 0 && dt < (unsigned long)volRamp.ms) v = volRamp.from + (int)((long)(volRamp.to - volRamp.from) * (long)dt / volRamp.ms);
+    if (v != volRamp.now) {
+        volRamp.now = v;
+        audio->setVolume(v);
+    }
+    if (dt >= (unsigned long)volRamp.ms) volRamp.on = false;
+}
+
+// Aendert die Lautstaerke sanft: bei laufendem Ton wandert sie in ms (Standard cfg.volRampMs) zum neuen Wert, sonst gilt der Wert sofort.
+// Waehrend einer Ansage bleibt das Radio entsprechend abgesenkt, beim Einblenden wird nur das Ziel geaendert.
+// Changes the volume gently: while sound is playing it moves to the new value within ms (default cfg.volRampMs), otherwise the value applies at once.
+// During an announcement the radio stays lowered accordingly, during a fade-in only the target changes.
+
+void applyVolumeSmooth(int v, int ms = -1) {
+    if (v < 0) v = 0;
+    if (v > VOLUME_MAX) v = VOLUME_MAX;
+    if (ms < 0) ms = cfg.volRampMs;
+    if (ms > VOLUME_RAMP_MAX_MS) ms = VOLUME_RAMP_MAX_MS;
+    if (fadeInWaiting || fadeInActive) {
+        fadeInTarget = v;
+        return;
+    }
+    if (!audio || playState != PS_PLAYING) {
+        applyVolume(v);
+        return;
+    }
+    currentVolume = v;
+    volChangedAt = millis();
+    if (streamActive && nowKind == "radio" && !mixDucked) wantRadioVol = v;
+    volRampTo(mixDucked ? v * VOL_FINE * cfg.duckPct / 100 : v * VOL_FINE, ms);
+}
+
+// Anzeigename des Streams: gespeicherter Name des Platzes, sonst der Sendername aus den Metadaten, sonst der Host der URL.
+// Display name of the stream: stored name of the slot, otherwise the station name from the metadata, otherwise the host of the URL.
+
+String stationDisplayName() {
+    for (int i = 0; i < RADIO_SLOTS; i++) {
+        if (cfg.radioUrl[i].length() > 0 && cfg.radioUrl[i] == streamUrl && cfg.radioName[i].length() > 0) return cfg.radioName[i];
+    }
+    if (nowName.length() > 0) return nowName;
+    String host = streamUrl;
+    int p = host.indexOf("://");
+    if (p >= 0) host = host.substring(p + 3);
+    int slash = host.indexOf('/');
+    if (slash >= 0) host = host.substring(0, slash);
+    return host;
+}
+
+String nowText() {
+    if (playState == PS_IDLE || nowKind.isEmpty()) return "";
+    if (nowKind == "radio") return stationDisplayName() + (nowTitle.length() > 0 ? " - " + nowTitle : "");
+    if (nowKind == "file") return nowFile;
+    return "Ansage";
+}
+
+void queueResumeIfNeeded() {
+    if (resumeUrl.isEmpty() || pending.type != PEND_NONE || annCount > 0) return;
+    pending.type = PEND_URL;
+    pending.text = resumeUrl;
+    pending.vol = -1;
+    pending.resume = true;
+    pending.force = false;
+    logLine("[PLAY] resuming stream " + resumeUrl);
+}
+
+// Im Leerlauf gilt wieder die allgemeine Lautstaerke, ausser eine Fortsetzung oder ein neuer Befehl wartet schon.
+// When idle the general volume applies again, unless a resume or a new command is already waiting.
+
+void settleVolume() {
+    if (pending.type == PEND_NONE && resumeUrl.isEmpty() && annCount == 0 && currentVolume != cfg.vol) applyVolume(cfg.vol);
+}
+
+void setIdle() {
+    mixStop();
+    titleBoostEnd();
+    streamWaitingReady = false;
+    playState = PS_IDLE;
+    nowKind = "";
+    publishStatus();
+    queueResumeIfNeeded();
+    settleVolume();
+}
+
+void stopPlayback() {
+    mixStop();
+    titleBoostEnd();
+    if (audio) audio->stopSong();
+    if (audioEvtQueue) xQueueReset(audioEvtQueue);
+    streamActive = false;
+    streamWaitingReady = false;
+    nowKind = "";
+    playState = PS_IDLE;
+}
+
+void failPlayback(const String& msg) {
+    lastError = msg;
+    logLine("[PLAY] " + msg);
+    nowKind = "";
+    playState = PS_IDLE;
+    publishStatus(true);
+    queueResumeIfNeeded();
+    settleVolume();
+}
+
+// SD-Karte (SPI): Dateien der Karte werden mit "sd:/Ordner/Datei.mp3" angesprochen, ein Name mit "/" am Ende bedeutet den ganzen Ordner.
+// SD card (SPI): files of the card are addressed as "sd:/folder/file.mp3", a name ending in "/" means the whole folder.
+
+SPIClass sdSpi(FSPI);
+SemaphoreHandle_t sdMutex = nullptr;
+bool sdReady = false;
+String sdState = "off";
+
+// Bindet die Karte (neu) ein; ohne Karte oder bei ausgeschaltetem SD bleibt sdReady falsch, alles andere laeuft weiter.
+// Mounts the card (again); without a card or with SD switched off sdReady stays false, everything else keeps running.
+
+void sdStopAll();
+
+bool sdMount() {
+    sdStopAll();
+    if (sdMutex) xSemaphoreTake(sdMutex, pdMS_TO_TICKS(3000));
+    if (sdReady) SD.end();
+    sdReady = false;
+    sdSpi.end();
+    if (!cfg.sdOn) {
+        sdState = "off";
+    } else {
+        sdSpi.begin(cfg.sdSck, cfg.sdMiso, cfg.sdMosi, cfg.sdCs);
+        if (SD.begin(cfg.sdCs, sdSpi, 16000000) && SD.cardType() != CARD_NONE) {
+            sdReady = true;
+            const char* t = SD.cardType() == CARD_SD ? "SD" : (SD.cardType() == CARD_SDHC ? "SDHC" : "card");
+            sdState = String(t);
+            logLine("[SD] " + sdState + " mounted, " + String((unsigned long)(SD.cardSize() / 1048576ULL)) + " MB");
+        } else {
+            SD.end();
+            sdSpi.end();
+            sdState = "no card";
+            logLine("[SD] no card or mount failed (CS " + String(cfg.sdCs) + ", SCK " + String(cfg.sdSck) + ", MOSI " + String(cfg.sdMosi) + ", MISO " + String(cfg.sdMiso) + ")");
+        }
+    }
+    if (sdMutex) xSemaphoreGive(sdMutex);
+    return sdReady;
+}
+
+// Listet einen Ordner der Karte (nur Ordner und MP3-Dateien), Ordner zuerst, dann nach Name.
+// Lists a folder of the card (only folders and MP3 files), folders first, then by name.
+
+bool sdListDir(String dir, std::vector<SdEntry>& out) {
+    if (!sdReady) return false;
+    if (!dir.startsWith("/")) dir = "/" + dir;
+    if (dir.length() > 1 && dir.endsWith("/")) dir.remove(dir.length() - 1);
+    if (dir.indexOf("..") >= 0 || dir.length() > 160) return false;
+    if (xSemaphoreTake(sdMutex, pdMS_TO_TICKS(2000)) != pdTRUE) return false;
+    File d = SD.open(dir.c_str());
+    bool ok = d && d.isDirectory();
+    if (ok) {
+        File e = d.openNextFile();
+        while (e && (int)out.size() < SD_LIST_MAX) {
+            String n = String(e.name());
+            n = n.substring(n.lastIndexOf('/') + 1);
+            bool isDir = e.isDirectory();
+            bool show = !n.startsWith(".") && n != "System Volume Information";
+            if (show && !isDir) {
+                String l = n;
+                l.toLowerCase();
+                show = l.endsWith(".mp3");
+            }
+            if (show) out.push_back(SdEntry{n, isDir, (uint32_t)e.size()});
+            e.close();
+            esp_task_wdt_reset();
+            e = d.openNextFile();
+        }
+        if (e) e.close();
+    }
+    if (d) d.close();
+    xSemaphoreGive(sdMutex);
+    std::sort(out.begin(), out.end(), [](const SdEntry& a, const SdEntry& b) {
+        if (a.dir != b.dir) return a.dir;
+        String x = a.name, y = b.name;
+        x.toLowerCase();
+        y.toLowerCase();
+        return x < y;
+    });
+    return ok;
+}
+
+// Namen auf der Karte: Umlaute werden umschrieben, Leerzeichen werden zu Unterstrichen, sonst nur Buchstaben, Ziffern und . - _ ( ).
+// Dateien muessen auf .mp3 enden (zu lange Namen behalten die Endung); leer = nicht erlaubt.
+// Names on the card: umlauts are transliterated, spaces become underscores, otherwise only letters, digits and . - _ ( ).
+// Files must end in .mp3 (names that are too long keep the extension); empty = not allowed.
+
+String sdCleanName(const String& name, bool isFile) {
+    String out;
+    for (size_t i = 0; i < name.length() && out.length() < 120; i++) {
+        uint8_t c = (uint8_t)name[i];
+        if (c == 0xC3 && i + 1 < name.length()) {
+            uint8_t d = (uint8_t)name[++i];
+            if (d == 0xA4) out += "ae";
+            else if (d == 0xB6) out += "oe";
+            else if (d == 0xBC) out += "ue";
+            else if (d == 0x84) out += "Ae";
+            else if (d == 0x96) out += "Oe";
+            else if (d == 0x9C) out += "Ue";
+            else if (d == 0x9F) out += "ss";
+            continue;
+        }
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.' || c == '-' || c == '_' || c == '(' || c == ')') out += (char)c;
+        else if (c == ' ') out += '_';
+    }
+    while (out.startsWith(".")) out.remove(0, 1);
+    if (isFile) {
+        String l = out;
+        l.toLowerCase();
+        if (!l.endsWith(".mp3")) return "";
+        if (out.length() > 100) out = out.substring(0, 96) + ".mp3";
+    } else if (out.length() > 60) {
+        out = out.substring(0, 60);
+    }
+    return out;
+}
+
+bool sdPathOk(const String& p) {
+    return p.startsWith("/") && p.length() <= 160 && p.indexOf("..") < 0 && p.indexOf("//") < 0 && p.indexOf('\\') < 0;
+}
+
+// Ordner samt Inhalt loeschen; der Aufrufer haelt die Sperre.
+// Delete a folder together with its content; the caller holds the lock.
+
+bool sdRemoveTree(const String& path, int depth) {
+    if (depth > 8) return false;
+    File d = SD.open(path.c_str());
+    if (!d) return false;
+    if (!d.isDirectory()) {
+        d.close();
+        return SD.remove(path.c_str());
+    }
+    std::vector<String> names;
+    File e = d.openNextFile();
+    while (e) {
+        String n = String(e.name());
+        names.push_back(n.substring(n.lastIndexOf('/') + 1));
+        e.close();
+        esp_task_wdt_reset();
+        e = d.openNextFile();
+    }
+    d.close();
+    bool ok = true;
+    for (size_t i = 0; i < names.size(); i++) {
+        ok = sdRemoveTree(path + "/" + names[i], depth + 1) && ok;
+        esp_task_wdt_reset();
+    }
+    return SD.rmdir(path.c_str()) && ok;
+}
+
+// Loest einen Dateinamen aus einem Befehl auf: "sd:/Pfad.mp3" liegt auf der Karte, alles andere im Ordner /mp3 des Geraets.
+// Resolves a file name from a command: "sd:/path.mp3" is on the card, everything else in the /mp3 folder of the device.
+
+FileRef resolveFile(String name) {
+    FileRef r;
+    name.trim();
+    if (name.startsWith("sd:")) {
+        r.sd = true;
+        name.remove(0, 3);
+        if (!name.startsWith("/")) name = "/" + name;
+        r.path = name;
+        r.shown = "sd:" + name;
+        String l = name;
+        l.toLowerCase();
+        if (!sdReady || name.indexOf("..") >= 0 || name.length() > 160 || !l.endsWith(".mp3")) return r;
+        if (xSemaphoreTake(sdMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+            r.ok = SD.exists(name.c_str());
+            xSemaphoreGive(sdMutex);
+        }
+        return r;
+    }
+    if (name.startsWith("/")) name.remove(0, 1);
+    if (name.startsWith("mp3/")) name.remove(0, 4);
+    r.path = String(MP3_DIR) + "/" + name;
+    r.shown = name;
+    r.ok = fsReady && !name.isEmpty() && name.indexOf("..") < 0 && LittleFS.exists(r.path);
+    return r;
+}
+
+// Ein- und Ausblenden einer Ansage oder Datei, die ohne Radio ueber den Audio-Weg laeuft. Die Dauer ist die Einstellung
+// "Radio aus-/einblenden", bei kurzen Dateien hoechstens ein Viertel der geschaetzten Laenge.
+// Fade-in and fade-out of an announcement or file that plays through the audio path without radio. The duration is the
+// setting "Radio aus-/einblenden", for short files at most a quarter of the estimated length.
+
+int annFadeMs = 0;
+bool annFadeOutDone = false;
+
+void annFadePrepare(const String& path, bool sd = false) {
+    annFadeOutDone = false;
+    annFadeMs = 0;
+    if (cfg.fadeMs <= 0 || !audio) return;
+    File f = sd ? SD.open(path.c_str(), FILE_READ) : LittleFS.open(path, FILE_READ);
+    size_t size = f ? f.size() : 0;
+    if (f) f.close();
+    int ms = cfg.fadeMs;
+    if (size > 0) {
+        int cap = (int)(size / 16) / 4;
+        if (cap < 80) cap = 80;
+        if (ms > cap) ms = cap;
+    }
+    annFadeMs = ms;
+    audio->setVolume(0);
+    volRamp.on = false;
+    volRamp.now = 0;
+}
+
+void annFadeStart() {
+    if (annFadeMs > 0 && audio) volRampTo(currentVolume * VOL_FINE, annFadeMs);
+}
+
+void annFadeWatch() {
+    if (annFadeMs <= 0 || annFadeOutDone || !audio || playState != PS_PLAYING) return;
+    if (!(nowKind == "speech" || nowKind == "file")) return;
+    if (millis() - playStartMillis < 300) return;
+    uint32_t size = audio->getFileSize();
+    uint32_t pos = audio->getAudioFilePosition();
+    uint32_t bitrate = audio->getBitRate();
+    if (size == 0 || bitrate < 8000) return;
+    if (pos < size / 2) return;
+    uint32_t bytesLeft = size > pos ? size - pos : 0;
+    uint32_t remainMs = (uint32_t)((uint64_t)bytesLeft * 8000ULL / bitrate);
+    if (remainMs <= (uint32_t)annFadeMs) {
+        annFadeOutDone = true;
+        volRampTo(0, remainMs > 60 ? (int)remainMs : 60);
+    }
+}
+
+void startFile(String name) {
+    FileRef r = resolveFile(name);
+    if (!r.ok) {
+        failPlayback(String(r.sd && !sdReady ? "SD card not available: " : "File not found: ") + r.path);
+        return;
+    }
+    String path = r.path;
+    stopPlayback();
+    lastError = "";
+    ensureAudio();
+    annFadePrepare(path, r.sd);
+    fs::FS& useFs = r.sd ? (fs::FS&)SD : (fs::FS&)LittleFS;
+    if (audio->connecttoFS(useFs, path.c_str())) {
+        annFadeStart();
+        playStartMillis = millis();
+        playState = PS_PLAYING;
+        nowKind = "file";
+        nowFile = r.shown;
+        logLine("[PLAY] file " + (r.sd ? "sd:" : String()) + path);
+        publishStatus(true);
+    } else {
+        failPlayback("Cannot play file " + path);
+    }
+}
+
+void startUrl(const String& url) {
+    resumeUrl = "";
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        failPlayback("URL must start with http:// or https://");
+        return;
+    }
+    if (WiFi.status() != WL_CONNECTED) {
+        failPlayback("No WiFi connection");
+        return;
+    }
+    stopPlayback();
+    lastError = "";
+    playState = PS_LOADING;
+    loadStartMillis = millis();
+    publishStatus(true);
+    ensureAudio();
+    if (audio->connecttohost(url.c_str())) {
+        playStartMillis = millis();
+        playState = PS_PLAYING;
+        streamUrl = url;
+        streamActive = true;
+        streamWaitingReady = true;
+        streamWaitSince = millis();
+        streamLastFill = 0;
+        nowKind = "radio";
+        nowName = "";
+        nowTitle = "";
+        titleBoost = false;
+        logLine("[PLAY] url " + url);
+        publishStatus(true);
+    } else {
+        failPlayback("Cannot open URL");
+    }
+}
+
+// Laedt den Sprachtext von VoiceRSS als MP3 nach TTS_FILE. VoiceRSS meldet Fehler (falscher Schluessel, Limit) als Text
+// "ERROR: ..." mit HTTP 200, deshalb wird der Dateianfang geprueft.
+
+// Downloads the speech from VoiceRSS as MP3 to TTS_FILE. VoiceRSS reports errors (wrong key, limit) as text
+// "ERROR: ..." with HTTP 200, so the start of the file is checked.
+
+bool downloadSpeech(const String& url, String& errorOut) {
+    WiFiClientSecure client;
+    client.setInsecure();
+    HTTPClient http;
+
+    // HTTP/1.0 vermeidet "chunked"-Antworten; so laesst sich die Datei selbst lesen, mit Zeitlimit und Watchdog.
+    // HTTP/1.0 avoids "chunked" responses; this way the file can be read by hand, with a deadline and the watchdog.
+
+    http.useHTTP10(true);
+    http.setTimeout(TTS_HTTP_TIMEOUT_MS);
+    http.setConnectTimeout(TTS_HTTP_TIMEOUT_MS);
+    if (!http.begin(client, url)) {
+        errorOut = "HTTP begin failed";
+        return false;
+    }
+    esp_task_wdt_reset();
+    int code = http.GET();
+    esp_task_wdt_reset();
+    if (code != HTTP_CODE_OK) {
+        errorOut = "VoiceRSS HTTP " + String(code) + (code < 0 ? " (" + http.errorToString(code) + ")" : "");
+        http.end();
+        return false;
+    }
+    LittleFS.remove(TTS_FILE);
+    File f = LittleFS.open(TTS_FILE, FILE_WRITE);
+    if (!f) {
+        errorOut = "Cannot write " TTS_FILE;
+        http.end();
+        return false;
+    }
+    int total = http.getSize();
+    NetworkClient* stream = http.getStreamPtr();
+    // Der Puffer liegt auf dem Heap: der Stapel der Hauptschleife wird beim TLS-Verbindungsaufbau schon stark gebraucht.
+    // The buffer lives on the heap: the stack of the main loop is already heavily used during the TLS handshake.
+
+    uint8_t* buf = (uint8_t*)malloc(1024);
+    if (!buf) {
+        errorOut = "Out of memory";
+        f.close();
+        http.end();
+        return false;
+    }
+    size_t written = 0;
+    unsigned long start = millis();
+    unsigned long lastData = millis();
+    bool ok = true;
+    while (http.connected() || stream->available() > 0) {
+        esp_task_wdt_reset();
+        int avail = stream->available();
+        if (avail > 0) {
+            int n = stream->readBytes(buf, avail > 1024 ? 1024 : avail);
+            if (n <= 0) continue;
+            if (f.write(buf, n) != (size_t)n) {
+                errorOut = "Flash full or write error";
+                ok = false;
+                break;
+            }
+            written += n;
+            lastData = millis();
+            if (written > TTS_MAX_BYTES) {
+                errorOut = "Response too large";
+                ok = false;
+                break;
+            }
+            if (total >= 0 && written >= (size_t)total) break;
+        } else {
+            if (total >= 0 && written >= (size_t)total) break;
+            if (millis() - lastData > TTS_HTTP_TIMEOUT_MS) {
+                errorOut = "Download stalled";
+                ok = false;
+                break;
+            }
+            delay(5);
+        }
+        if (millis() - start > TTS_DEADLINE_MS) {
+            errorOut = "Download too slow";
+            ok = false;
+            break;
+        }
+    }
+    free(buf);
+    f.close();
+    http.end();
+    esp_task_wdt_reset();
+    if (!ok) return false;
+    if (written == 0) {
+        errorOut = "Empty response";
+        return false;
+    }
+    File r = LittleFS.open(TTS_FILE, FILE_READ);
+    char head[96];
+    size_t n = r ? r.readBytes(head, sizeof(head) - 1) : 0;
+    if (r) r.close();
+    head[n] = 0;
+    if (n >= 5 && strncmp(head, "ERROR", 5) == 0) {
+        errorOut = String(head);
+        errorOut.trim();
+        return false;
+    }
+    return true;
+}
+
+// Baut die Anfrage-URL fuer VoiceRSS aus Text, Sprache, Stimme und Geschwindigkeit.
+// Builds the request URL for VoiceRSS from text, language, voice and rate.
+
+String buildSpeechUrl(const Pending& p) {
+    String lang = p.lang.length() > 0 ? p.lang : cfg.vlang;
+    String voice = p.voice.length() > 0 ? p.voice : cfg.vvoice;
+    int rate = p.rate != 99 ? p.rate : cfg.vrate;
+    if (rate < -10) rate = -10;
+    if (rate > 10) rate = 10;
+    String url = "https://api.voicerss.org/?key=" + urlEncode(cfg.vkey) + "&hl=" + urlEncode(lang) + "&r=" + String(rate) +
+                 "&c=MP3&f=" + urlEncode(cfg.vfmt) + "&src=" + urlEncode(p.text);
+    if (voice.length() > 0) url += "&v=" + urlEncode(voice);
+    logLine("[VOICERSS] free heap " + String(ESP.getFreeHeap()) + ", request lang=" + lang + " voice=" + voice + " chars=" + String(p.text.length()));
+    return url;
+}
+
+// Mischer: Eine Ansage oder MP3-Datei wird in einem eigenen Task dekodiert und im Audio-Task zum laufenden Webradio addiert.
+// Das Radio laeuft ohne Unterbrechung weiter und ist waehrenddessen leiser (Ducking).
+// Mixer: an announcement or MP3 file is decoded in its own task and added to the running web radio in the audio task.
+// The radio keeps playing without interruption and is quieter meanwhile (ducking).
+
+#define MIX_RING_FRAMES 16384
+#define MIX_RING_MASK (MIX_RING_FRAMES - 1)
+
+int16_t* mixRing = nullptr;
+std::atomic<uint32_t> mixWr(0);
+std::atomic<uint32_t> mixRd(0);
+volatile bool mixActive = false;
+volatile bool mixInUse = false;
+volatile bool mixProducerDone = false;
+volatile bool mixAbortFlag = false;
+volatile bool mixTaskRunning = false;
+volatile bool mixDrained = false;
+volatile uint32_t mixSrcRate = 0;
+volatile uint32_t mixOutRate = 44100;
+volatile uint32_t mixPhase = 0;
+volatile int32_t mixGainQ15 = 0;
+String mixPath;
+bool mixOnSd = false;
+volatile bool mixInHook = false;
+bool mixPending = false;
+unsigned long mixActivateAt = 0;
+uint32_t mixLastRd = 0;
+unsigned long mixLastProgress = 0;
+
+// Lautstaerkekurve der Audio-Bibliothek (VOLUME_MAX Stufen, -60 bis 0 dB), damit Ansage und Radio gleich laut klingen.
+// Volume curve of the audio library (VOLUME_MAX steps, -60 to 0 dB), so announcement and radio sound equally loud.
+
+int32_t mixGainFor(int vol) {
+    if (vol <= 0) return 0;
+    float t = (float)vol / (float)VOLUME_MAX;
+    if (t > 1.0f) t = 1.0f;
+    float dB = -112.0f * t * t * t + 172.0f * t * t - 60.0f;
+    if (dB < -60.0f) dB = -60.0f;
+    if (dB > 0.0f) dB = 0.0f;
+    return (int32_t)(powf(10.0f, dB / 20.0f) * 32768.0f);
+}
+
+// Wird im Audio-Task vor jeder I2S-Ausgabe aufgerufen: addiert die Ansage (umgerechnet auf die Rate des Radios) zu den Radio-Samples.
+// Called in the audio task before every I2S output: adds the announcement (converted to the rate of the radio) to the radio samples.
+
+void audio_process_i2s(int32_t* buf, int16_t words, bool* continueI2S) {
+    if (!mixActive) return;
+    mixInHook = true;
+    int16_t* ring = mixRing;
+    uint32_t srcRate = mixSrcRate;
+    uint32_t outRate = mixOutRate;
+    if (!mixActive || !ring || srcRate == 0 || outRate == 0) {
+        mixInHook = false;
+        return;
+    }
+    uint32_t step = (uint32_t)(((uint64_t)srcRate << 16) / outRate);
+    uint32_t rd = mixRd.load(std::memory_order_relaxed);
+    uint32_t wr = mixWr.load(std::memory_order_acquire);
+    uint32_t phase = mixPhase;
+    int32_t g = mixGainQ15;
+    int frames = words / 2;
+    for (int i = 0; i < frames; i++) {
+        if (wr - rd < 2) {
+            wr = mixWr.load(std::memory_order_acquire);
+            if (wr - rd < 2) {
+                if (mixProducerDone) mixDrained = true;
+                break;
+            }
+        }
+        const int16_t* a = ring + (rd & MIX_RING_MASK) * 2;
+        const int16_t* b = ring + ((rd + 1) & MIX_RING_MASK) * 2;
+        int32_t frac = (int32_t)((phase & 0xFFFF) >> 2);
+        int32_t l = a[0] + (((int32_t)b[0] - a[0]) * frac >> 14);
+        int32_t r = a[1] + (((int32_t)b[1] - a[1]) * frac >> 14);
+        int64_t sl = (int64_t)buf[2 * i] + (int64_t)((l * g) << 1);
+        int64_t sr = (int64_t)buf[2 * i + 1] + (int64_t)((r * g) << 1);
+        if (sl > INT32_MAX) sl = INT32_MAX;
+        if (sl < INT32_MIN) sl = INT32_MIN;
+        if (sr > INT32_MAX) sr = INT32_MAX;
+        if (sr < INT32_MIN) sr = INT32_MIN;
+        buf[2 * i] = (int32_t)sl;
+        buf[2 * i + 1] = (int32_t)sr;
+        phase += step;
+        rd += phase >> 16;
+        phase &= 0xFFFF;
+    }
+    mixPhase = phase;
+    mixRd.store(rd, std::memory_order_release);
+    mixInHook = false;
+}
+
+// Lese-Task: MP3 aus dem Dateisystem lesen, mit dem Dekoder der Bibliothek in PCM wandeln und in den Ringpuffer schreiben.
+// Reader task: read the MP3 from the file system, convert it to PCM with the decoder of the library and write it to the ring buffer.
+
+// Lesen aus der Datei des Mischers; auf der SD-Karte unter dem Sperrzeichen, weil die Weboberflaeche sie zugleich auflisten kann.
+// Reading from the file of the mixer; on the SD card under the lock because the web interface may list it at the same time.
+
+int mixRead(File& f, uint8_t* buf, size_t len) {
+    if (mixOnSd) xSemaphoreTake(sdMutex, portMAX_DELAY);
+    int n = f.read(buf, len);
+    if (mixOnSd) xSemaphoreGive(sdMutex);
+    return n;
+}
+
+void mixSeek(File& f, uint32_t pos) {
+    if (mixOnSd) xSemaphoreTake(sdMutex, portMAX_DELAY);
+    f.seek(pos);
+    if (mixOnSd) xSemaphoreGive(sdMutex);
+}
+
+void mixTask(void*) {
+    File f = mixOnSd ? SD.open(mixPath.c_str(), FILE_READ) : LittleFS.open(mixPath, FILE_READ);
+    uint8_t* in = (uint8_t*)malloc(MIX_IN_BYTES);
+    int32_t* out = (int32_t*)malloc(1152 * 2 * sizeof(int32_t));
+    MP3Decoder* dec = nullptr;
+    if (f && in && out && audio) {
+        dec = new MP3Decoder(*audio);
+        if (!dec->init()) {
+            delete dec;
+            dec = nullptr;
+        }
+    }
+    if (dec) {
+        uint8_t hdr[10];
+        if (mixRead(f, hdr, 10) == 10 && memcmp(hdr, "ID3", 3) == 0) {
+            uint32_t sz = ((uint32_t)(hdr[6] & 0x7f) << 21) | ((uint32_t)(hdr[7] & 0x7f) << 14) | ((uint32_t)(hdr[8] & 0x7f) << 7) | (uint32_t)(hdr[9] & 0x7f);
+            mixSeek(f, 10 + sz);
+        } else {
+            mixSeek(f, 0);
+        }
+        int have = 0;
+        bool eof = false;
+        bool first = true;
+        int errors = 0;
+        while (!mixAbortFlag) {
+            if (have < MIX_REFILL_BELOW && !eof) {
+                int n = mixRead(f, in + have, MIX_IN_BYTES - have);
+                if (n <= 0) eof = true;
+                else have += n;
+            }
+            if (have < 4) break;
+            int32_t sync = dec->findSyncWord(in, have);
+            if (sync < 0) {
+                have = 0;
+                if (eof) break;
+                continue;
+            }
+            if (sync > 0) {
+                memmove(in, in + sync, have - sync);
+                have -= sync;
+            }
+            int32_t left = have;
+            int32_t res = dec->decode(in, &left, out);
+            int used = have - left;
+            if (res == 0) {
+                uint32_t frames = dec->getOutputSamples();
+                if (frames > 1152) frames = 1152;
+                if (frames > 0) {
+                    if (first) {
+                        mixSrcRate = dec->getSampleRate();
+                        first = false;
+                    }
+                    while (!mixAbortFlag && MIX_RING_FRAMES - (mixWr.load(std::memory_order_relaxed) - mixRd.load(std::memory_order_acquire)) < frames + 1) vTaskDelay(3);
+                    if (mixAbortFlag) break;
+                    uint32_t w = mixWr.load(std::memory_order_relaxed);
+                    for (uint32_t i = 0; i < frames; i++) {
+                        int16_t* d = mixRing + ((w + i) & MIX_RING_MASK) * 2;
+                        d[0] = (int16_t)(out[2 * i] >> 16);
+                        d[1] = (int16_t)(out[2 * i + 1] >> 16);
+                    }
+                    mixWr.store(w + frames, std::memory_order_release);
+                }
+                errors = 0;
+            } else if (++errors > 100) {
+                break;
+            }
+            if (used <= 0) used = 1;
+            if (used > have) used = have;
+            have -= used;
+            if (have > 0) memmove(in, in + used, have);
+            vTaskDelay(1);
+        }
+    }
+    if (dec) delete dec;
+    if (f) f.close();
+    free(in);
+    free(out);
+    mixProducerDone = true;
+    mixTaskRunning = false;
+    vTaskDelete(nullptr);
+}
+
+// Haelt den Mischer an: Task beenden, Speicher freigeben; die Radio-Lautstaerke bleibt unveraendert.
+// Halts the mixer: end the task, free the memory; the radio volume stays unchanged.
+
+void mixHalt() {
+    if (!mixInUse) return;
+    mixActive = false;
+    mixPending = false;
+    mixAbortFlag = true;
+    for (int i = 0; i < 100 && mixTaskRunning; i++) delay(10);
+    mixAbortFlag = false;
+    for (int i = 0; i < 50 && mixInHook; i++) delay(2);
+    delay(5);
+    if (mixRing) {
+        heap_caps_free(mixRing);
+        mixRing = nullptr;
+    }
+    mixInUse = false;
+}
+
+// Beendet den Mischer und blendet das Radio wieder auf die vorherige Lautstaerke auf.
+// Ends the mixer and fades the radio back up to its previous volume.
+
+void mixStop() {
+    bool was = mixInUse;
+    mixHalt();
+    if (mixDucked && annCount == 0) {
+        volRampTo(currentVolume * VOL_FINE, cfg.fadeMs);
+        mixDucked = false;
+    }
+    if (was) logLine(annCount > 0 ? String("[MIX] announcement finished, next one waiting, radio stays lowered") : "[MIX] announcement finished, radio back to volume " + String(currentVolume));
+}
+
+// Startet den Mischer fuer eine MP3-Datei; false, wenn Speicher oder Dekoder fehlen (dann gilt der normale Weg ueber Unterbrechen).
+// Starts the mixer for an MP3 file; false if memory or decoder is missing (the normal way via interrupting then applies).
+
+bool mixStart(const String& path, int vol, bool sd = false) {
+    mixHalt();
+    if (!audio) return false;
+    mixRing = (int16_t*)heap_caps_malloc(MIX_RING_FRAMES * 2 * sizeof(int16_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!mixRing) return false;
+    mixInUse = true;
+    mixPath = path;
+    mixOnSd = sd;
+    mixWr = 0;
+    mixRd = 0;
+    mixPhase = 0;
+    mixSrcRate = 0;
+    mixDrained = false;
+    mixProducerDone = false;
+    mixAbortFlag = false;
+    mixOutRate = audio->getSampleRate();
+    mixGainQ15 = mixGainFor(vol);
+    mixTaskRunning = true;
+    if (mixOutRate == 0 || xTaskCreatePinnedToCore(mixTask, "mixdec", 12288, nullptr, 1, nullptr, 1) != pdPASS) {
+        mixTaskRunning = false;
+        mixStop();
+        return false;
+    }
+    unsigned long t0 = millis();
+    while (millis() - t0 < 1500 && mixTaskRunning && (mixWr.load() - mixRd.load()) < MIX_PREFILL_FRAMES) {
+        delay(5);
+        esp_task_wdt_reset();
+    }
+    if (mixWr.load() < 2) {
+        mixStop();
+        return false;
+    }
+    mixLastRd = 0;
+    mixLastProgress = millis();
+    int duck = currentVolume * VOL_FINE * cfg.duckPct / 100;
+    volRampTo(duck, cfg.fadeMs);
+    mixDucked = true;
+    mixPending = true;
+    mixActivateAt = millis() + (unsigned long)cfg.fadeMs * 6 / 10;
+    logLine("[MIX] " + path + " mixed over the radio, announcement volume " + String(vol) + ", radio " + String(currentVolume) + " -> " + String(duck / VOL_FINE) + ", source " + String(mixSrcRate) + " Hz, output " + String(mixOutRate) + " Hz");
+    return true;
+}
+
+// Kann eine Ansage oder Datei jetzt ueber das laufende Radio gemischt werden?
+// Can an announcement or file be mixed over the running radio now?
+
+bool mixPossible() {
+    return cfg.mixAnn && audio && streamActive && playState == PS_PLAYING && nowKind == "radio" && !streamWaitingReady && !fadeInWaiting && !fadeInActive && audio->isRunning();
+}
+
+// Meldet einen Fehler, ohne das laufende Radio anzutasten.
+// Reports an error without touching the running radio.
+
+void announceFail(const String& msg) {
+    lastError = msg;
+    logLine("[PLAY] " + msg);
+    if (mixDucked && annCount == 0) {
+        volRampTo(currentVolume * VOL_FINE, cfg.fadeMs);
+        mixDucked = false;
+    }
+    publishStatus(true);
+}
+
+// Prueft laufend, ob die Ansage zu Ende ist oder der Mischer haengt.
+// Continuously checks whether the announcement has ended or the mixer is stuck.
+
+void mixWatch() {
+    volRampStep();
+    if (!mixInUse) return;
+    if (mixPending && millis() >= mixActivateAt) {
+        mixPending = false;
+        mixActive = true;
+        mixLastProgress = millis();
+    }
+    uint32_t rd = mixRd.load();
+    if (rd != mixLastRd) {
+        mixLastRd = rd;
+        mixLastProgress = millis();
+    }
+    bool empty = mixProducerDone && (mixWr.load() - rd) < 2;
+    bool stuck = mixActive && (mixWr.load() - rd) > 0 && millis() - mixLastProgress > 4000;
+    if (empty || mixDrained || stuck || !audio || playState != PS_PLAYING || !streamActive) mixStop();
+}
+
+// Ansage ueber das Radio mischen: Text laden, dann mit dem Mischer ueber das laufende Radio legen. false = normaler Weg.
+// Mix an announcement over the radio: download the text, then lay it over the running radio with the mixer. false = normal way.
+
+bool speakMixed(const Pending& p) {
+    if (cfg.vkey.isEmpty()) {
+        announceFail("VoiceRSS API key is not set");
+        return true;
+    }
+    if (WiFi.status() != WL_CONNECTED) {
+        announceFail("No WiFi connection");
+        return true;
+    }
+    mixHalt();
+    lastError = "";
+    voiceBusy = true;
+    voiceEver = true;
+    publishStatus(true);
+    String err;
+    bool ok = downloadSpeech(buildSpeechUrl(p), err);
+    voiceBusy = false;
+    voiceLastOk = ok;
+    if (!ok) {
+        announceFail("VoiceRSS: " + err);
+        return true;
+    }
+    if (!mixPossible()) {
+        announceFail("Radio stopped while the announcement was loading");
+        return true;
+    }
+    if (!mixStart(TTS_FILE, p.vol >= 0 ? p.vol : cfg.vol)) {
+        announceFail("Mixer not available");
+        return true;
+    }
+    publishStatus(true);
+    return true;
+}
+
+// Datei ueber das Radio mischen; false, wenn die Datei kein Fall fuer den Mischer ist (dann der normale Weg).
+// Mix a file over the radio; false if the file is not a case for the mixer (then the normal way).
+
+bool fileMixed(const Pending& p) {
+    FileRef r = resolveFile(p.text);
+    if (!r.ok) {
+        announceFail(String(r.sd && !sdReady ? "SD card not available: " : "File not found: ") + r.path);
+        return true;
+    }
+    lastError = "";
+    if (!mixStart(r.path, p.vol >= 0 ? p.vol : cfg.vol, r.sd)) return false;
+    nowFile = r.shown;
+    publishStatus(true);
+    return true;
+}
+
+// Beendet Wiedergabe und Mischer, die gerade von der Karte lesen (vor dem Neu-Einbinden).
+// Ends playback and mixer that are reading from the card right now (before mounting again).
+
+void sdStopAll() {
+    if (mixInUse && mixOnSd) mixStop();
+    if (nowKind == "file" && playState != PS_IDLE && nowFile.startsWith("sd:")) stopPlayback();
+}
+
+// Beendet die Wiedergabe oder den Mischer, wenn die Datei oder eine Datei im Ordner der Karte gerade benutzt wird.
+// Ends playback or the mixer if the file, or a file in the folder, on the card is being used right now.
+
+void sdStopIfUsing(const String& path) {
+    String shown = "sd:" + path;
+    if (mixInUse && mixOnSd && (mixPath == path || mixPath.startsWith(path + "/"))) mixStop();
+    if (nowKind == "file" && playState != PS_IDLE && (nowFile == shown || nowFile.startsWith(shown + "/"))) stopPlayback();
+}
+
+// Beendet nur dann die Wiedergabe, wenn genau diese Datei gerade gespielt oder gemischt wird.
+// Stops playback only if exactly this file is being played or mixed right now.
+
+void stopIfUsing(const String& name) {
+    String path = String(MP3_DIR) + "/" + name;
+    if (mixInUse && mixPath == path) mixStop();
+    if (nowKind == "file" && nowFile == name && playState != PS_IDLE) stopPlayback();
+}
+
+void speakText(const Pending& p) {
+    if (cfg.vkey.isEmpty()) {
+        failPlayback("VoiceRSS API key is not set");
+        return;
+    }
+    if (WiFi.status() != WL_CONNECTED) {
+        failPlayback("No WiFi connection");
+        return;
+    }
+    stopPlayback();
+    releaseAudio();
+    lastError = "";
+    voiceBusy = true;
+    voiceEver = true;
+    playState = PS_LOADING;
+    loadStartMillis = millis();
+    publishStatus(true);
+    String url = buildSpeechUrl(p);
+    String err;
+    bool ok = downloadSpeech(url, err);
+    voiceBusy = false;
+    voiceLastOk = ok;
+    if (!ok) {
+        failPlayback("VoiceRSS: " + err);
+        return;
+    }
+    applyVolume(p.vol >= 0 ? p.vol : cfg.vol);
+    ensureAudio();
+    annFadePrepare(TTS_FILE);
+    if (audio->connecttoFS(LittleFS, TTS_FILE)) {
+        annFadeStart();
+        playStartMillis = millis();
+        playState = PS_PLAYING;
+        nowKind = "speech";
+        logLine("[VOICERSS] playing");
+        publishStatus(true);
+    } else {
+        failPlayback("Cannot play " TTS_FILE);
+    }
+}
+
+void fadeInStep() {
+    if (!fadeInWaiting && !fadeInActive) return;
+    if (!audio) {
+        fadeInWaiting = false;
+        fadeInActive = false;
+        return;
+    }
+    if (fadeInWaiting && millis() - fadeInStart > 10000UL) {
+        fadeInWaiting = false;
+        applyVolume(fadeInTarget);
+        return;
+    }
+    if (!fadeInActive) return;
+    unsigned long dt = millis() - fadeInStart;
+    if (fadeInMs <= 0 || dt >= (unsigned long)fadeInMs) {
+        fadeInActive = false;
+        applyVolume(fadeInTarget);
+        return;
+    }
+    int fine = (int)((long)fadeInTarget * VOL_FINE * (long)dt / fadeInMs);
+    if (fine != volRamp.now) {
+        volRamp.now = fine;
+        audio->setVolume(fine);
+        currentVolume = (fine + VOL_FINE / 2) / VOL_FINE;
+        volChangedAt = millis();
+    }
+}
+
+// Blendet den laufenden Stream in ms Millisekunden auf Lautstaerke 0 aus. currentVolume bleibt unveraendert, damit die Fortsetzung die alte Lautstaerke kennt.
+// Fades the running stream to volume 0 over ms milliseconds. currentVolume stays unchanged so the resume knows the old volume.
+
+void fadeOutStream(int ms) {
+    if (!audio || ms <= 0 || currentVolume <= 0 || playState != PS_PLAYING) return;
+    volRamp.on = false;
+    int start = volRamp.now;
+    unsigned long t0 = millis();
+    while (millis() - t0 < (unsigned long)ms) {
+        int v = start - (int)((long)start * (long)(millis() - t0) / ms);
+        audio->setVolume(v < 0 ? 0 : v);
+        audio->loop();
+        esp_task_wdt_reset();
+        delay(10);
+    }
+    audio->setVolume(0);
+    volRamp.now = 0;
+}
+
+// Laeuft gerade keine Ansage oder Datei (und wird keine geladen oder gemischt)?
+// Is no announcement or file running right now (and none being loaded or mixed)?
+
+bool announceBusy() {
+    return voiceBusy || mixInUse || ((nowKind == "speech" || nowKind == "file") && playState != PS_IDLE);
+}
+
+// Holt den naechsten Eintrag aus der Warteschlange, sobald die vorige Ansage oder Datei zu Ende ist.
+// Takes the next entry from the queue as soon as the previous announcement or file has ended.
+
+void processQueue() {
+    if (annCount == 0 || pending.type != PEND_NONE || announceBusy() || playState == PS_LOADING) return;
+    Pending next;
+    if (annPop(next)) pending = next;
+}
+
+void processPending() {
+    if (pending.type == PEND_NONE) return;
+    Pending p = pending;
+    pending.type = PEND_NONE;
+    pending.resume = false;
+    pending.force = false;
+
+    // Wird der Sender gewaehlt, der schon laeuft, spielt er einfach weiter: kein Ausblenden, kein Neustart. Ein ausdruecklicher Wert (vol) gilt trotzdem.
+    // If the station that is already running is chosen, it simply keeps playing: no fade, no restart. An explicit value (vol) still applies.
+
+    if (p.type == PEND_URL && !p.resume && !p.force && streamActive && playState == PS_PLAYING && p.text == streamUrl) {
+        if (p.vol >= 0) {
+            applyVolumeSmooth(p.vol);
+        }
+        wantRadioUrl = p.text;
+        logLine("[PLAY] same station selected, keeps playing");
+        return;
+    }
+    if (!p.resume) {
+        fadeInWaiting = false;
+        fadeInActive = false;
+    }
+
+    // Laeuft ein Webradio, wird eine Ansage oder MP3-Datei leise darueber gemischt; das Radio laeuft ohne Unterbrechung weiter.
+    // If a web radio is running, an announcement or MP3 file is mixed over it quietly; the radio keeps playing without interruption.
+
+    bool mixable = p.type == PEND_SAY;
+    if (p.type == PEND_FILE) {
+        String lowerName = p.text;
+        lowerName.toLowerCase();
+        mixable = lowerName.endsWith(".mp3");
+    }
+    if (mixInUse && !(mixable && mixPossible())) {
+        mixHalt();
+        mixDucked = false;
+        volRamp.on = false;
+    }
+    if (mixable && mixPossible()) {
+        bool handled = p.type == PEND_SAY ? speakMixed(p) : fileMixed(p);
+        if (handled) return;
+    }
+
+    if (mixDucked) {
+        mixDucked = false;
+        volRamp.on = false;
+    }
+
+    // Stream merken, bevor Ansage oder Datei ihn stoppen; die Lautstaerke der Ansage ersetzt nur zeitweise die des Streams.
+    // Remember the stream before an announcement or file stops it; the announcement volume only temporarily replaces the stream volume.
+
+    if ((p.type == PEND_SAY || p.type == PEND_FILE) && streamActive && playState != PS_IDLE) {
+        resumeUrl = streamUrl;
+        resumeVolume = (fadeInWaiting || fadeInActive) ? fadeInTarget : currentVolume;
+        logLine("[PLAY] stream paused for announcement");
+        fadeOutStream(cfg.fadeMs);
+    }
+    bool switching = false;
+    if (p.type == PEND_URL && !p.resume && !p.force && streamActive && playState == PS_PLAYING && cfg.switchFadeMs > 0) {
+        fadeOutStream(cfg.switchFadeMs);
+        switching = true;
+        logLine("[PLAY] station change, faded out");
+    }
+    if (p.resume) {
+        if (cfg.fadeMs > 0 && resumeVolume > 0) {
+            fadeInMs = cfg.fadeMs;
+            fadeInTarget = resumeVolume;
+            applyVolume(0);
+            fadeInWaiting = true;
+            fadeInActive = false;
+            fadeInStart = millis();
+        } else {
+            applyVolume(resumeVolume);
+        }
+    } else if (p.type == PEND_URL || p.type == PEND_FILE) {
+
+        // Reihenfolge der Lautstaerke: ausdruecklicher Wert, sonst Wert des Senders (steckt schon in p.vol), sonst die allgemeine.
+        // Order of the volume: explicit value, otherwise the value of the station (already in p.vol), otherwise the general one.
+
+        int target = p.vol >= 0 ? p.vol : cfg.vol;
+
+        // Jeder Start einer URL (aus dem Leerlauf oder als Senderwechsel nach dem Ausblenden) beginnt leise und blendet ein.
+        // Every start of a URL (from idle or as a station change after the fade-out) begins silent and fades in.
+
+        if (p.type == PEND_URL && cfg.switchFadeMs > 0 && target > 0) {
+            fadeInMs = cfg.switchFadeMs;
+            fadeInTarget = target;
+            applyVolume(0);
+            fadeInWaiting = true;
+            fadeInActive = false;
+            fadeInStart = millis();
+        } else {
+            applyVolume(target);
+        }
+    }
+    switch (p.type) {
+        case PEND_SAY: speakText(p); break;
+        case PEND_URL:
+            wantRadioUrl = p.text;
+            wantRadioVol = p.vol;
+            wantRadioLive = true;
+            startUrl(p.text);
+            break;
+        case PEND_FILE: startFile(p.text); break;
+        case PEND_STOP:
+            saveRadioState("", -1);
+            annClear();
+            resumeUrl = "";
+            wantRadioUrl = "";
+            lastError = "";
+
+            // Ein laufendes Webradio wird vor dem Stopp langsam ausgeblendet; Ansagen und Dateien stoppen sofort.
+            // A running web radio is faded out slowly before the stop; announcements and files stop immediately.
+
+            if (streamActive && playState == PS_PLAYING) fadeOutStream(cfg.switchFadeMs);
+            stopPlayback();
+            logLine("[PLAY] stopped");
+            publishStatus(true);
+            settleVolume();
+            break;
+        default: break;
+    }
+}
+
+// Meldet das Ende einer Wiedergabe, auch wenn die Audio-Bibliothek keinen Rueckruf liefert.
+// Detects the end of a playback even if the audio library gives no callback.
+
+void playbackWatch() {
+    if (playState == PS_PLAYING && millis() - playStartMillis > 1500 && audio && !audio->isRunning()) {
+        logLine("[PLAY] finished");
+        setIdle();
+    }
+
+    // Kein Ton (Dekoder nicht bereit) nach Start oder "Stream lost": Der Server liefert nichts, die Bibliothek wartet ohne Zeitlimit.
+    // Dann den Stream selbst neu verbinden (ausdruecklich erzwungen, auch wenn es dieselbe URL ist).
+    // No sound (decoder not ready) after the start or "Stream lost": the server delivers nothing and the library waits without a limit.
+    // Then reconnect the stream ourselves (explicitly forced, even if it is the same URL).
+
+    if (streamWaitingReady && streamActive && playState == PS_PLAYING && audio) {
+
+        // Kommen noch Daten an (der Eingangspuffer aendert sich), ist der Server nur langsam: weiter warten.
+        // If data is still arriving (the input buffer changes), the server is just slow: keep waiting.
+
+        uint32_t fill = audio->inBufferFilled();
+        if (fill != streamLastFill) {
+            streamLastFill = fill;
+            streamWaitSince = millis();
+        }
+    }
+    unsigned long stallLimit = STREAM_READY_TIMEOUT_MS << (streamStalls > 3 ? 3 : streamStalls);
+    if (stallLimit > STREAM_READY_TIMEOUT_MAX_MS) stallLimit = STREAM_READY_TIMEOUT_MAX_MS;
+    if (streamWaitingReady && streamActive && playState == PS_PLAYING && pending.type == PEND_NONE && millis() - streamWaitSince > stallLimit) {
+        logLine("[PLAY] no sound or data for " + String(stallLimit / 1000) + " s, reconnecting " + streamUrl);
+        streamStalls++;
+        streamWaitingReady = false;
+        pending.type = PEND_URL;
+        pending.text = streamUrl;
+        pending.vol = wantRadioVol;
+        pending.resume = false;
+        pending.force = true;
+    }
+
+    // Haengt das Laden (Verbindung, Download) laenger als LOAD_TIMEOUT_MS, wird abgebrochen und das Audio-Objekt neu aufgebaut.
+    // If loading (connection, download) hangs longer than LOAD_TIMEOUT_MS, it is aborted and the audio object is rebuilt.
+
+    if (playState == PS_LOADING && millis() - loadStartMillis > LOAD_TIMEOUT_MS) {
+        releaseAudio();
+        failPlayback("Timeout while loading");
+    }
+}
+
+// Reisst ein Live-Webradio ab (WLAN weg, Server weg), wird es mit wachsendem Abstand neu verbunden, bis jemand stoppt.
+// If a live web radio drops (WiFi gone, server gone), it is reconnected with growing delays until someone stops it.
+
+void radioKeepAlive() {
+    if (safeMode || wantRadioUrl.isEmpty() || !wantRadioLive) return;
+    if (playState == PS_PLAYING && millis() - playStartMillis > RADIO_STABLE_MS) radioRetryDelay = RADIO_RETRY_START_MS;
+    if (playState != PS_IDLE || !resumeUrl.isEmpty() || pending.type != PEND_NONE || WiFi.status() != WL_CONNECTED) {
+        radioRetryAt = 0;
+        return;
+    }
+    unsigned long now = millis();
+    if (radioRetryAt == 0) {
+        radioRetryAt = now + radioRetryDelay;
+        return;
+    }
+    if (now < radioRetryAt) return;
+    radioRetryAt = 0;
+    radioRetryDelay = radioRetryDelay * 2 > RADIO_RETRY_MAX_MS ? RADIO_RETRY_MAX_MS : radioRetryDelay * 2;
+    logLine("[PLAY] radio reconnect " + wantRadioUrl);
+    pending.type = PEND_URL;
+    pending.text = wantRadioUrl;
+    pending.vol = wantRadioVol;
+    pending.resume = false;
+    pending.force = false;
+}
+// Ereignisse der Audio-Bibliothek (kommen aus audio->loop()): ins Log schreiben, Ende der Wiedergabe melden.
+// Events of the audio library (they come from audio->loop()): write them to the log, report the end of playback.
+
+// Titelregel: enthaelt der Titel des Webradios eines der eingestellten Stichworte, wird die Lautstaerke angehoben; beim naechsten Titel
+// oder beim Ende des Senders gilt wieder die vorherige Lautstaerke. Stichworte stehen durch Komma oder Semikolon getrennt, jedes
+// kann mit "=Wert" seine eigene Lautstaerke haben (zum Beispiel "Cambodia=90, Thunder"), sonst gilt die Lautstaerke der Regel.
+// Title rule: if the title of the web radio contains one of the configured keywords, the volume is raised; with the next title or
+// at the end of the station the previous volume applies again. Keywords are separated by comma or semicolon, each can have its
+// own volume with "=value" (for example "Cambodia=90, Thunder"), otherwise the volume of the rule applies.
+
+bool titleRuleMatch(const String& title, String& keywordOut, int& volOut) {
+    String t = title;
+    t.toLowerCase();
+    String rest = cfg.titleMatch;
+    while (rest.length() > 0) {
+        int cut = -1;
+        for (size_t i = 0; i < rest.length(); i++) {
+            if (rest[i] == ',' || rest[i] == ';') {
+                cut = (int)i;
+                break;
+            }
+        }
+        String token = cut >= 0 ? rest.substring(0, cut) : rest;
+        rest = cut >= 0 ? rest.substring(cut + 1) : String();
+        token.trim();
+        int vol = cfg.titleVol;
+        int eq = token.lastIndexOf('=');
+        if (eq > 0 && eq < (int)token.length() - 1) {
+            String num = token.substring(eq + 1);
+            num.trim();
+            bool digits = num.length() > 0;
+            for (size_t i = 0; i < num.length(); i++) {
+                if (num[i] < '0' || num[i] > '9') digits = false;
+            }
+            if (digits) {
+                vol = constrain((int)num.toInt(), 0, VOLUME_MAX);
+                token = token.substring(0, eq);
+                token.trim();
+            }
+        }
+        if (token.isEmpty()) continue;
+        String k = token;
+        k.toLowerCase();
+        if (t.indexOf(k) >= 0) {
+            keywordOut = token;
+            volOut = vol;
+            return true;
+        }
+    }
+    return false;
+}
+
+void titleRule(const String& title) {
+    if (mixInUse) return;
+    String keyword;
+    int vol = cfg.titleVol;
+    bool hit = nowKind == "radio" && cfg.titleMatch.length() > 0 && title.length() > 0 && titleRuleMatch(title, keyword, vol);
+    if (hit && !titleBoost) {
+        titleBoost = true;
+
+        // Kommt der Titel schon beim Einblenden, ist currentVolume noch niedrig: dann gilt das Ziel des Einblendens als vorherige Lautstaerke.
+        // If the title arrives during the fade-in, currentVolume is still low: then the target of the fade-in counts as the previous volume.
+
+        titleSavedVol = (fadeInWaiting || fadeInActive) ? fadeInTarget : currentVolume;
+        titleBoostVol = vol;
+        applyVolumeSmooth(vol);
+        logLine("[TITLE] \"" + keyword + "\" matched, volume " + String(titleSavedVol) + " -> " + String(vol));
+        publishStatus(true);
+    } else if (hit && titleBoost && vol != titleBoostVol) {
+        titleBoostVol = vol;
+        applyVolumeSmooth(vol);
+        logLine("[TITLE] \"" + keyword + "\" matched, volume -> " + String(vol));
+        publishStatus(true);
+    } else if (!hit && titleBoost) {
+        titleBoost = false;
+        applyVolumeSmooth(titleSavedVol);
+        logLine("[TITLE] title changed, volume back to " + String(titleSavedVol));
+        publishStatus(true);
+    }
+}
+
+void onAudioEvent(Audio::msg_t m) {
+    if (!audioEvtQueue) return;
+    AudioEvt e;
+    e.type = (uint8_t)m.e;
+    strlcpy(e.text, m.msg ? m.msg : "", sizeof(e.text));
+    xQueueSend(audioEvtQueue, &e, 0);
+}
+
+void handleAudioEvent(uint8_t type, const String& text) {
+    if (type == (uint8_t)Audio::evt_eof) {
+        logLine("[AUDIO] end: " + text);
+        setIdle();
+    } else if (type == (uint8_t)Audio::evt_name) {
+        nowName = text;
+        publishStatus();
+    } else if (type == (uint8_t)Audio::evt_streamtitle) {
+        nowTitle = text;
+        titleRule(text);
+        publishStatus();
+    } else if (type == (uint8_t)Audio::evt_info || type == (uint8_t)Audio::evt_log) {
+        if (text.indexOf("Stream lost") >= 0 && streamActive) {
+            streamWaitingReady = true;
+            streamWaitSince = millis();
+        }
+        if (text.indexOf("stream ready") >= 0 || text.indexOf("MP3Decoder has been initialized") >= 0) {
+            streamWaitingReady = false;
+            streamStalls = 0;
+        }
+        int lenAt = text.indexOf("Audio-Length:");
+        if (lenAt >= 0 && nowKind == "radio") wantRadioLive = (text.substring(lenAt + 13).toInt() == 0);
+        if (fadeInWaiting && text.indexOf("stream ready") >= 0) {
+            fadeInWaiting = false;
+            fadeInActive = true;
+            fadeInStart = millis();
+        }
+        logLine("[AUDIO] " + text);
+    }
+}
+
+// Arbeitet die Ereignisse der Audio-Bibliothek in der Hauptschleife ab (hoechstens 16 pro Durchlauf).
+// Handles the events of the audio library in the main loop (at most 16 per pass).
+
+void audioEventPump() {
+    if (!audioEvtQueue) return;
+    AudioEvt e;
+    for (int n = 0; n < 16 && xQueueReceive(audioEvtQueue, &e, 0) == pdTRUE; n++) handleAudioEvent(e.type, String(e.text));
+}
+
+// ---------------------------------------------------------------------------
+// WLAN / WiFi
+
+bool wifiHasCredentials() {
+    for (int i = 0; i < 3; i++) {
+        if (cfg.ssid[i].length() > 0) return true;
+    }
+    return false;
+}
+
+void startMdns() {
+    MDNS.end();
+    if (MDNS.begin(cfg.host.c_str())) {
+        MDNS.addService("http", "tcp", 80);
+        logLine("[mDNS] http://" + cfg.host + ".local/");
+    }
+}
+
+bool connectWifi() {
+    for (int i = 0; i < 3; i++) {
+        if (cfg.ssid[i].isEmpty()) continue;
+        logLine("[WiFi] Connect to: " + cfg.ssid[i]);
+        WiFi.begin(cfg.ssid[i].c_str(), cfg.pass[i].c_str());
+        unsigned long start = millis();
+        while (millis() - start < WIFI_CONNECT_TIMEOUT_MS && WiFi.status() != WL_CONNECTED) {
+            esp_task_wdt_reset();
+            delay(250);
+        }
+        if (WiFi.status() == WL_CONNECTED) {
+            WiFi.setSleep(false);
+            logLine("[WiFi] Connected to: " + cfg.ssid[i]);
+            logLine("[WiFi] IP address: " + WiFi.localIP().toString());
+            startMdns();
+            return true;
+        }
+        logLine("[WiFi] Connection failed or timed out");
+        WiFi.disconnect();
+    }
+    return false;
+}
+
+void startAccessPoint() {
+    String name = String(PROJECT_NAME) + "-setup-" + cfg.host.substring(cfg.host.length() > 6 ? cfg.host.length() - 6 : 0);
+    WiFi.mode(WIFI_AP_STA);
+    WiFi.softAP(name.c_str());
+    apActive = true;
+    logLine("[WiFi] Access point " + name + " started, http://192.168.4.1/");
+}
+
+// Ereignisse des WLAN-Treibers: hier nur Merker setzen, die Arbeit macht wifiWatch() in der Hauptschleife.
+// Events of the WiFi driver: only set flags here, wifiWatch() does the work in the main loop.
+
+void onWifiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
+    if (event == ARDUINO_EVENT_WIFI_STA_GOT_IP) gotIpFlag = true;
+    if (event == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) lastDisconnectReason = info.wifi_sta_disconnected.reason;
+}
+
+int firstWifiSlot(int from) {
+    for (int k = from; k < 3; k++) {
+        if (cfg.ssid[k].length() > 0) return k;
+    }
+    return -1;
+}
+
+void startWifiAttempt(int idx) {
+    wifiTryIdx = idx;
+    wifiTryStart = millis();
+    logLine("[WiFi] Connect to: " + cfg.ssid[idx]);
+    WiFi.disconnect(false);
+    WiFi.begin(cfg.ssid[idx].c_str(), cfg.pass[idx].c_str());
+}
+
+// Sofort neu versuchen, zum Beispiel nach geaenderten Zugangsdaten.
+// Retry immediately, for example after changed credentials.
+
+void wifiRetryNow() {
+    wifiNextTry = 0;
+    wifiTryIdx = -1;
+    wifiBackoff = WIFI_BACKOFF_START_MS;
+}
+
+// Haelt das WLAN: der Treiber verbindet selbst neu; bleibt die Verbindung weg, probiert dies der Reihe nach alle gespeicherten
+// Netze ohne die Hauptschleife zu blockieren, mit wachsendem Abstand. Nach WIFI_RESTART_AFTER_MS ohne WLAN: Neustart.
+// Keeps the WiFi: the driver reconnects by itself; if the connection stays away, this tries all stored networks in turn
+// without blocking the main loop, with growing delays. After WIFI_RESTART_AFTER_MS without WiFi: restart.
+
+void wifiWatch() {
+    unsigned long now = millis();
+    if (WiFi.status() == WL_CONNECTED) {
+        if (gotIpFlag || wifiLostAt != 0) {
+            gotIpFlag = false;
+            if (wifiLostAt != 0) {
+                wifiReconnects++;
+                logLine("[WiFi] reconnected after " + String((now - wifiLostAt) / 1000) + " s, IP " + WiFi.localIP().toString());
+            }
+            wifiLostAt = 0;
+            wifiTryIdx = -1;
+            wifiBackoff = WIFI_BACKOFF_START_MS;
+            WiFi.setSleep(false);
+            startMdns();
+
+            // Nach dem Wiederkommen sofort MQTT neu verbinden.
+            // Reconnect MQTT right away once the WiFi is back.
+
+            lastMqttTry = 0;
+            mqttBackoff = MQTT_BACKOFF_START_MS;
+        }
+        if (apActive) {
+            WiFi.softAPdisconnect(true);
+            WiFi.mode(WIFI_STA);
+            apActive = false;
+            logLine("[WiFi] Access point stopped");
+        }
+        return;
+    }
+    if (!wifiHasCredentials()) return;
+    if (wifiLostAt == 0) {
+        wifiLostAt = now;
+        wifiNextTry = now + WIFI_FIRST_RETRY_MS;
+        logLine("[WiFi] connection lost, reason " + String((int)lastDisconnectReason));
+    }
+    if (!apActive && now - wifiLostAt > WIFI_RESTART_AFTER_MS) {
+        logLine("[WiFi] no connection for " + String((now - wifiLostAt) / 1000) + " s, restarting");
+        delay(200);
+        ESP.restart();
+    }
+    if (wifiTryIdx >= 0) {
+        if (now - wifiTryStart < WIFI_ATTEMPT_TIMEOUT_MS) return;
+        logLine("[WiFi] attempt to " + cfg.ssid[wifiTryIdx] + " timed out");
+        int next = firstWifiSlot(wifiTryIdx + 1);
+        if (next >= 0) {
+            startWifiAttempt(next);
+        } else {
+            wifiTryIdx = -1;
+            wifiNextTry = now + wifiBackoff;
+            wifiBackoff = wifiBackoff * 2 > WIFI_BACKOFF_MAX_MS ? WIFI_BACKOFF_MAX_MS : wifiBackoff * 2;
+        }
+        return;
+    }
+    if (now >= wifiNextTry) startWifiAttempt(firstWifiSlot(0));
+}
+// Zugangsdaten per USB: Zeile "WIFI:<SSID><Tab><Passwort>"; nur wenn noch kein Passwort gespeichert ist.
+// Credentials via USB: line "WIFI:<SSID><Tab><password>"; only while no password is stored yet.
+
+void checkSerialWifi() {
+    if (cfg.pass[0].length() > 0) return;
+    unsigned long start = millis();
+    String line;
+    while (millis() - start < SERIAL_PROVISION_WINDOW_MS) {
+        esp_task_wdt_reset();
+        while (Serial.available()) {
+            char c = (char)Serial.read();
+            if (c != '\n') {
+                if (c != '\r' && line.length() < 120) line += c;
+                continue;
+            }
+            if (line.startsWith("WIFI:")) {
+                int tab = line.indexOf('\t');
+                String ssid = tab > 0 ? line.substring(5, tab) : line.substring(5);
+                String pass = tab > 0 ? line.substring(tab + 1) : "";
+                if (ssid.length() >= 1 && ssid.length() <= 32 && (pass.isEmpty() || (pass.length() >= 8 && pass.length() <= 63))) {
+                    cfg.ssid[0] = ssid;
+                    cfg.pass[0] = pass;
+                    prefs.putString("ssid1", ssid);
+                    prefs.putString("pass1", pass);
+                    Serial.println("[PROV] ok");
+                    logLine("[PROV] WiFi saved: " + ssid);
+                    return;
+                }
+                Serial.println("[PROV] error");
+            }
+            line = "";
+        }
+        delay(20);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Befehle / commands
+
+// Gemeinsame Befehle fuer REST-API und MQTT: pruefen, in die Warteschlange stellen; Rueckgabe leer = angenommen, sonst Fehlertext.
+// Shared commands for the REST API and MQTT: validate, queue; empty return = accepted, otherwise the error text.
+
+String commandSay(const String& textIn, const String& lang, const String& voice, int rate, int vol) {
+    String text = textIn;
+    text.trim();
+    if (text.isEmpty()) return "Kein Text angegeben";
+    if (text.length() > TTS_MAX_CHARS) return "Text zu lang (max. " + String(TTS_MAX_CHARS) + " Zeichen)";
+    if (cfg.vkey.isEmpty()) return "Kein VoiceRSS-API-Schluessel gespeichert";
+    Pending q;
+    q.type = PEND_SAY;
+    q.text = text;
+    q.lang = lang;
+    q.voice = voice;
+    q.rate = rate;
+    q.vol = vol;
+    if (!annPush(q)) return "Warteschlange voll (max. " + String(ANN_QUEUE_LEN) + ")";
+    return "";
+}
+
+String commandPlayUrl(const String& urlIn, int vol) {
+    String url = urlIn;
+    url.trim();
+    if (!url.startsWith("http://") && !url.startsWith("https://")) return "URL muss mit http:// oder https:// beginnen";
+    pending.type = PEND_URL;
+    pending.text = url;
+    pending.vol = vol;
+    pending.resume = false;
+    pending.force = false;
+    return "";
+}
+
+// Legt alle MP3-Dateien eines Ordners der SD-Karte (nach Name sortiert) in die Warteschlange; es passen so viele hinein, wie frei sind.
+// Puts all MP3 files of a folder on the SD card (sorted by name) into the queue; as many fit as there are free places.
+
+String commandPlayDir(const String& refIn, int vol) {
+    String dir = refIn.substring(3);
+    if (!dir.startsWith("/")) dir = "/" + dir;
+    std::vector<SdEntry> list;
+    if (!sdReady) return "SD-Karte nicht verfuegbar";
+    if (!sdListDir(dir, list)) return "Ordner nicht gefunden";
+    if (!dir.endsWith("/")) dir += "/";
+    int queued = 0;
+    for (size_t i = 0; i < list.size(); i++) {
+        if (list[i].dir) continue;
+        Pending q;
+        q.type = PEND_FILE;
+        q.text = "sd:" + dir + list[i].name;
+        q.vol = vol;
+        if (!annPush(q)) break;
+        queued++;
+    }
+    if (queued == 0) return "Keine MP3-Dateien im Ordner (oder Warteschlange voll)";
+    return "";
+}
+
+String commandPlayFile(const String& nameIn, int vol) {
+    String name = nameIn;
+    name.trim();
+    if (name.isEmpty()) return "Kein Dateiname angegeben";
+    if (name.startsWith("sd:") && name.endsWith("/")) return commandPlayDir(name, vol);
+    Pending q;
+    q.type = PEND_FILE;
+    q.text = name;
+    q.vol = vol;
+    if (!annPush(q)) return "Warteschlange voll (max. " + String(ANN_QUEUE_LEN) + ")";
+    return "";
+}
+
+// Gespeicherten Platz abspielen: sel ist die Nummer 1 bis RADIO_SLOTS oder der Name (Gross-/Kleinschreibung egal).
+// Play a stored slot: sel is the number 1 to RADIO_SLOTS or the name (case does not matter).
+
+String commandPlayStation(const String& selIn, int vol) {
+    String sel = selIn;
+    sel.trim();
+    if (sel.isEmpty()) return "Platznummer oder Name angeben";
+    int slot = -1;
+    if (sel.toInt() >= 1 && sel.toInt() <= RADIO_SLOTS && String(sel.toInt()) == sel) {
+        slot = sel.toInt() - 1;
+    } else {
+        for (int i = 0; i < RADIO_SLOTS; i++) {
+            if (cfg.radioName[i].length() > 0 && cfg.radioName[i].equalsIgnoreCase(sel)) slot = i;
+        }
+    }
+    if (slot < 0) return "Platz nicht gefunden";
+    if (cfg.radioUrl[slot].isEmpty()) return "Platz " + String(slot + 1) + " ist leer";
+    return commandPlayUrl(cfg.radioUrl[slot], vol >= 0 ? vol : cfg.radioVol[slot]);
+}
+
+// Liste der gespeicherten Sender als JSON, fuer REST (/api/stations) und MQTT (.../stations).
+// List of the stored stations as JSON, for REST (/api/stations) and MQTT (.../stations).
+
+String stationsJson() {
+    String j = "{\"stations\":[";
+    bool first = true;
+    for (int i = 0; i < RADIO_SLOTS; i++) {
+        if (cfg.radioUrl[i].isEmpty()) continue;
+        if (!first) j += ",";
+        first = false;
+        j += "{\"n\":" + String(i + 1) + ",\"name\":\"" + jsonEscape(cfg.radioName[i]) + "\",\"url\":\"" + jsonEscape(cfg.radioUrl[i]) + "\",\"vol\":" + (cfg.radioVol[i] >= 0 ? String(cfg.radioVol[i]) : String("null")) + "}";
+    }
+    return j + "]}";
+}
+
+void commandStop() {
+    annClear();
+    pending.type = PEND_STOP;
+}
+
+void commandVolume(int v, int ms = -1) {
+    cfg.vol = constrain(v, 0, VOLUME_MAX);
+    prefs.putInt("vol", cfg.vol);
+    applyVolumeSmooth(cfg.vol, ms);
+}
+
+// Zahl aus Text; leer = Standardwert def.
+// Number from text; empty = default value def.
+
+int numberOr(const String& s, int def) {
+    return s.isEmpty() ? def : (int)s.toInt();
+}
+// ---------------------------------------------------------------------------
+// MQTT
+
+String playStateName() {
+    if (playState == PS_LOADING) return "loading";
+    if (playState == PS_PLAYING) return "playing";
+    return "idle";
+}
+
+void publishStatus(bool force) {
+    String now = nowText();
+    if (now != lastPublishedNow && mqttClient.connected()) {
+        lastPublishedNow = now;
+        mqttClient.publish((mqttBaseTopic() + "/now").c_str(), now.c_str(), true);
+    }
+    String state = playStateName();
+    if (lastError.length() > 0 && playState == PS_IDLE) state = "error: " + lastError;
+    if (!force && state == lastPublishedState) return;
+    lastPublishedState = state;
+    if (mqttClient.connected()) mqttClient.publish((mqttBaseTopic() + "/status").c_str(), state.c_str(), true);
+}
+
+// Befehle per MQTT: say (Text oder JSON), play (URL oder Dateiname, Text oder JSON), url, file, station (Platz oder Name), stop, volume. Fehler erscheinen in status.
+// Commands via MQTT: say (text or JSON), play (URL or file name, text or JSON), url, file, station (slot or name), stop, volume. Errors show up in status.
+
+void rejectCommand(const String& why) {
+    lastError = why;
+    logLine("[MQTT] rejected: " + why);
+    publishStatus(true);
+}
+
+// Veroeffentlicht die Senderliste (retained) unter <Basis>/stations; auch nach jeder Aenderung der Liste.
+// Publishes the station list (retained) under <base>/stations; also after every change of the list.
+
+void publishStations() {
+    if (!mqttClient.connected()) return;
+    mqttClient.publish((mqttBaseTopic() + "/stations").c_str(), stationsJson().c_str(), true);
+}
+
+// Meldet die Lautstaerken per MQTT (retained): <Basis>/volume/state = gerade wirkende, <Basis>/volume/general = allgemeine.
+// Reports the volumes via MQTT (retained): <base>/volume/state = currently effective, <base>/volume/general = general.
+
+void publishVolumes(bool force) {
+    if (!mqttClient.connected()) return;
+    if (force || currentVolume != lastPublishedVol) {
+        lastPublishedVol = currentVolume;
+        mqttClient.publish((mqttBaseTopic() + "/volume/state").c_str(), String(currentVolume).c_str(), true);
+    }
+    if (force || cfg.vol != lastPublishedGeneral) {
+        lastPublishedGeneral = cfg.vol;
+        mqttClient.publish((mqttBaseTopic() + "/volume/general").c_str(), String(cfg.vol).c_str(), true);
+    }
+}
+
+void onMqttMessage(char* topic, uint8_t* payload, unsigned int length) {
+    String t = String(topic);
+    String body;
+    body.reserve(length);
+    for (unsigned int i = 0; i < length; i++) body += (char)payload[i];
+    body.trim();
+    bool isJson = body.startsWith("{");
+    String base = mqttBaseTopic();
+    String err;
+    if (t == base + "/say") {
+        if (isJson) err = commandSay(jsonGet(body, "text"), jsonGet(body, "lang"), jsonGet(body, "voice"), numberOr(jsonGet(body, "rate"), 99), numberOr(jsonGet(body, "vol"), -1));
+        else err = commandSay(body, "", "", 99, -1);
+    } else if (t == base + "/play" || t == base + "/url" || t == base + "/file") {
+        String url = body, file = body;
+        int v = -1;
+        if (isJson) {
+            url = jsonGet(body, "url");
+            file = jsonGet(body, "file");
+            v = numberOr(jsonGet(body, "vol"), -1);
+        }
+        bool wantUrl = t == base + "/url" || (t == base + "/play" && (url.startsWith("http://") || url.startsWith("https://")));
+        if (t == base + "/file") wantUrl = false;
+        if (wantUrl) err = commandPlayUrl(url, v);
+        else err = commandPlayFile(file, v);
+    } else if (t == base + "/station") {
+        if (isJson) err = commandPlayStation(jsonGet(body, "name").length() > 0 ? jsonGet(body, "name") : jsonGet(body, "n"), numberOr(jsonGet(body, "vol"), -1));
+        else err = commandPlayStation(body, -1);
+    } else if (t == base + "/list") {
+        publishStations();
+    } else if (t == base + "/stop") {
+        commandStop();
+    } else if (t == base + "/volume") {
+        if (isJson) commandVolume(numberOr(jsonGet(body, "v"), cfg.vol), numberOr(jsonGet(body, "ms"), -1));
+        else commandVolume(body.toInt());
+    } else if (t == base + "/restart") {
+        // Eine beim Verbinden ausgelieferte (retained) Nachricht wuerde sonst eine Neustartschleife ausloesen.
+        // A (retained) message delivered right after connecting would otherwise cause a restart loop.
+
+        if (millis() - mqttSubscribedAt < MQTT_RESTART_IGNORE_MS) err = "restart ignored right after connecting (retained?)";
+        else {
+            logLine("[MQTT] restart requested");
+            restartAt = millis() + 300;
+        }
+    }
+    if (err.length() > 0) rejectCommand(err);
+}
+
+// Startet das Geraet neu, sobald der per MQTT angeforderte Zeitpunkt erreicht ist (die Antwort geht vorher raus).
+// Restarts the device once the time requested via MQTT is reached (the reply goes out first).
+
+void restartWatch() {
+    if (restartAt != 0 && (long)(millis() - restartAt) >= 0) {
+        if (mqttClient.connected()) mqttClient.disconnect();
+        ESP.restart();
+    }
+}
+// Adresse des Brokers einmal aufloesen und merken; ein Hostname wird nur bei Bedarf neu aufgeloest (DNS kann blockieren).
+// Resolve the broker address once and remember it; a host name is only resolved again when needed (DNS can block).
+
+bool resolveBroker() {
+    if (mqttIpValid && mqttIpFor == cfg.mqttServer) return true;
+    IPAddress ip;
+    if (!ip.fromString(cfg.mqttServer)) {
+        if (!WiFi.hostByName(cfg.mqttServer.c_str(), ip)) return false;
+    }
+    mqttIp = ip;
+    mqttIpFor = cfg.mqttServer;
+    mqttIpValid = true;
+    return true;
+}
+
+void mqttFailed(const String& why) {
+    logLine("[MQTT] " + why);
+    mqttIpValid = false;
+    mqttBackoff = mqttBackoff * 2 > MQTT_BACKOFF_MAX_MS ? MQTT_BACKOFF_MAX_MS : mqttBackoff * 2;
+}
+
+// Verbindungsaufbau mit kurzem TCP-Zeitlimit, damit die Hauptschleife (und damit der Ton) hoechstens kurz stockt.
+// Connecting with a short TCP timeout so the main loop (and with it the sound) only stalls briefly.
+
+void mqttConnect() {
+    if (!resolveBroker()) {
+        mqttFailed("cannot resolve " + cfg.mqttServer);
+        return;
+    }
+    mqttClient.setServer(mqttIp, cfg.mqttPort);
+    mqttNet.setConnectionTimeout(MQTT_TCP_TIMEOUT_MS);
+    if (!mqttNet.connected() && !mqttNet.connect(mqttIp, cfg.mqttPort)) {
+        mqttFailed("broker " + mqttIp.toString() + " not reachable");
+        return;
+    }
+    String base = mqttBaseTopic();
+    if (mqttClient.connect(defaultHost().c_str(), nullptr, nullptr, (base + "/availability").c_str(), 0, true, "offline")) {
+        mqttEverConnected = true;
+        mqttBackoff = MQTT_BACKOFF_START_MS;
+        if (mqttWasConnected) mqttReconnects++;
+        mqttWasConnected = true;
+        mqttClient.publish((base + "/availability").c_str(), "online", true);
+        mqttClient.subscribe((base + "/say").c_str());
+        mqttClient.subscribe((base + "/play").c_str());
+        mqttClient.subscribe((base + "/url").c_str());
+        mqttClient.subscribe((base + "/file").c_str());
+        mqttClient.subscribe((base + "/station").c_str());
+        mqttClient.subscribe((base + "/list").c_str());
+        mqttClient.subscribe((base + "/stop").c_str());
+        mqttClient.subscribe((base + "/volume").c_str());
+        mqttClient.subscribe((base + "/restart").c_str());
+        mqttSubscribedAt = millis();
+        logLine("[MQTT] Connected to " + cfg.mqttServer + ":" + String(cfg.mqttPort) + ", base " + base);
+        publishStatus(true);
+        publishStations();
+        publishVolumes(true);
+    } else {
+        mqttFailed("connect failed, rc=" + String(mqttClient.state()));
+    }
+}
+
+void mqttReconnectNow() {
+    if (mqttClient.connected()) mqttClient.disconnect();
+    mqttIpValid = false;
+    mqttBackoff = MQTT_BACKOFF_START_MS;
+    lastMqttTry = 0;
+}
+
+void mqttWatch() {
+    if (safeMode || cfg.mqttServer.isEmpty() || WiFi.status() != WL_CONNECTED) return;
+    if (mqttClient.connected()) {
+        mqttClient.loop();
+
+        // Erst veroeffentlichen, wenn die Lautstaerke 0,4 s ruhig ist (beim Ein- und Ausblenden aendert sie sich laufend).
+        // Publish only when the volume has been quiet for 0.4 s (it changes continuously while fading).
+
+        if (millis() - volChangedAt > 400) publishVolumes(false);
+        return;
+    }
+    if (mqttWasConnected) {
+        mqttWasConnected = false;
+        mqttNet.stop();
+        lastMqttTry = 0;
+        mqttBackoff = MQTT_BACKOFF_START_MS;
+        logLine("[MQTT] connection lost, rc=" + String(mqttClient.state()));
+    }
+
+    // Beim Abspielen seltener versuchen, damit jeder Versuch den Ton moeglichst selten stoeren kann.
+    // Try less often while playing so an attempt rarely disturbs the sound.
+
+    unsigned long interval = mqttBackoff;
+    if (playState == PS_PLAYING && interval < MQTT_BACKOFF_PLAYING_MS) interval = MQTT_BACKOFF_PLAYING_MS;
+    if (lastMqttTry != 0 && millis() - lastMqttTry < interval) return;
+    lastMqttTry = millis();
+    if (lastMqttTry == 0) lastMqttTry = 1;
+    mqttConnect();
+}
+// ---------------------------------------------------------------------------
+// Zeit und Statusanzeigen / time and status indicators
+
+void setupTime() {
+    configTzTime(cfg.tz.c_str(), cfg.ntp1.c_str(), cfg.ntp2.c_str());
+}
+
+// Zustand der Punkte in der Statusleiste: "ok", "syncing" (gelb blinkend), "playing" (gruen blinkend, nur Audio), "idle" (grau, nur Audio), "bad" oder "na".
+// State of the dots in the status bar: "ok", "syncing" (blinking amber), "playing" (blinking green, audio only), "idle" (gray, audio only), "bad" or "na".
+
+String audioDotState() {
+    if (playState == PS_PLAYING) return "playing";
+    if (playState == PS_LOADING) return "syncing";
+    if (lastError.length() > 0) return "bad";
+    return "idle";
+}
+
+String voiceDotState() {
+    if (voiceBusy) return "syncing";
+    if (!voiceEver) return "na";
+    return voiceLastOk ? "ok" : "bad";
+}
+
+String mqttDotState() {
+    return mqttClient.connected() ? "ok" : "bad";
+}
+
+String timeDotState() {
+    return timeIsValid() ? "ok" : "na";
+}
+
+// Zustand nach einem Neustart: Mit dem Haken "zuletzt gespielten Sender fortsetzen" merkt sich das Geraet den laufenden Sender und seine
+// Lautstaerke (erst wenn sie 3 s ruhig ist) und spielt ihn nach dem Start wieder ab; ein Stopp loescht den Merker.
+// State after a restart: with the checkbox "resume the last played station" the device remembers the running station and its volume
+// (once it has been quiet for 3 s) and plays it again after the start; a stop deletes the memory.
+
+void saveRadioState(const String& url, int vol) {
+    if (url == cfg.lastUrl && vol == cfg.lastVol) return;
+    cfg.lastUrl = url;
+    cfg.lastVol = vol;
+    prefs.putString("rsurl", url);
+    prefs.putInt("rsvol", vol);
+}
+
+void resumeStateWatch() {
+    static unsigned long lastCheck = 0;
+    if (millis() - lastCheck < 2000) return;
+    lastCheck = millis();
+    if (!cfg.resumeLast) return;
+    if (streamActive && nowKind == "radio" && playState == PS_PLAYING && !fadeInWaiting && !fadeInActive && !mixDucked && !titleBoost && millis() - volChangedAt > 3000 && wantRadioUrl == streamUrl) {
+        saveRadioState(streamUrl, currentVolume);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Autostart: Sender 1 der Liste abspielen, wenn das Haekchen gesetzt ist (Standard: aus). Das Geraet startet sonst immer stumm.
+// Autostart: play station 1 of the list if the checkbox is set (default: off). Otherwise the device always starts silent.
+
+bool autostartDone = false;
+unsigned long autostartNextTry = 0;
+int autostartTries = 0;
+unsigned long autostartWifiSince = 0;
+
+// Prueft kurz, ob der Stream antwortet (HTTP-Kopf, Weiterleitungen werden verfolgt); der Ton wird dabei nicht gelesen.
+// Briefly checks whether the stream answers (HTTP header, redirects are followed); the audio is not read.
+
+bool probeStream(const String& url) {
+    HTTPClient http;
+    WiFiClient plain;
+    WiFiClientSecure secure;
+    secure.setInsecure();
+    bool began = url.startsWith("https://") ? http.begin(secure, url) : http.begin(plain, url);
+    if (!began) return false;
+    http.setConnectTimeout(3000);
+    http.setTimeout(3000);
+    http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+    http.setRedirectLimit(3);
+    esp_task_wdt_reset();
+    int code = http.GET();
+    http.end();
+    esp_task_wdt_reset();
+    return code >= 200 && code < 300;
+}
+
+void autostartWatch() {
+    if ((!cfg.autoStart && !cfg.resumeLast) || autostartDone || safeMode) return;
+    if (WiFi.status() != WL_CONNECTED) {
+        autostartWifiSince = 0;
+        return;
+    }
+    unsigned long now = millis();
+    if (autostartWifiSince == 0) {
+        autostartWifiSince = now;
+        autostartNextTry = now + AUTOSTART_DELAY_MS;
+        return;
+    }
+
+    // Hat jemand inzwischen selbst etwas gestartet, entfaellt der Autostart.
+    // If somebody has started something in the meantime, the autostart is dropped.
+
+    if (playState != PS_IDLE || pending.type != PEND_NONE || wantRadioUrl.length() > 0) {
+        autostartDone = true;
+        logLine("[AUTOSTART] skipped, something was started already");
+        return;
+    }
+    if (now < autostartNextTry) return;
+    String asUrl = cfg.radioUrl[0];
+    int asVol = cfg.radioVol[0];
+    String asName = "station 1: " + cfg.radioName[0];
+    if (cfg.resumeLast && cfg.lastUrl.length() > 0) {
+        asUrl = cfg.lastUrl;
+        asVol = cfg.lastVol;
+        asName = "the last played station";
+    } else if (!cfg.autoStart) {
+        autostartDone = true;
+        return;
+    }
+    if (asUrl.isEmpty()) {
+        autostartDone = true;
+        logLine("[AUTOSTART] station 1 is empty, nothing to play");
+        return;
+    }
+    if (probeStream(asUrl)) {
+        autostartDone = true;
+        logLine("[AUTOSTART] stream ok, playing " + asName);
+        commandPlayUrl(asUrl, asVol);
+        return;
+    }
+    autostartTries++;
+    logLine("[AUTOSTART] stream not ready (try " + String(autostartTries) + " of " + String(AUTOSTART_MAX_TRIES) + ")");
+    if (autostartTries >= AUTOSTART_MAX_TRIES) {
+        autostartDone = true;
+        logLine("[AUTOSTART] given up");
+        return;
+    }
+    autostartNextTry = millis() + AUTOSTART_RETRY_MS;
+}
+
+// ---------------------------------------------------------------------------
+// Selbstschutz / self protection
+
+String resetReasonName() {
+    switch (esp_reset_reason()) {
+        case ESP_RST_POWERON: return "power-on";
+        case ESP_RST_SW: return "software restart";
+        case ESP_RST_PANIC: return "panic (crash)";
+        case ESP_RST_INT_WDT: return "interrupt watchdog";
+        case ESP_RST_TASK_WDT: return "task watchdog";
+        case ESP_RST_WDT: return "other watchdog";
+        case ESP_RST_BROWNOUT: return "brownout";
+        case ESP_RST_DEEPSLEEP: return "deep sleep";
+        case ESP_RST_USB: return "usb reset";
+        default: return "other (" + String((int)esp_reset_reason()) + ")";
+    }
+}
+
+bool isCrashReset() {
+    esp_reset_reason_t r = esp_reset_reason();
+    return r == ESP_RST_PANIC || r == ESP_RST_INT_WDT || r == ESP_RST_TASK_WDT || r == ESP_RST_WDT;
+}
+
+// Nach STABLE_BOOT_MS ohne Absturz gilt der Start als gut (Zaehler zurueck). Bleibt der freie Speicher lange zu knapp: Neustart.
+// After STABLE_BOOT_MS without a crash the start counts as good (counter reset). If free memory stays too low for long: restart.
+
+void healthWatch() {
+    unsigned long now = millis();
+    if (!bootMarkedStable && now > STABLE_BOOT_MS) {
+        bootMarkedStable = true;
+        if (bootCrashes > 0) {
+            bootCrashes = 0;
+            prefs.putInt("crashes", 0);
+            logLine("[BOOT] stable, crash counter reset");
+        }
+    }
+    if (ESP.getFreeHeap() < HEAP_LOW_BYTES) {
+        if (heapLowSince == 0) heapLowSince = now;
+        if (now - heapLowSince > HEAP_LOW_RESTART_MS) {
+            logLine("[HEALTH] free heap below " + String(HEAP_LOW_BYTES) + " bytes for " + String(HEAP_LOW_RESTART_MS / 1000) + " s, restarting");
+            delay(200);
+            ESP.restart();
+        }
+    } else {
+        heapLowSince = 0;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Web-Oberflaeche / web interface
+
+#include "web_ui.h"
+
+// ---------------------------------------------------------------------------
+// Arduino
+
+// Board-LED leuchtet, solange eine Ansage geladen oder gesprochen wird (RGB-LED des Boards, sonst einfache LED).
+// Board LED is lit while an announcement is being fetched or spoken (RGB LED of the board, otherwise a plain LED).
+
+void ledWatch() {
+    static int last = -1;
+    int on = (voiceBusy || mixInUse || (nowKind == "speech" && playState != PS_IDLE)) ? 1 : 0;
+    if (on == last) return;
+    last = on;
+#if defined(RGB_BUILTIN)
+    neopixelWrite(RGB_BUILTIN, on ? 0 : 0, on ? 40 : 0, on ? 40 : 0);
+#elif defined(LED_BUILTIN)
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, on ? HIGH : LOW);
+#endif
+}
+
+void setup() {
+    Serial.begin(115200);
+
+    // Ohne angeschlossenen Monitor darf die serielle Ausgabe nicht blockieren, sonst steht die Hauptschleife und der Ton bleibt aus.
+    // Without a connected monitor the serial output must not block, otherwise the main loop stalls and there is no sound.
+
+    Serial.setTxTimeoutMs(0);
+    delay(1500);
+    Serial.println("[BOOT] start, reset reason " + resetReasonName());
+    logMutex = xSemaphoreCreateMutex();
+    sdMutex = xSemaphoreCreateMutex();
+    audioEvtQueue = xQueueCreate(AUDIO_EVT_QUEUE_LEN, sizeof(AudioEvt));
+    fsReady = LittleFS.begin(true);
+    if (fsReady) LittleFS.mkdir(MP3_DIR);
+    loadSettings();
+    logLine("[BOOT] " PROJECT_TITLE " " + String(FIRMWARE_MARKER + FIRMWARE_MARKER_PREFIX_LEN));
+    bootCrashes = prefs.getInt("crashes", 0);
+    if (isCrashReset()) {
+        bootCrashes++;
+        prefs.putInt("crashes", bootCrashes);
+    }
+    safeMode = bootCrashes >= CRASH_LIMIT;
+    logLine("[BOOT] reset reason: " + resetReasonName() + ", crashes in a row: " + String(bootCrashes) + (safeMode ? ", SAFE MODE (no MQTT, no radio reconnect)" : ""));
+    logLine("[BOOT] chip " + String(ESP.getChipModel()) + ", PSRAM " + String(ESP.getPsramSize()) + " bytes, LittleFS " + (fsReady ? "ok" : "failed"));
+
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+    esp_task_wdt_config_t wdtConfig = {.timeout_ms = WDT_TIMEOUT_S * 1000, .idle_core_mask = 0, .trigger_panic = true};
+    esp_task_wdt_reconfigure(&wdtConfig);
+#else
+    esp_task_wdt_init(WDT_TIMEOUT_S, true);
+#endif
+    esp_task_wdt_add(NULL);
+
+    checkSerialWifi();
+    WiFi.setHostname(cfg.host.c_str());
+    WiFi.persistent(false);
+    WiFi.setAutoReconnect(true);
+    WiFi.onEvent(onWifiEvent);
+    WiFi.mode(WIFI_STA);
+    if (!wifiHasCredentials() || !connectWifi()) startAccessPoint();
+    gotIpFlag = false;
+
+    setupTime();
+    setupWeb();
+    sdMount();
+
+
+    applyVolume(cfg.vol);
+    logLine("[AUDIO] I2S pins BCLK=" + String(cfg.bclk) + " LRC=" + String(cfg.lrc) + " DIN=" + String(cfg.din) + ", free heap " + String(ESP.getFreeHeap()));
+
+    mqttClient.setBufferSize(5120);
+    mqttClient.setSocketTimeout(1);
+    mqttClient.setKeepAlive(MQTT_KEEPALIVE_S);
+    mqttClient.setCallback(onMqttMessage);
+    logLine("[BOOT] ready");
+}
+
+void loop() {
+    esp_task_wdt_reset();
+    if (audio) audio->loop();
+    audioEventPump();
+    fadeInStep();
+    webserver.handleClient();
+    processQueue();
+    processPending();
+    playbackWatch();
+    radioKeepAlive();
+    wifiWatch();
+    mqttWatch();
+    restartWatch();
+    healthWatch();
+    ledWatch();
+    autostartWatch();
+    mixWatch();
+    annFadeWatch();
+    resumeStateWatch();
+    delay(2);
+}

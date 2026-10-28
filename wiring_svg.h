@@ -1,0 +1,135 @@
+// Automatisch aus verkabelung.svg erzeugt (makeWiringHeader.ps1, von buildAll.bat aufgerufen); nicht von Hand aendern.
+// Generated automatically from verkabelung.svg (makeWiringHeader.ps1, called by buildAll.bat); do not edit by hand.
+
+#pragma once
+
+static const char WIRING_SVG[] PROGMEM = R"svg(<svg xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;max-width:960px;display:block;margin:0 auto" viewBox="0 0 960 1080" font-family="Arial,Helvetica,sans-serif">
+  <title>NetSpeaker - Verkabelung ESP32-S3 / MAX98357A / SD-Karte</title>
+  <rect width="960" height="1080" fill="#ffffff"/>
+  <text x="480" y="34" text-anchor="middle" font-size="22" font-weight="bold" fill="#1a2129">NetSpeaker - Verkabelung / wiring</text>
+
+  <!-- ESP32-S3 -->
+  <rect x="40" y="80" width="230" height="790" rx="10" fill="#e8f1fb" stroke="#1f5fa8" stroke-width="3"/>
+  <text x="155" y="112" text-anchor="middle" font-size="17" font-weight="bold" fill="#1f5fa8">ESP32-S3</text>
+  <text x="155" y="132" text-anchor="middle" font-size="12" fill="#1f5fa8">4 MB Flash, 2 MB PSRAM</text>
+  <text x="155" y="160" text-anchor="middle" font-size="13" font-weight="bold" fill="#1f5fa8">Verst&#228;rker (I2S)</text>
+  <g font-size="14" fill="#1a2129">
+    <text x="250" y="190" text-anchor="end">GPIO 2 (DIN)</text>
+    <text x="250" y="240" text-anchor="end">GPIO 3 (BCLK)</text>
+    <text x="250" y="290" text-anchor="end">GPIO 4 (LRC)</text>
+    <text x="250" y="340" text-anchor="end">5V (USB / VBUS)</text>
+    <text x="250" y="390" text-anchor="end">GND</text>
+  </g>
+  <g fill="#1f5fa8">
+    <circle cx="270" cy="186" r="6"/><circle cx="270" cy="236" r="6"/><circle cx="270" cy="286" r="6"/><circle cx="270" cy="336" r="6"/><circle cx="270" cy="386" r="6"/>
+  </g>
+  <path d="M55 585 H255" stroke="#1f5fa8" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="155" y="610" text-anchor="middle" font-size="13" font-weight="bold" fill="#1f5fa8">SD-Karte (SPI)</text>
+  <g font-size="14" fill="#1a2129">
+    <text x="250" y="644" text-anchor="end">3V3</text>
+    <text x="250" y="684" text-anchor="end">GPIO 10 (MISO)</text>
+    <text x="250" y="724" text-anchor="end">GPIO 11 (CLK)</text>
+    <text x="250" y="764" text-anchor="end">GPIO 12 (MOSI)</text>
+    <text x="250" y="804" text-anchor="end">GPIO 13 (CS)</text>
+    <text x="250" y="844" text-anchor="end">GND</text>
+  </g>
+  <g fill="#1f5fa8">
+    <circle cx="270" cy="640" r="6"/><circle cx="270" cy="680" r="6"/><circle cx="270" cy="720" r="6"/><circle cx="270" cy="760" r="6"/><circle cx="270" cy="800" r="6"/><circle cx="270" cy="840" r="6"/>
+  </g>
+
+  <!-- MAX98357A -->
+  <rect x="610" y="80" width="230" height="330" rx="10" fill="#fdf1e3" stroke="#c46a00" stroke-width="3"/>
+  <text x="725" y="112" text-anchor="middle" font-size="17" font-weight="bold" fill="#c46a00">MAX98357A</text>
+  <text x="725" y="132" text-anchor="middle" font-size="12" fill="#c46a00">I2S Verst&#228;rker / amplifier</text>
+  <g font-size="14" fill="#1a2129">
+    <text x="630" y="190">DIN</text>
+    <text x="630" y="240">BCLK</text>
+    <text x="630" y="290">LRC</text>
+    <text x="630" y="340">VIN</text>
+    <text x="630" y="390">GND</text>
+  </g>
+  <g fill="#c46a00">
+    <circle cx="610" cy="186" r="6"/><circle cx="610" cy="236" r="6"/><circle cx="610" cy="286" r="6"/><circle cx="610" cy="336" r="6"/><circle cx="610" cy="386" r="6"/>
+  </g>
+  <g font-size="12" fill="#5b6773">
+    <text x="830" y="190" text-anchor="end">SD: offen (Mono-Mix)</text>
+    <text x="830" y="210" text-anchor="end">GAIN: offen (9 dB)</text>
+  </g>
+
+  <!-- Kabel Verstaerker -->
+  <g fill="none" stroke-width="4" stroke-linecap="round">
+    <path d="M270 186 H610" stroke="#8a3ffc"/>
+    <path d="M270 236 H610" stroke="#2e9e4f"/>
+    <path d="M270 286 H610" stroke="#d4a017"/>
+    <path d="M270 336 H610" stroke="#d62828"/>
+    <path d="M270 386 H610" stroke="#222222"/>
+  </g>
+  <g font-size="12" fill="#1a2129" text-anchor="middle">
+    <text x="440" y="178">DIN (violett)</text>
+    <text x="440" y="228">BCLK (gr&#252;n)</text>
+    <text x="440" y="278">LRC (gelb)</text>
+    <text x="440" y="328">+5 V (rot)</text>
+    <text x="440" y="378">GND (schwarz)</text>
+  </g>
+
+  <!-- Kondensator -->
+  <g stroke="#1a2129" stroke-width="2" fill="none">
+    <path d="M520 336 V350 M520 386 V372"/>
+    <path d="M505 350 H535 M505 372 H535" stroke-width="3"/>
+  </g>
+  <text x="440" y="412" font-size="12" text-anchor="middle" fill="#1a2129">Elko 100-470 &#181;F (+ zu VIN) nahe am Verst&#228;rker</text>
+
+  <!-- Lautsprecher -->
+  <rect x="610" y="440" width="230" height="90" rx="10" fill="#eef7ee" stroke="#2e7d32" stroke-width="3"/>
+  <text x="725" y="468" text-anchor="middle" font-size="16" font-weight="bold" fill="#2e7d32">Lautsprecher 4-8 &#937;</text>
+  <text x="725" y="490" text-anchor="middle" font-size="12" fill="#2e7d32">an die Schraubklemmen + und -</text>
+  <text x="725" y="510" text-anchor="middle" font-size="12" fill="#2e7d32">keine Leitung an GND!</text>
+  <path d="M780 410 V440" stroke="#2e7d32" stroke-width="4" fill="none"/>
+  <text x="788" y="428" font-size="11" fill="#2e7d32">OUT+/OUT-</text>
+
+  <!-- SD-Kartenleser -->
+  <rect x="610" y="560" width="230" height="310" rx="10" fill="#f3eefb" stroke="#6a3fb5" stroke-width="3"/>
+  <text x="725" y="590" text-anchor="middle" font-size="16" font-weight="bold" fill="#6a3fb5">Micro-SD-Kartenleser</text>
+  <text x="725" y="610" text-anchor="middle" font-size="12" fill="#6a3fb5">3,3 V, SPI (optional)</text>
+  <g font-size="14" fill="#1a2129">
+    <text x="630" y="644">3V3</text>
+    <text x="630" y="684">MISO (DO)</text>
+    <text x="630" y="724">CLK (SCK)</text>
+    <text x="630" y="764">MOSI (DI)</text>
+    <text x="630" y="804">CS</text>
+    <text x="630" y="844">GND</text>
+  </g>
+  <g fill="#6a3fb5">
+    <circle cx="610" cy="640" r="6"/><circle cx="610" cy="680" r="6"/><circle cx="610" cy="720" r="6"/><circle cx="610" cy="760" r="6"/><circle cx="610" cy="800" r="6"/><circle cx="610" cy="840" r="6"/>
+  </g>
+
+  <!-- Kabel SD-Karte -->
+  <g fill="none" stroke-width="4" stroke-linecap="round">
+    <path d="M270 640 H610" stroke="#e67e22"/>
+    <path d="M270 680 H610" stroke="#1f77b4"/>
+    <path d="M270 720 H610" stroke="#00a5b8"/>
+    <path d="M270 760 H610" stroke="#e91e8c"/>
+    <path d="M270 800 H610" stroke="#8d6e63"/>
+    <path d="M270 840 H610" stroke="#222222"/>
+  </g>
+  <g font-size="12" fill="#1a2129" text-anchor="middle">
+    <text x="440" y="632">3,3 V (orange)</text>
+    <text x="440" y="672">MISO (blau)</text>
+    <text x="440" y="712">CLK (t&#252;rkis)</text>
+    <text x="440" y="752">MOSI (rosa)</text>
+    <text x="440" y="792">CS (braun)</text>
+    <text x="440" y="832">GND (schwarz)</text>
+  </g>
+
+  <!-- Hinweise -->
+  <g font-size="13" fill="#1a2129">
+    <text x="40" y="912" font-weight="bold">Hinweise / notes</text>
+    <text x="40" y="934">&#8226; Pins 2/3/4 (DIN/BCLK/LRC) sind Standard, im Tab Audio &#228;nderbar (wirkt nach Neustart).</text>
+    <text x="40" y="954">&#8226; SD gegen GND = Verst&#228;rker aus. SD offen = Mono-Mix L+R.</text>
+    <text x="40" y="974">&#8226; GAIN: offen 9 dB, an GND 12 dB, an VIN 6 dB.</text>
+    <text x="40" y="994">&#8226; Gemeinsame Masse zwischen ESP und Verst&#228;rker ist Pflicht.</text>
+    <text x="40" y="1014">&#8226; SD-Karte: Pins 10/11/12/13 (MISO/CLK/MOSI/CS) sind Standard, im Tab Audio &#228;nderbar (wirkt sofort).</text>
+    <text x="40" y="1034">&#8226; SD-Modul mit 3,3 V betreiben (kein Pegelwandler), Leitungen unter 10 cm, Karte als FAT32 (SD bis 2 GB, SDHC bis 32 GB).</text>
+    <text x="40" y="1054">&#8226; Ohne Karte l&#228;uft alles andere unver&#228;ndert. Verst&#228;rker (5 V) und SD-Modul (3,3 V) teilen sich die Masse (GND) des ESP.</text>
+  </g>
+</svg>)svg";
