@@ -134,7 +134,7 @@ Das Projekt steht unter der **GNU General Public License v3.0** (Datei `LICENSE`
 | Arduino-ESP32 (Espressif) | LGPL-2.1 | wird beim Bauen eingebunden, nicht mitgeliefert |
 | PubSubClient (Nick O'Leary) | MIT | wird beim Bauen eingebunden, nicht mitgeliefert |
 
-**VoiceRSS** ist ein fremder Dienst: Es gelten dessen Nutzungsbedingungen und Tageslimits, der API-Schlüssel ist persönlich. **Webradio-Streams** unterliegen den Rechten der Sender. Die Beispiel-Sounds in `sounds` und die Fotos in `hardware` stammen nicht vom Projekt; ihre Herkunft und Nutzungsrechte sind nicht geklärt, vor einer Weitergabe also prüfen oder ersetzen.
+**VoiceRSS** ist ein fremder Dienst: Es gelten dessen Nutzungsbedingungen und Tageslimits, der API-Schlüssel ist persönlich. **Webradio-Streams** unterliegen den Rechten der Sender. Das Repository enthält keine Sounds und keine Produktfotos (Rechte nicht geklärt); eigene MP3-Dateien werden über den Tab *MP3* hochgeladen.
 
 ## English
 
@@ -246,4 +246,4 @@ The project is licensed under the **GNU General Public License v3.0** (file `LIC
 | Arduino-ESP32 (Espressif) | LGPL-2.1 | pulled in at build time, not shipped |
 | PubSubClient (Nick O'Leary) | MIT | pulled in at build time, not shipped |
 
-**VoiceRSS** is a third-party service: its terms of use and daily limits apply, and the API key is personal. **Web radio streams** are subject to the broadcasters' rights. The example sounds in `sounds` and the photos in `hardware` are not from this project; their origin and usage rights are not clarified, so check or replace them before passing the project on.
+**VoiceRSS** is a third-party service: its terms of use and daily limits apply, and the API key is personal. **Web radio streams** are subject to the broadcasters' rights. The repository contains no sounds and no product photos (rights not clarified); upload your own MP3 files in the *MP3* tab.
