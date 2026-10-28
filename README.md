@@ -123,6 +123,19 @@ Basis-Topic (Standard `netspeaker/<hostname>`): `…/say` (Text oder JSON `{"tex
 
 ---
 
+## Lizenz und Drittkomponenten
+
+Das Projekt steht unter der **GNU General Public License v3.0** (Datei `LICENSE`). Das gilt, weil die Firmware die Bibliothek ESP32-audioI2S (GPL-3.0) einbindet; wer die Firmware weitergibt, muss auch den Quelltext unter denselben Bedingungen bereitstellen.
+
+| Komponente | Lizenz | Hinweis |
+|---|---|---|
+| [ESP32-audioI2S](https://github.com/schreibfaul1/ESP32-audioI2S) 4.0.0 (schreibfaul1) | GPL-3.0 | Geändert in `lib/ESP32-audioI2S`: nur MP3-, Opus- und Vorbis-Decoder werden angelegt (WAV, AAC, FLAC ausgebaut), dazu ein Einsprung für das Mischen. Die Dekoderquellen für AAC und FLAC liegen unverändert im Ordner, werden aber nicht verwendet. |
+| Vorbis-Decoder (Xiph.Org) in der Bibliothek | BSD-Stil | Lizenztext in den Quelldateien |
+| Arduino-ESP32 (Espressif) | LGPL-2.1 | wird beim Bauen eingebunden, nicht mitgeliefert |
+| PubSubClient (Nick O'Leary) | MIT | wird beim Bauen eingebunden, nicht mitgeliefert |
+
+**VoiceRSS** ist ein fremder Dienst: Es gelten dessen Nutzungsbedingungen und Tageslimits, der API-Schlüssel ist persönlich. **Webradio-Streams** unterliegen den Rechten der Sender. Die Beispiel-Sounds in `sounds` und die Fotos in `hardware` stammen nicht vom Projekt; ihre Herkunft und Nutzungsrechte sind nicht geklärt, vor einer Weitergabe also prüfen oder ersetzen.
+
 ## English
 
 Voice output and MP3 player for the **ESP32-S3** (4 MB Flash, 2 MB PSRAM) with a **MAX98357A** I2S amplifier. Text is converted to speech by [VoiceRSS](https://www.voicerss.org/); MP3 files and web radio streams play directly. Control via a web interface, an HTTP API and MQTT.
@@ -221,3 +234,16 @@ See the German section above; the commands and topics are the same. Parameters c
 - **Start:** The device always starts silent. With the checkbox "Beim Start Sender 1 abspielen" in the *Audio* tab (default: off) it plays station 1 after the start once the WiFi has been up for 2 s and the stream of slot 1 answers (with fade-in). If the stream does not answer it tries up to 10 times at 6 s intervals; if something was started by hand in the meantime, the autostart is dropped.
 - **Announcement download:** With a deadline (25 s), a size limit and watchdog feeding; hanging loads are aborted after 60 s.
 - **Self protection:** Watchdog (30 s), restart if free memory stays low (under 15 KB for more than 60 s), safe mode after 3 crashes in a row (without MQTT and radio reconnect, the web interface stays). The *Status* tab shows the reset reason, crashes, WiFi and MQTT reconnects and the smallest free memory.
+
+## License and third-party components
+
+The project is licensed under the **GNU General Public License v3.0** (file `LICENSE`). This is because the firmware links the library ESP32-audioI2S (GPL-3.0); whoever passes on the firmware must also provide the source under the same terms.
+
+| Component | License | Note |
+|---|---|---|
+| [ESP32-audioI2S](https://github.com/schreibfaul1/ESP32-audioI2S) 4.0.0 (schreibfaul1) | GPL-3.0 | Modified in `lib/ESP32-audioI2S`: only MP3, Opus and Vorbis decoders are created (WAV, AAC, FLAC removed), plus a hook for mixing. The AAC and FLAC decoder sources remain unchanged in the folder but are not used. |
+| Vorbis decoder (Xiph.Org) inside the library | BSD-style | license text in the source files |
+| Arduino-ESP32 (Espressif) | LGPL-2.1 | pulled in at build time, not shipped |
+| PubSubClient (Nick O'Leary) | MIT | pulled in at build time, not shipped |
+
+**VoiceRSS** is a third-party service: its terms of use and daily limits apply, and the API key is personal. **Web radio streams** are subject to the broadcasters' rights. The example sounds in `sounds` and the photos in `hardware` are not from this project; their origin and usage rights are not clarified, so check or replace them before passing the project on.
