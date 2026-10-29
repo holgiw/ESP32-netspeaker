@@ -137,9 +137,30 @@ bool annPop(Pending& out) {
     return true;
 }
 
+// Ordner-Sitzung: die MP3-Dateien eines Ordners der SD-Karte werden nacheinander in die Warteschlange gegeben, sobald sie leer ist. Mit shuffle
+// ist die Reihenfolge je Sitzung zufaellig und jede Datei kommt einmal vor; mit loop beginnt danach eine neue Runde.
+// Folder session: the MP3 files of a folder on the SD card are put into the queue one after another as soon as it is empty. With shuffle the
+// order is random per session and every file appears once; with loop a new round starts afterwards.
+
+struct DirSession {
+    bool active = false;
+    bool shuffle = false;
+    bool loop = false;
+    int vol = -1;
+    String dir;
+    std::vector<String> names;
+    size_t pos = 0;
+    String lastPlayed;
+    unsigned long lastFeed = 0;
+};
+
+DirSession dirSess;
+
 void annClear() {
     for (int i = 0; i < ANN_QUEUE_LEN; i++) annQueue[i] = Pending();
     annCount = 0;
+    dirSess.active = false;
+    dirSess.names.clear();
 }
 volatile PlayState playState = PS_IDLE;
 String lastError;
@@ -861,54 +882,6 @@ FileRef resolveFile(String name) {
     return r;
 }
 
-// Ein- und Ausblenden einer Ansage oder Datei, die ohne Radio ueber den Audio-Weg laeuft. Die Dauer ist die Einstellung
-// "Radio aus-/einblenden", bei kurzen Dateien hoechstens ein Viertel der geschaetzten Laenge.
-// Fade-in and fade-out of an announcement or file that plays through the audio path without radio. The duration is the
-// setting "Radio aus-/einblenden", for short files at most a quarter of the estimated length.
-
-int annFadeMs = 0;
-bool annFadeOutDone = false;
-
-void annFadePrepare(const String& path, bool sd = false) {
-    annFadeOutDone = false;
-    annFadeMs = 0;
-    if (cfg.fadeMs <= 0 || !audio) return;
-    File f = sd ? SD.open(path.c_str(), FILE_READ) : LittleFS.open(path, FILE_READ);
-    size_t size = f ? f.size() : 0;
-    if (f) f.close();
-    int ms = cfg.fadeMs;
-    if (size > 0) {
-        int cap = (int)(size / 16) / 4;
-        if (cap < 80) cap = 80;
-        if (ms > cap) ms = cap;
-    }
-    annFadeMs = ms;
-    audio->setVolume(0);
-    volRamp.on = false;
-    volRamp.now = 0;
-}
-
-void annFadeStart() {
-    if (annFadeMs > 0 && audio) volRampTo(currentVolume * VOL_FINE, annFadeMs);
-}
-
-void annFadeWatch() {
-    if (annFadeMs <= 0 || annFadeOutDone || !audio || playState != PS_PLAYING) return;
-    if (!(nowKind == "speech" || nowKind == "file")) return;
-    if (millis() - playStartMillis < 300) return;
-    uint32_t size = audio->getFileSize();
-    uint32_t pos = audio->getAudioFilePosition();
-    uint32_t bitrate = audio->getBitRate();
-    if (size == 0 || bitrate < 8000) return;
-    if (pos < size / 2) return;
-    uint32_t bytesLeft = size > pos ? size - pos : 0;
-    uint32_t remainMs = (uint32_t)((uint64_t)bytesLeft * 8000ULL / bitrate);
-    if (remainMs <= (uint32_t)annFadeMs) {
-        annFadeOutDone = true;
-        volRampTo(0, remainMs > 60 ? (int)remainMs : 60);
-    }
-}
-
 void startFile(String name) {
     FileRef r = resolveFile(name);
     if (!r.ok) {
@@ -919,10 +892,8 @@ void startFile(String name) {
     stopPlayback();
     lastError = "";
     ensureAudio();
-    annFadePrepare(path, r.sd);
     fs::FS& useFs = r.sd ? (fs::FS&)SD : (fs::FS&)LittleFS;
     if (audio->connecttoFS(useFs, path.c_str())) {
-        annFadeStart();
         playStartMillis = millis();
         playState = PS_PLAYING;
         nowKind = "file";
@@ -1511,9 +1482,7 @@ void speakText(const Pending& p) {
     }
     applyVolume(p.vol >= 0 ? p.vol : cfg.vol);
     ensureAudio();
-    annFadePrepare(TTS_FILE);
     if (audio->connecttoFS(LittleFS, TTS_FILE)) {
-        annFadeStart();
         playStartMillis = millis();
         playState = PS_PLAYING;
         nowKind = "speech";
@@ -2115,6 +2084,7 @@ String commandPlayUrl(const String& urlIn, int vol) {
     String url = urlIn;
     url.trim();
     if (!url.startsWith("http://") && !url.startsWith("https://")) return "URL muss mit http:// oder https:// beginnen";
+    dirSess.active = false;
     pending.type = PEND_URL;
     pending.text = url;
     pending.vol = vol;
@@ -2123,35 +2093,86 @@ String commandPlayUrl(const String& urlIn, int vol) {
     return "";
 }
 
-// Legt alle MP3-Dateien eines Ordners der SD-Karte (nach Name sortiert) in die Warteschlange; es passen so viele hinein, wie frei sind.
-// Puts all MP3 files of a folder on the SD card (sorted by name) into the queue; as many fit as there are free places.
+// Mischt die Dateien eines Ordners (Fisher-Yates mit dem Hardware-Zufallsgenerator). Die erste Datei ist nie die, mit der die letzte
+// Sitzung dieses Ordners begann (avoid), und bei einer neuen Runde nie die zuletzt gespielte; so ist die Reihenfolge jedes Mal eine andere.
+// Shuffles the files of a folder (Fisher-Yates with the hardware random generator). The first file is never the one the last session of this
+// folder started with (avoid), and in a new round never the one played last; so the order is different every time.
 
-String commandPlayDir(const String& refIn, int vol) {
+void dirShuffle(std::vector<String>& v, const String& avoid) {
+    for (size_t i = v.size(); i > 1; i--) {
+        size_t j = esp_random() % i;
+        std::swap(v[i - 1], v[j]);
+    }
+    if (v.size() > 1 && avoid.length() > 0 && v[0] == avoid) {
+        size_t j = 1 + esp_random() % (v.size() - 1);
+        std::swap(v[0], v[j]);
+    }
+}
+
+// Beginnt eine Ordner-Sitzung (shuffle = zufaellige Reihenfolge, loop = endlos); die Dateien kommen einzeln in die Warteschlange.
+// Starts a folder session (shuffle = random order, loop = endless); the files are put into the queue one at a time.
+
+String commandPlayDir(const String& refIn, int vol, bool shuffle = false, bool loop = false) {
     String dir = refIn.substring(3);
     if (!dir.startsWith("/")) dir = "/" + dir;
     std::vector<SdEntry> list;
     if (!sdReady) return "SD-Karte nicht verfuegbar";
     if (!sdListDir(dir, list)) return "Ordner nicht gefunden";
     if (!dir.endsWith("/")) dir += "/";
-    int queued = 0;
+    DirSession s;
     for (size_t i = 0; i < list.size(); i++) {
-        if (list[i].dir) continue;
-        Pending q;
-        q.type = PEND_FILE;
-        q.text = "sd:" + dir + list[i].name;
-        q.vol = vol;
-        if (!annPush(q)) break;
-        queued++;
+        if (!list[i].dir) s.names.push_back("sd:" + dir + list[i].name);
     }
-    if (queued == 0) return "Keine MP3-Dateien im Ordner (oder Warteschlange voll)";
+    if (s.names.empty()) return "Keine MP3-Dateien im Ordner";
+    s.active = true;
+    s.shuffle = shuffle;
+    s.loop = loop;
+    s.vol = vol;
+    s.dir = dir;
+    if (shuffle) {
+        String last = prefs.getString("dirfirst", "");
+        String avoid = last.startsWith(dir + "|") ? last.substring(dir.length() + 1) : String();
+        dirShuffle(s.names, avoid);
+        prefs.putString("dirfirst", dir + "|" + s.names[0]);
+    }
+    logLine("[DIR] session " + dir + ": " + String(s.names.size()) + " files" + (shuffle ? ", shuffled, first " + s.names[0] : String()) + (loop ? ", loop" : String()));
+    dirSess = s;
     return "";
 }
 
-String commandPlayFile(const String& nameIn, int vol) {
+// Gibt der Warteschlange die naechste Datei der Ordner-Sitzung, sobald nichts mehr wartet oder laeuft; Ansagen dazwischen kommen zuerst.
+// Gives the queue the next file of the folder session as soon as nothing is waiting or running; announcements in between come first.
+
+void dirFeed() {
+    if (!dirSess.active || annCount > 0 || pending.type != PEND_NONE || announceBusy() || playState == PS_LOADING) return;
+    if (millis() - dirSess.lastFeed < 400) return;
+    if (!sdReady) {
+        dirSess.active = false;
+        return;
+    }
+    if (dirSess.pos >= dirSess.names.size()) {
+        if (!dirSess.loop) {
+            logLine("[DIR] session finished");
+            dirSess.active = false;
+            return;
+        }
+        dirSess.pos = 0;
+        if (dirSess.shuffle) dirShuffle(dirSess.names, dirSess.lastPlayed);
+        logLine("[DIR] new round" + String(dirSess.shuffle ? ", shuffled" : ""));
+    }
+    Pending q;
+    q.type = PEND_FILE;
+    q.text = dirSess.names[dirSess.pos++];
+    q.vol = dirSess.vol;
+    dirSess.lastPlayed = q.text;
+    dirSess.lastFeed = millis();
+    annPush(q);
+}
+String commandPlayFile(const String& nameIn, int vol, bool shuffle = false, bool loop = false) {
     String name = nameIn;
     name.trim();
     if (name.isEmpty()) return "Kein Dateiname angegeben";
-    if (name.startsWith("sd:") && name.endsWith("/")) return commandPlayDir(name, vol);
+    if (name.startsWith("sd:") && name.endsWith("/")) return commandPlayDir(name, vol, shuffle, loop);
     Pending q;
     q.type = PEND_FILE;
     q.text = name;
@@ -2211,6 +2232,16 @@ void commandVolume(int v, int ms = -1) {
 
 int numberOr(const String& s, int def) {
     return s.isEmpty() ? def : (int)s.toInt();
+}
+
+// Schalter aus Text: 1, true, on oder yes.
+// Switch from text: 1, true, on or yes.
+
+bool flagOn(const String& s) {
+    String t = s;
+    t.trim();
+    t.toLowerCase();
+    return t == "1" || t == "true" || t == "on" || t == "yes";
 }
 // ---------------------------------------------------------------------------
 // MQTT
@@ -2281,15 +2312,18 @@ void onMqttMessage(char* topic, uint8_t* payload, unsigned int length) {
     } else if (t == base + "/play" || t == base + "/url" || t == base + "/file") {
         String url = body, file = body;
         int v = -1;
+        bool shuffle = false, loop = false;
         if (isJson) {
             url = jsonGet(body, "url");
             file = jsonGet(body, "file");
             v = numberOr(jsonGet(body, "vol"), -1);
+            shuffle = flagOn(jsonGet(body, "shuffle"));
+            loop = flagOn(jsonGet(body, "loop"));
         }
         bool wantUrl = t == base + "/url" || (t == base + "/play" && (url.startsWith("http://") || url.startsWith("https://")));
         if (t == base + "/file") wantUrl = false;
         if (wantUrl) err = commandPlayUrl(url, v);
-        else err = commandPlayFile(file, v);
+        else err = commandPlayFile(file, v, shuffle, loop);
     } else if (t == base + "/station") {
         if (isJson) err = commandPlayStation(jsonGet(body, "name").length() > 0 ? jsonGet(body, "name") : jsonGet(body, "n"), numberOr(jsonGet(body, "vol"), -1));
         else err = commandPlayStation(body, -1);
@@ -2692,6 +2726,7 @@ void loop() {
     audioEventPump();
     fadeInStep();
     webserver.handleClient();
+    dirFeed();
     processQueue();
     processPending();
     playbackWatch();
@@ -2703,7 +2738,6 @@ void loop() {
     ledWatch();
     autostartWatch();
     mixWatch();
-    annFadeWatch();
     resumeStateWatch();
     delay(2);
 }

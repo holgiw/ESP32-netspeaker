@@ -297,7 +297,7 @@ String panelSd() {
     String h = nowPlayingRow();
     h += "<div class='card' style='max-width:900px'><h3>SD-Karte</h3><small id='sdInfo'>Lade &hellip;</small><div id='sdPath' style='margin:6px 0;color:var(--muted)'></div><div id='sdList'></div>";
     h += "<div class='row'><input type='file' id='sdUpFile' multiple accept='.mp3' style='width:55%'><button type='button' onclick='sdUploadNow()' style='width:auto;padding:8px 14px'>Hochladen</button> " + infoTip("Eine oder mehrere MP3-Dateien w&auml;hlen; sie werden nacheinander in den gezeigten Ordner der Karte hochgeladen") + "</div>";
-    h += "<div class='row'><button type='button' onclick='sdMkdir()' style='width:auto;padding:8px 14px'>Neuer Ordner</button><button type='button' onclick='sdRemount()' style='width:auto;padding:8px 14px'>Neu einbinden</button> " + infoTip("Neuer Ordner: legt einen Ordner im gezeigten Ordner an. Neu einbinden: bindet die Karte neu ein, zum Beispiel nach dem Einstecken") + "</div><div id='sdResult'></div></div>";
+    h += "<div class='row'><button type='button' onclick='sdMkdir()' style='width:auto;padding:8px 14px'>Neuer Ordner</button><button type='button' onclick='sdRemount()' style='width:auto;padding:8px 14px'>Neu einbinden</button> <label style='display:inline-flex;align-items:center;gap:4px'><input type='checkbox' id='sdLoop'> Endlos</label> " + infoTip("Neuer Ordner: legt einen Ordner im gezeigten Ordner an. Neu einbinden: bindet die Karte neu ein, zum Beispiel nach dem Einstecken. Endlos: nach der letzten Datei eines Ordners beginnt eine neue Runde. Zufall (Knopf am Ordner): jede Datei kommt je Sitzung einmal, die Reihenfolge ist jedes Mal eine andere und beginnt nie mit der Datei der letzten Sitzung") + "</div><div id='sdResult'></div></div>";
     return h;
 }
 
@@ -415,7 +415,7 @@ String panelMqtt() {
     static const char* const exVolState[] = {"12"};
     static const char* const exAvail[] = {"online", "offline"};
     h += mqttRow(base, "/say", true, "Text, der angesagt wird. Oder JSON mit <code>text</code> und optional <code>lang</code>, <code>voice</code>, <code>rate</code>, <code>vol</code>.", exSay, 2);
-    h += mqttRow(base, "/play", true, "URL (Webradio, MP3) <em>oder</em> Dateiname aus dem Tab MP3 oder <code>sd:/Pfad.mp3</code> von der SD-Karte. Das Ger&auml;t erkennt selbst, was es ist. JSON: <code>url</code> oder <code>file</code>, optional <code>vol</code>.", exPlay, 3);
+    h += mqttRow(base, "/play", true, "URL (Webradio, MP3) <em>oder</em> Dateiname aus dem Tab MP3 oder <code>sd:/Pfad.mp3</code> von der SD-Karte. Das Ger&auml;t erkennt selbst, was es ist. JSON: <code>url</code> oder <code>file</code>, optional <code>vol</code>; bei einem Ordner (<code>sd:/Pfad/</code>) auch <code>shuffle</code> (zuf&auml;llige Reihenfolge) und <code>loop</code> (endlos), z. B. <code>{&quot;file&quot;:&quot;sd:/Musik/&quot;,&quot;shuffle&quot;:1,&quot;loop&quot;:1}</code>.", exPlay, 3);
     h += mqttRow(base, "/url", true, "Nur URL (http:// oder https://).", exUrl, 1);
     h += mqttRow(base, "/file", true, "Nur Dateiname einer hochgeladenen Datei.", exFile, 1);
     h += mqttRow(base, "/station", true, "Gespeicherter Sender: Platznummer 1-15 oder Name. JSON: <code>n</code> oder <code>name</code>, optional <code>vol</code>.", exStation, 3);
@@ -571,9 +571,10 @@ curl -H "Content-Type: application/json" -d '{"text":"Hallo Welt","lang":"de-de"
 curl -d "url=http://stream.example.com/radio.mp3" http://@HOST@/api/url
 curl "http://@HOST@/api/url?url=http://stream.example.com/radio.mp3&vol=10")d");
     h += docCard("SD-Karte",
-        "Dateien der SD-Karte (FAT32, nur MP3) werden mit dem Namen <code>sd:/Ordner/Datei.mp3</code> angesprochen, in <code>file</code> von <code>/api/play</code> und <code>/api/file</code> und ebenso per MQTT (<code>/file</code>, <code>/play</code>). Endet der Name mit <code>/</code>, kommen alle MP3-Dateien des Ordners (nach Name sortiert) in die Warteschlange. <code>/api/sd?dir=/Ordner</code> listet einen Ordner, <code>/api/sdmount</code> bindet die Karte neu ein. Dateimanager: Hochladen mit <code>/upload?target=sd&amp;dir=/Ordner</code>, <code>/api/sdmkdir</code> (dir, name), <code>/api/sdrename</code> (path, to), <code>/api/sddelete</code> (path; ein Ordner wird samt Inhalt gel&ouml;scht) und <code>/api/sdfile?path=...</code> zum Herunterladen. Namen werden bereinigt (Umlaute umgeschrieben, Leerzeichen zu Unterstrichen).",
+        "Dateien der SD-Karte (FAT32, nur MP3) werden mit dem Namen <code>sd:/Ordner/Datei.mp3</code> angesprochen, in <code>file</code> von <code>/api/play</code> und <code>/api/file</code> und ebenso per MQTT (<code>/file</code>, <code>/play</code>). Endet der Name mit <code>/</code>, spielt das Ger&auml;t alle MP3-Dateien des Ordners nacheinander (nach Name sortiert); sie kommen einzeln in die Warteschlange, Ansagen dazwischen kommen zuerst. Mit <code>shuffle=1</code> ist die Reihenfolge je Sitzung zuf&auml;llig und jede Datei kommt einmal vor, die erste ist nie die der letzten Sitzung dieses Ordners; mit <code>loop=1</code> beginnt nach der letzten Datei eine neue Runde (bei shuffle neu gemischt, die erste Datei ist nie die zuletzt gespielte). Ein neuer Sender oder Stopp beendet die Sitzung. <code>/api/sd?dir=/Ordner</code> listet einen Ordner, <code>/api/sdmount</code> bindet die Karte neu ein. Dateimanager: Hochladen mit <code>/upload?target=sd&amp;dir=/Ordner</code>, <code>/api/sdmkdir</code> (dir, name), <code>/api/sdrename</code> (path, to), <code>/api/sddelete</code> (path; ein Ordner wird samt Inhalt gel&ouml;scht) und <code>/api/sdfile?path=...</code> zum Herunterladen. Namen werden bereinigt (Umlaute umgeschrieben, Leerzeichen zu Unterstrichen).",
         R"d(curl -d "file=sd:/Musik/lied.mp3" http://@HOST@/api/play
 curl -d "file=sd:/Musik/Album/" http://@HOST@/api/play
+curl -d "file=sd:/Musik/&shuffle=1&loop=1" http://@HOST@/api/play
 curl "http://@HOST@/api/sd?dir=/Musik"
 curl -F "file=@lied.mp3" "http://@HOST@/upload?target=sd&dir=/Musik"
 curl -d "dir=/Musik&name=Neu" http://@HOST@/api/sdmkdir
@@ -682,7 +683,8 @@ function sdLoad(dir){var box=document.getElementById('sdList');if(!box)return;di
     if(j.dir!=='/'){var up=document.createElement('tr'),ut=cell(up,null),ua=document.createElement('a');ua.href='#';ua.textContent='\u2191 ..';ua.onclick=function(){sdLoad(j.dir.replace(/\/[^\/]*$/,'')||'/');return false;};ut.appendChild(ua);cell(up,'');cell(up,'');tb.appendChild(up);}
     j.entries.forEach(function(e){var tr=document.createElement('tr'),td=cell(tr,null),p=cur+'/'+e.n,act;
       if(e.d){var a=document.createElement('a');a.href='#';a.textContent='\uD83D\uDCC1 '+e.n;a.onclick=function(){sdLoad(p);return false;};td.appendChild(a);cell(tr,'');act=cell(tr,null);
-        btn(act,'\u25B6 Ordner','Alle MP3-Dateien des Ordners nacheinander abspielen (Warteschlange)',function(){playFile('sd:'+p+'/','sdResult');});}
+        btn(act,'\u25B6 Ordner','Alle MP3-Dateien des Ordners nacheinander abspielen',function(){playFile('sd:'+p+'/','sdResult',{loop:sdLoopOn()});});
+        btn(act,'\uD83D\uDD00 Zufall','Alle MP3-Dateien des Ordners in zuf\u00e4lliger Reihenfolge abspielen, jede einmal je Sitzung',function(){playFile('sd:'+p+'/','sdResult',{shuffle:1,loop:sdLoopOn()});});}
       else{td.textContent=e.n;cell(tr,Math.round(e.s/1024)+' KB');act=cell(tr,null);
         btn(act,'\u25B6','Abspielen (reiht sich in die Warteschlange ein)',function(){playFile('sd:'+p,'sdResult');});dl(act,p);}
       btn(act,'\u270E','Umbenennen',function(){sdRen(p,e.n,e.d);});
@@ -703,7 +705,8 @@ function sdUploadNow(){var fs=Array.prototype.slice.call(document.getElementById
     fetch('/upload?target=sd&dir='+encodeURIComponent(sdCur),{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(j){if(j&&j.ok)okc++;else bad.push(fn+' ('+((j&&j.error)||'Fehler')+')');})
       .catch(function(){bad.push(fn);}).then(function(){i++;next();});}
   next();}
-function playFile(n,res){postApi('/api/play',{file:n},res||'upResult');}
+function playFile(n,res,ex){var p={file:n};if(ex)for(var k in ex)p[k]=ex[k];postApi('/api/play',p,res||'upResult');}
+function sdLoopOn(){var c=document.getElementById('sdLoop');return c&&c.checked?'1':'0';}
 function delFile(n){if(!confirm('Datei '+n+' löschen?'))return;postApi('/api/delete',{file:n},'upResult').then(loadFiles);}
 function loadFiles(){fetch('/api/files',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
   var h='<table style="width:100%">';
@@ -1186,7 +1189,7 @@ void handleApiPlay() {
     String url = apiArg("url");
     String file = apiArg("file");
     int vol = numberOr(apiArg("vol"), -1);
-    String err = url.length() > 0 ? commandPlayUrl(url, vol) : (file.length() > 0 ? commandPlayFile(file, vol) : String("url oder file angeben"));
+    String err = url.length() > 0 ? commandPlayUrl(url, vol) : (file.length() > 0 ? commandPlayFile(file, vol, flagOn(apiArg("shuffle")), flagOn(apiArg("loop"))) : String("url oder file angeben"));
     if (err.length() > 0) return sendErr(400, err);
     sendOk("Wird abgespielt");
 }
@@ -1198,7 +1201,7 @@ void handleApiUrl() {
 }
 
 void handleApiFile() {
-    String err = commandPlayFile(apiArg("file"), numberOr(apiArg("vol"), -1));
+    String err = commandPlayFile(apiArg("file"), numberOr(apiArg("vol"), -1), flagOn(apiArg("shuffle")), flagOn(apiArg("loop")));
     if (err.length() > 0) return sendErr(400, err);
     sendOk("Wird abgespielt");
 }
