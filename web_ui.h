@@ -258,6 +258,7 @@ String nowPlayingRow() {
 
 String panelRadio() {
     String h = nowPlayingRow();
+    h += "<details id='radioInfoBox' style='display:none;max-width:500px;margin:0 auto 10px;text-align:left'><summary style='cursor:pointer;color:var(--muted)'>Stream-Info</summary><table id='radioInfo' style='width:100%;margin-top:6px'></table></details>";
     h += "<div class='card'><h3>Webradio-URL abspielen</h3><div class='row'>";
     h += "<input id='playUrl' placeholder='https://...' style='width:90%'><button type='button' onclick='playUrlNow()' style='width:150px'>URL abspielen</button><button type='button' class='stopbtn' onclick='stopNow()' style='width:150px' disabled>&#9632; Stopp</button> " + infoTip("Adresse eines Webradios oder einer MP3-Datei (http:// oder https://); sie wird jetzt abgespielt, aber nicht gespeichert. Stopp beendet die Wiedergabe, auch ein Webradio, ohne Fortsetzung") + "</div><div id='radioResult'></div></div>";
 
@@ -357,7 +358,8 @@ String panelAudio() {
     h += "<div class='row'>Radio aus-/einblenden (ms) " + infoTip("Dauer, in der ein laufendes Webradio vor einer Ansage oder MP3-Datei auf Lautst&auml;rke 0 ausgeblendet und nach der Fortsetzung wieder eingeblendet wird; auch das Absenken beim Mischen nutzt diese Zeit; 0 = sofort") + " <input type='number' name='fade' min='0' max='" + String(FADE_MAX_MS) + "' step='100' value='" + String(cfg.fadeMs) + "' style='width:90px'></div>";
     h += "<div class='row'>Radio Start/Stopp/Wechsel (ms) " + infoTip("Dauer des Einblendens beim Start eines Webradios, des Ausblendens beim Stopp und beider beim Senderwechsel; 0 = sofort") + " <input type='number' name='swfade' min='0' max='" + String(FADE_MAX_MS) + "' step='100' value='" + String(cfg.switchFadeMs) + "' style='width:90px'></div>";
     h += "</div><div class='sub'><h4>Ansagen &uuml;ber dem Radio</h4>";
-    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' name='mix' value='1'" + String(cfg.mixAnn ? " checked" : "") + " style='width:auto;margin:0;'>Radio unter Ansagen weiterlaufen lassen</label> " + infoTip("Ansagen und MP3-Dateien werden leise &uuml;ber das laufende Webradio gelegt, das Radio l&auml;uft ohne Unterbrechung weiter. Aus: das Radio stoppt f&uuml;r die Ansage und wird danach neu verbunden") + " Radio dabei auf <input type='number' name='duck' min='0' max='100' value='" + String(cfg.duckPct) + "' style='width:64px'> % " + infoTip("Lautst&auml;rke des Radios w&auml;hrend der Ansage in Prozent der eingestellten Lautst&auml;rke") + "</div>";
+    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' name='mix' value='1'" + String(cfg.mixAnn ? " checked" : "") + " style='width:auto;margin:0;'>Radio unter Ansagen weiterlaufen lassen</label> " + infoTip("Ansagen (und bei Webradio auch MP3-Dateien) werden leise &uuml;ber das laufende Webradio oder eine laufende MP3-Datei gelegt, die ohne Unterbrechung weiterl&auml;uft. Aus: das Radio stoppt f&uuml;r die Ansage und wird danach neu verbunden; eine MP3-Datei stoppt ebenfalls") + " Radio dabei auf <input type='number' name='duck' min='0' max='100' value='" + String(cfg.duckPct) + "' style='width:64px'> % " + infoTip("Lautst&auml;rke des Radios w&auml;hrend der Ansage in Prozent der eingestellten Lautst&auml;rke") + "</div>";
+    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' name='loud' value='1'" + String(cfg.loudNorm ? " checked" : "") + " style='width:auto;margin:0;'>MP3-Lautst&auml;rke angleichen</label> " + infoTip("Beim ersten Abspielen einer MP3-Datei misst das Ger&auml;t im Hintergrund ihre Lautst&auml;rke und gleicht sie auf einen einheitlichen Pegel an; der Ausgleich wird gespeichert, die Datei selbst bleibt unver&auml;ndert. W&auml;hrend der Messung (einige Sekunden bis eine Minute) l&auml;uft die Datei noch unver&auml;ndert und wird dann sanft angepasst. Ansagen und Radio bleiben unver&auml;ndert") + "</div>";
     h += "</div><div class='sub'><h4>Titelregel</h4>";
     h += "<div class='row'>Titelregel: Titel enth&auml;lt " + infoTip("Stichworte der Titelregel:&#10;&#8226; Mehrere Stichworte mit Komma oder Semikolon trennen.&#10;&#8226; Gro&szlig;-/Kleinschreibung ist egal; es gen&uuml;gt, wenn der Titel das Stichwort enth&auml;lt.&#10;&#8226; Mit =Wert (0-100) bekommt ein Stichwort eine eigene Lautst&auml;rke, zum Beispiel: Cambodia=90, Thunder&#10;&#8226; Leer = Regel aus") + " <input name='tmatch' maxlength='120' value='" + htmlEsc(cfg.titleMatch) + "' placeholder='z. B. Cambodia, Thunder=90' style='width:280px'> Lautst&auml;rke <input type='number' name='tvol' min='0' max='" + String(VOLUME_MAX) + "' value='" + String(cfg.titleVol) + "' style='width:64px'> " + infoTip("Lautst&auml;rke (0-100) f&uuml;r Stichworte ohne eigenen Wert; sie gilt, solange der Titel l&auml;uft, danach wieder die vorherige") + "</div>";
     h += "</div></div>";
@@ -632,6 +634,7 @@ curl -X POST http://@HOST@/restart)d");
         "mosquitto_pub -h <broker> -t " + base + "/restart -n\n"
         "mosquitto_sub -h <broker> -t " + base + "/stations -C 1\n"
         "mosquitto_sub -h <broker> -t \"" + base + "/#\" -v", false);
+    h += docCard("Kontakt", "E-Mail: <a href='mailto:carleaner@gmx.de'>carleaner@gmx.de</a><br>GitHub: <a href='https://github.com/holgiw/netspeaker' target='_blank' rel='noopener'>github.com/holgiw/netspeaker</a>", "");
     return h;
 }
 static const char PAGE_JS[] PROGMEM = R"js(
@@ -681,6 +684,10 @@ function sdLoad(dir){var box=document.getElementById('sdList');if(!box)return;di
     function btn(td,txt,tip,fn){var b=document.createElement('button');b.type='button';b.className='copy-btn';b.style.cssText='position:static;margin:2px';b.textContent=txt;b.title=tip;b.onclick=fn;td.appendChild(b);}
     function dl(td,p){var a=document.createElement('a');a.className='copy-btn';a.style.cssText='position:static;margin:2px;display:inline-block;text-decoration:none';a.textContent='\u2B07';a.title='Datei herunterladen';a.href='/api/sdfile?path='+encodeURIComponent(p);td.appendChild(a);}
     if(j.dir!=='/'){var up=document.createElement('tr'),ut=cell(up,null),ua=document.createElement('a');ua.href='#';ua.textContent='\u2191 ..';ua.onclick=function(){sdLoad(j.dir.replace(/\/[^\/]*$/,'')||'/');return false;};ut.appendChild(ua);cell(up,'');cell(up,'');tb.appendChild(up);}
+    if(j.entries.some(function(e){return !e.d;})){var hr=document.createElement('tr'),hc=cell(hr,null),ha;hc.textContent=j.dir==='/'?'📁 / (Hauptverzeichnis)':'📁 dieser Ordner';cell(hr,'');ha=cell(hr,null);
+      btn(ha,'▶ Ordner','Alle MP3-Dateien dieses Ordners nacheinander abspielen',function(){playFile('sd:'+cur+'/','sdResult',{loop:sdLoopOn()});});
+      btn(ha,'🔀 Zufall','Alle MP3-Dateien dieses Ordners in zufälliger Reihenfolge abspielen, jede einmal je Sitzung',function(){playFile('sd:'+cur+'/','sdResult',{shuffle:1,loop:sdLoopOn()});});
+      tb.appendChild(hr);}
     j.entries.forEach(function(e){var tr=document.createElement('tr'),td=cell(tr,null),p=cur+'/'+e.n,act;
       if(e.d){var a=document.createElement('a');a.href='#';a.textContent='\uD83D\uDCC1 '+e.n;a.onclick=function(){sdLoad(p);return false;};td.appendChild(a);cell(tr,'');act=cell(tr,null);
         btn(act,'\u25B6 Ordner','Alle MP3-Dateien des Ordners nacheinander abspielen',function(){playFile('sd:'+p+'/','sdResult',{loop:sdLoopOn()});});
@@ -724,13 +731,34 @@ function uploadNow(){var fs=Array.prototype.slice.call(document.getElementById('
     fetch('/upload',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(j){if(j&&j.ok)okc++;else bad.push(fn+' ('+((j&&j.error)||'Fehler')+')');})
       .catch(function(){bad.push(fn);}).then(function(){i++;next();});}
   next();}
+var nbs={on:false,jump:true,name:'',pm:0,rate:0,dur:0,t0:0};
+function mmss(x){x=Math.round(x);return Math.floor(x/60)+':'+('0'+x%60).slice(-2);}
+function barTick(){var pm=nbs.on?Math.min(1000,nbs.pm+nbs.rate*(Date.now()-nbs.t0)/1000):0;
+  document.querySelectorAll('.nowbar').forEach(function(bar){var f=bar.firstChild;f.style.transition=nbs.jump?'none':'width .25s linear';f.style.width=(pm/10)+'%';
+    bar.title=nbs.on&&nbs.dur>0?mmss(pm/1000*nbs.dur)+' / '+mmss(nbs.dur):'';});nbs.jump=false;}
+setInterval(barTick,250);
 function pollPlay(){if(document.hidden)return;fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
   var el=document.getElementById('playState');if(el)el.textContent='Zustand: '+j.state+(j.error?' ('+j.error+')':'');
   {var t='';
     if(j.source==='radio'){t='\u266a Webradio: '+(j.name||j.url)+(j.title?' \u2013 '+j.title:'');}
     else if(j.source==='file'){t='\u266a Datei: '+j.name;}
     else if(j.source==='speech'){t='\u266a Ansage';}
-    document.querySelectorAll('.nowplaying').forEach(function(np){np.textContent=t;np.title=j.url||'';});
+    document.querySelectorAll('.nowplaying').forEach(function(np){np.textContent=t;np.title=j.url||'';
+      var row=np.parentNode,bar=row.nextSibling&&row.nextSibling.className==='nowbar'?row.nextSibling:null;
+      if(!bar){bar=document.createElement('div');bar.className='nowbar';bar.style.cssText='height:6px;margin:2px auto 8px;max-width:100%;background:#3a4147;border-radius:3px;overflow:hidden';bar.innerHTML='<div style="height:100%;width:0;background:var(--ok)"></div>';row.parentNode.insertBefore(bar,row.nextSibling);}
+      var card=row.parentNode.querySelector('.card');if(card&&card.offsetWidth)bar.style.width=card.offsetWidth+'px';});
+    var on=j.source==='file'&&j.pm!==undefined;
+    nbs={on:on,jump:!on||nbs.name!==j.name||j.pm<nbs.pm-50,name:j.name,pm:on?j.pm:0,rate:on?(+j.rate||0):0,dur:on?(+j.dur||0):0,t0:Date.now()};
+    barTick();
+    var ib=document.getElementById('radioInfoBox');
+    if(ib){var tb=document.getElementById('radioInfo'),rows=[];
+      if(j.source==='radio'){rows=[['Sender',j.name],['Titel',j.title],['Genre',j.genre],['Beschreibung',j.desc],['Webseite',j.web,1],['Logo',j.logo,1],['Bitrate',j.bitrate?(j.bitrate>=1000?Math.round(j.bitrate/1000):j.bitrate)+' kbit/s':''],['Server',j.host]].filter(function(r){return r[1];});}
+      ib.style.display=rows.length?'':'none';
+      var key=JSON.stringify(rows);
+      if(tb.getAttribute('data-k')!==key){tb.setAttribute('data-k',key);tb.textContent='';
+        rows.forEach(function(r){var tr=document.createElement('tr'),a=document.createElement('td'),b=document.createElement('td');a.style.cssText='color:var(--muted);width:30%;vertical-align:top';a.textContent=r[0];
+          if(r[2]&&/^https?:\/\//i.test(r[1])){var l=document.createElement('a');l.href=r[1];l.target='_blank';l.rel='noopener noreferrer';l.textContent=r[1];b.appendChild(l);}else b.textContent=r[1];
+          tr.appendChild(a);tr.appendChild(b);tb.appendChild(tr);});}}
     document.querySelectorAll('.stationrow').forEach(function(r){var on=j.source==='radio'&&j.url&&r.getAttribute('data-url')===j.url;var n=r.firstChild;n.style.color=on?'var(--ok)':'var(--muted)';n.style.fontWeight=on?'bold':'normal';var b=r.querySelector('.playbtn');if(b&&r.getAttribute('data-url')){var num=r.getAttribute('data-n');
       if(on){b.innerHTML='&#9632;';b.title='Stopp';b.onclick=function(){stopNow();};}
       else{b.innerHTML='&#9654;';b.title='Abspielen';b.onclick=function(){playStation(num);};}}});
@@ -946,6 +974,8 @@ void handleSave() {
         prefs.putString("tmatch", cfg.titleMatch);
         prefs.putInt("tvol", cfg.titleVol);
         cfg.mixAnn = webserver.hasArg("mix");
+        cfg.loudNorm = webserver.hasArg("loud");
+        prefs.putBool("loud", cfg.loudNorm);
         cfg.duckPct = constrain(webserver.arg("duck").toInt(), 0, 100);
         prefs.putBool("mix", cfg.mixAnn);
         prefs.putInt("duck", cfg.duckPct);
@@ -1037,7 +1067,7 @@ void handleExport() {
     t += "vlang=" + cfg.vlang + "\nvvoice=" + cfg.vvoice + "\nvfmt=" + cfg.vfmt + "\nvrate=" + String(cfg.vrate) + "\n";
     t += "vol=" + String(cfg.vol) + "\nbclk=" + String(cfg.bclk) + "\nlrc=" + String(cfg.lrc) + "\ndin=" + String(cfg.din) + "\n";
     t += "mq_srv=" + cfg.mqttServer + "\nmq_port=" + String(cfg.mqttPort) + "\nmq_base=" + cfg.mqttBase + "\n";
-    t += "fade=" + String(cfg.fadeMs) + "\nswfade=" + String(cfg.switchFadeMs) + "\nautostart=" + String(cfg.autoStart ? 1 : 0) + "\nresume=" + String(cfg.resumeLast ? 1 : 0) + "\nsdon=" + String(cfg.sdOn ? 1 : 0) + "\nsdcs=" + String(cfg.sdCs) + "\nsdsck=" + String(cfg.sdSck) + "\nsdmosi=" + String(cfg.sdMosi) + "\nsdmiso=" + String(cfg.sdMiso) + "\nvolmax=" + String(VOLUME_MAX) + "\nvramp=" + String(cfg.volRampMs) + "\nmix=" + String(cfg.mixAnn ? 1 : 0) + "\nduck=" + String(cfg.duckPct) + "\ntmatch=" + cfg.titleMatch + "\ntvol=" + String(cfg.titleVol) + "\n";
+    t += "fade=" + String(cfg.fadeMs) + "\nswfade=" + String(cfg.switchFadeMs) + "\nautostart=" + String(cfg.autoStart ? 1 : 0) + "\nresume=" + String(cfg.resumeLast ? 1 : 0) + "\nsdon=" + String(cfg.sdOn ? 1 : 0) + "\nsdcs=" + String(cfg.sdCs) + "\nsdsck=" + String(cfg.sdSck) + "\nsdmosi=" + String(cfg.sdMosi) + "\nsdmiso=" + String(cfg.sdMiso) + "\nvolmax=" + String(VOLUME_MAX) + "\nvramp=" + String(cfg.volRampMs) + "\nmix=" + String(cfg.mixAnn ? 1 : 0) + "\nloud=" + String(cfg.loudNorm ? 1 : 0) + "\nduck=" + String(cfg.duckPct) + "\ntmatch=" + cfg.titleMatch + "\ntvol=" + String(cfg.titleVol) + "\n";
     t += "log=" + String(cfg.logEnabled ? 1 : 0) + "\n";
     for (int i = 0; i < RADIO_SLOTS; i++) t += "rn" + String(i + 1) + "=" + cfg.radioName[i] + "\nru" + String(i + 1) + "=" + cfg.radioUrl[i] + "\nrv" + String(i + 1) + "=" + (cfg.radioVol[i] >= 0 ? String(cfg.radioVol[i]) : String()) + "\n";
     webserver.sendHeader("Content-Disposition", "attachment; filename=" + cfg.host + "-settings.txt");
@@ -1120,6 +1150,7 @@ void handleImport() {
             needRestart = true;
         } else if (k == "vramp") { cfg.volRampMs = constrain(v.toInt(), 0, VOLUME_RAMP_MAX_MS); prefs.putInt("vramp", cfg.volRampMs);
         } else if (k == "mix") { cfg.mixAnn = v.toInt() != 0; prefs.putBool("mix", cfg.mixAnn);
+        } else if (k == "loud") { cfg.loudNorm = v.toInt() != 0; prefs.putBool("loud", cfg.loudNorm);
         } else if (k == "duck") { cfg.duckPct = constrain(v.toInt(), 0, 100); prefs.putInt("duck", cfg.duckPct);
         } else if (k == "tmatch") { cfg.titleMatch = v; prefs.putString("tmatch", v);
         } else if (k == "tvol") { cfg.titleVol = constrain(importVol(v.toInt()), 0, VOLUME_MAX); prefs.putInt("tvol", cfg.titleVol);
@@ -1265,6 +1296,16 @@ void handleApiStatus() {
     String j = "{\"state\":\"" + playStateName() + "\",\"error\":\"" + jsonEscape(lastError) + "\",\"volume\":" + String(cfg.vol) + ",\"playVolume\":" + String(currentVolume) + ",\"queue\":" + String(annCount) + ",\"sd\":\"" + sdState + "\",\"sdMounted\":" + (sdReady ? "true" : "false") + ",\"resume\":" + (resumeUrl.length() > 0 ? "true" : "false");
     bool idleNow = playState == PS_IDLE || nowKind.isEmpty();
     j += ",\"source\":\"" + String(idleNow ? "" : nowKind.c_str()) + "\",\"name\":\"" + jsonEscape(idleNow ? String() : (nowKind == "radio" ? stationDisplayName() : (nowKind == "file" ? nowFile : String()))) + "\",\"title\":\"" + jsonEscape(nowKind == "radio" && !idleNow ? nowTitle : String()) + "\",\"url\":\"" + jsonEscape(nowKind == "radio" && !idleNow ? streamUrl : String()) + "\"";
+    if (!idleNow && nowKind == "file" && playState == PS_PLAYING && audio) j += ",\"pos\":" + String(audio->getAudioCurrentTime()) + ",\"dur\":" + String(audio->getAudioFileDuration());
+    if (!idleNow && nowKind == "radio") {
+        j += ",\"genre\":\"" + jsonEscape(nowGenre) + "\",\"desc\":\"" + jsonEscape(nowDesc) + "\",\"web\":\"" + jsonEscape(nowWeb) + "\",\"logo\":\"" + jsonEscape(nowLogo) + "\",\"host\":\"" + jsonEscape(nowHost) + "\",\"bitrate\":" + String(nowBitrate);
+    }
+    if (!idleNow && nowKind == "file" && playState == PS_PLAYING && cfg.loudNorm) j += ",\"gainDb\":" + (fileGainKnown ? String(fileGainCurDb, 1) : String("null"));
+    if (!idleNow && nowKind == "file" && playState == PS_PLAYING && audio && audio->getFileSize() > 0) {
+        uint32_t fsz = audio->getFileSize();
+        uint32_t fpos = audio->getAudioFilePosition();
+        j += ",\"pm\":" + String((uint32_t)((uint64_t)(fpos > fsz ? fsz : fpos) * 1000ULL / fsz)) + ",\"rate\":" + String((double)audio->getBitRate() / 8.0 * 1000.0 / (double)fsz, 3);
+    }
     j += ",\"uptime\":" + String(millis() / 1000) + ",\"resetReason\":\"" + resetReasonName() + "\",\"wifiReconnects\":" + String(wifiReconnects) + ",\"mqttReconnects\":" + String(mqttReconnects) + ",\"minFreeHeap\":" + String(ESP.getMinFreeHeap()) + ",\"safeMode\":" + (safeMode ? "true" : "false");
     j += ",\"heap\":" + String(ESP.getFreeHeap()) + ",\"fsUsed\":" + String(fsReady ? LittleFS.usedBytes() : 0);
     j += ",\"fsTotal\":" + String(fsReady ? LittleFS.totalBytes() : 0) + "}";

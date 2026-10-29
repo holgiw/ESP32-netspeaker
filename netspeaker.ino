@@ -64,6 +64,7 @@ struct Settings {
     int switchFadeMs;
     bool autoStart;
     bool mixAnn;
+    bool loudNorm;
     int duckPct;
     int volRampMs;
     bool resumeLast;
@@ -125,6 +126,15 @@ int annCount = 0;
 bool annPush(const Pending& p) {
     if (annCount >= ANN_QUEUE_LEN) return false;
     annQueue[annCount++] = p;
+    return true;
+}
+
+bool annTake(int idx, Pending& out) {
+    if (idx < 0 || idx >= annCount) return false;
+    out = annQueue[idx];
+    for (int i = idx + 1; i < annCount; i++) annQueue[i - 1] = annQueue[i];
+    annCount--;
+    annQueue[annCount] = Pending();
     return true;
 }
 
@@ -425,6 +435,7 @@ void loadSettings() {
     cfg.switchFadeMs = constrain(prefs.getInt("swfade", SWITCH_FADE_DEFAULT_MS), 0, FADE_MAX_MS);
     cfg.autoStart = prefs.getBool("autostart", false);
     cfg.mixAnn = prefs.getBool("mix", true);
+    cfg.loudNorm = prefs.getBool("loud", true);
     cfg.duckPct = constrain(prefs.getInt("duck", 35), 0, 100);
     cfg.volRampMs = constrain(prefs.getInt("vramp", VOLUME_RAMP_DEFAULT_MS), 0, VOLUME_RAMP_MAX_MS);
     cfg.resumeLast = prefs.getBool("rlast", false);
@@ -501,6 +512,12 @@ String nowKind;
 String nowFile;
 String nowName;
 String nowTitle;
+String nowGenre;
+String nowDesc;
+String nowWeb;
+String nowLogo;
+String nowHost;
+uint32_t nowBitrate = 0;
 String lastPublishedNow;
 String resumeUrl;
 int resumeVolume = 57;
@@ -882,6 +899,372 @@ FileRef resolveFile(String name) {
     return r;
 }
 
+// Lautstaerke-Angleichung der MP3-Dateien (nicht der Ansagen): Beim ersten Abspielen misst ein Hintergrund-Task die Lautheit der ganzen
+// Datei (Bloecke zu 400 ms, Gate wie bei EBU R128, aber ohne K-Filter) und merkt sich den Ausgleich in /loudness.bin; er wirkt als Faktor
+// vor der Ausgabe. Das Ziel ist ein Pegel von LOUD_TARGET_DB, der Spitzenwert bleibt unter -1 dBFS.
+// Loudness matching of the MP3 files (not of announcements): on the first play a background task measures the loudness of the whole file
+// (blocks of 400 ms, gate as in EBU R128 but without the K filter) and stores the correction in /loudness.bin; it acts as a factor before
+// the output. The goal is a level of LOUD_TARGET_DB, the peak stays below -1 dBFS.
+
+#define LOUD_TARGET_DB -16.0f
+#define LOUD_MAX_ENTRIES 400
+#define LOUD_FILE "/loudness.bin"
+
+struct LoudRec {
+    uint32_t key;
+    int32_t db10;
+};
+
+std::vector<LoudRec> loudCache;
+bool loudCacheLoaded = false;
+volatile bool fileGainOn = false;
+volatile int32_t fileGainQ15 = 32768;
+float fileGainCurDb = 0.0f;
+float fileGainTargetDb = 0.0f;
+bool fileGainKnown = false;
+uint32_t loudCurKey = 0;
+volatile bool loudBusy = false;
+volatile bool loudDone = false;
+String loudJobPath;
+bool loudJobSd = false;
+uint32_t loudJobKey = 0;
+bool loudResultOk = false;
+int loudResultDb10 = 0;
+float loudResultRms = 0;
+float loudResultPeak = 0;
+bool loudPend = false;
+String loudPendPath;
+bool loudPendSd = false;
+uint32_t loudPendKey = 0;
+
+uint32_t loudKey(const String& path, bool sd, size_t size) {
+    uint32_t h = 2166136261UL;
+    for (size_t i = 0; i < path.length(); i++) h = (h ^ (uint8_t)path[i]) * 16777619UL;
+    return (h ^ (uint32_t)size) * 16777619UL + (sd ? 1 : 0);
+}
+
+int32_t loudQ15(float db) {
+    return (int32_t)(powf(10.0f, db / 20.0f) * 32768.0f);
+}
+
+void loudLoad() {
+    if (loudCacheLoaded || !fsReady) return;
+    loudCacheLoaded = true;
+    File f = LittleFS.open(LOUD_FILE, FILE_READ);
+    if (!f) return;
+    LoudRec r;
+    while (f.read((uint8_t*)&r, sizeof(r)) == sizeof(r)) loudCache.push_back(r);
+    f.close();
+}
+
+bool loudFind(uint32_t key, int& db10) {
+    loudLoad();
+    for (size_t i = 0; i < loudCache.size(); i++) {
+        if (loudCache[i].key == key) {
+            db10 = loudCache[i].db10;
+            return true;
+        }
+    }
+    return false;
+}
+
+void loudAdd(uint32_t key, int db10) {
+    loudLoad();
+    bool found = false;
+    for (size_t i = 0; i < loudCache.size(); i++) {
+        if (loudCache[i].key == key) {
+            loudCache[i].db10 = db10;
+            found = true;
+        }
+    }
+    if (!found) {
+        if (loudCache.size() >= LOUD_MAX_ENTRIES) loudCache.erase(loudCache.begin());
+        LoudRec r;
+        r.key = key;
+        r.db10 = db10;
+        loudCache.push_back(r);
+    }
+    if (!fsReady) return;
+    File f = LittleFS.open(LOUD_FILE, FILE_WRITE);
+    if (!f) return;
+    for (size_t i = 0; i < loudCache.size(); i++) f.write((const uint8_t*)&loudCache[i], sizeof(LoudRec));
+    f.close();
+}
+
+int loudRead(File& f, bool sd, uint8_t* buf, size_t len) {
+    if (sd) xSemaphoreTake(sdMutex, portMAX_DELAY);
+    int n = f.read(buf, len);
+    if (sd) xSemaphoreGive(sdMutex);
+    return n;
+}
+
+void loudSeek(File& f, bool sd, uint32_t pos) {
+    if (sd) xSemaphoreTake(sdMutex, portMAX_DELAY);
+    f.seek(pos);
+    if (sd) xSemaphoreGive(sdMutex);
+}
+
+void loudTask(void*) {
+    String path = loudJobPath;
+    bool sd = loudJobSd;
+    File f = sd ? SD.open(path.c_str(), FILE_READ) : LittleFS.open(path, FILE_READ);
+    uint8_t* in = (uint8_t*)malloc(MIX_IN_BYTES);
+    int32_t* out = (int32_t*)malloc(1152 * 2 * sizeof(int32_t));
+    MP3Decoder* dec = nullptr;
+    std::vector<float> blocks;
+    float peak = 0;
+    if (f && in && out && audio) {
+        dec = new MP3Decoder(*audio);
+        if (!dec->init()) {
+            delete dec;
+            dec = nullptr;
+        }
+    }
+    if (dec) {
+        uint8_t hdr[10];
+        if (loudRead(f, sd, hdr, 10) == 10 && memcmp(hdr, "ID3", 3) == 0) {
+            uint32_t sz = ((uint32_t)(hdr[6] & 0x7f) << 21) | ((uint32_t)(hdr[7] & 0x7f) << 14) | ((uint32_t)(hdr[8] & 0x7f) << 7) | (uint32_t)(hdr[9] & 0x7f);
+            loudSeek(f, sd, 10 + sz);
+        } else {
+            loudSeek(f, sd, 0);
+        }
+        int have = 0;
+        bool eof = false;
+        int errors = 0;
+        uint32_t blockLen = 0;
+        uint32_t inBlock = 0;
+        double acc = 0;
+        int frameCount = 0;
+        while (audio) {
+            if (have < MIX_REFILL_BELOW && !eof) {
+                int n = loudRead(f, sd, in + have, MIX_IN_BYTES - have);
+                if (n <= 0) eof = true;
+                else have += n;
+            }
+            if (have < 4) break;
+            int32_t sync = dec->findSyncWord(in, have);
+            if (sync < 0) {
+                have = 0;
+                if (eof) break;
+                continue;
+            }
+            if (sync > 0) {
+                memmove(in, in + sync, have - sync);
+                have -= sync;
+            }
+            int32_t left = have;
+            int32_t res = dec->decode(in, &left, out);
+            int used = have - left;
+            if (res == 0) {
+                uint32_t frames = dec->getOutputSamples();
+                if (frames > 1152) frames = 1152;
+                if (blockLen == 0 && frames > 0) blockLen = dec->getSampleRate() * 4 / 10;
+                for (uint32_t i = 0; i < frames && blockLen > 0; i++) {
+                    float l = (float)(out[2 * i] >> 16) / 32768.0f;
+                    float r = (float)(out[2 * i + 1] >> 16) / 32768.0f;
+                    float a = fabsf(l) > fabsf(r) ? fabsf(l) : fabsf(r);
+                    if (a > peak) peak = a;
+                    acc += 0.5 * ((double)l * l + (double)r * r);
+                    if (++inBlock >= blockLen) {
+                        blocks.push_back((float)(acc / blockLen));
+                        acc = 0;
+                        inBlock = 0;
+                    }
+                }
+                errors = 0;
+            } else if (++errors > 100) {
+                break;
+            }
+            if (used <= 0) used = 1;
+            if (used > have) used = have;
+            have -= used;
+            if (have > 0) memmove(in, in + used, have);
+            if ((++frameCount & 3) == 0) vTaskDelay(1);
+        }
+    }
+    if (dec) delete dec;
+    if (f) f.close();
+    free(in);
+    free(out);
+
+    // Gate: absolut -60 dBFS, relativ 10 dB unter dem Mittel der Bloecke ueber dem absoluten Gate.
+    // Gate: absolute -60 dBFS, relative 10 dB below the mean of the blocks above the absolute gate.
+
+    loudResultOk = false;
+    if (blocks.size() >= 3 && peak > 0.0001f) {
+        double sum = 0;
+        int n = 0;
+        for (size_t i = 0; i < blocks.size(); i++) {
+            if (blocks[i] > 1e-6f) {
+                sum += blocks[i];
+                n++;
+            }
+        }
+        if (n > 0) {
+            double mean1 = sum / n, sum2 = 0;
+            int n2 = 0;
+            for (size_t i = 0; i < blocks.size(); i++) {
+                if (blocks[i] > 1e-6f && blocks[i] > mean1 * 0.1) {
+                    sum2 += blocks[i];
+                    n2++;
+                }
+            }
+            double mean = n2 > 0 ? sum2 / n2 : mean1;
+            float rmsDb = 10.0f * log10f((float)mean);
+            float peakDb = 20.0f * log10f(peak);
+            float gain = LOUD_TARGET_DB - rmsDb;
+            if (gain > -peakDb - 1.0f) gain = -peakDb - 1.0f;
+            if (gain > 12.0f) gain = 12.0f;
+            if (gain < -18.0f) gain = -18.0f;
+            loudResultDb10 = (int)lroundf(gain * 10.0f);
+            loudResultRms = rmsDb;
+            loudResultPeak = peakDb;
+            loudResultOk = true;
+        }
+    }
+    loudDone = true;
+    loudBusy = false;
+    vTaskDelete(nullptr);
+}
+
+void loudStartJob(const String& path, bool sd, uint32_t key) {
+    loudJobPath = path;
+    loudJobSd = sd;
+    loudJobKey = key;
+    loudDone = false;
+    loudBusy = true;
+    if (xTaskCreatePinnedToCore(loudTask, "loudness", 12288, nullptr, 1, nullptr, 0) != pdPASS) loudBusy = false;
+}
+
+void loudRequest(const String& path, bool sd, uint32_t key) {
+    if (loudBusy || loudDone) {
+        loudPend = true;
+        loudPendPath = path;
+        loudPendSd = sd;
+        loudPendKey = key;
+        return;
+    }
+    loudStartJob(path, sd, key);
+}
+
+// Beim Start einer Datei: bekannten Ausgleich sofort setzen, sonst im Hintergrund messen; Ansagen und Radio bleiben ohne Ausgleich.
+// At the start of a file: set a known correction at once, otherwise measure in the background; announcements and radio stay uncorrected.
+
+void loudBegin(const String& path, bool sd) {
+    fileGainOn = false;
+    fileGainQ15 = 32768;
+    fileGainCurDb = 0.0f;
+    fileGainTargetDb = 0.0f;
+    fileGainKnown = false;
+    loudCurKey = 0;
+    if (!cfg.loudNorm) return;
+    File f = sd ? SD.open(path.c_str(), FILE_READ) : LittleFS.open(path, FILE_READ);
+    size_t size = f ? f.size() : 0;
+    if (f) f.close();
+    if (size == 0) return;
+    loudCurKey = loudKey(path, sd, size);
+    int db10 = 0;
+    if (loudFind(loudCurKey, db10)) {
+        fileGainTargetDb = db10 / 10.0f;
+        fileGainCurDb = fileGainTargetDb;
+        fileGainQ15 = loudQ15(fileGainCurDb);
+        fileGainOn = true;
+        fileGainKnown = true;
+        logLine("[LOUD] " + path + ": gain " + String(fileGainCurDb, 1) + " dB (stored)");
+    } else {
+        loudRequest(path, sd, loudCurKey);
+    }
+}
+
+// Laeuft in der Hauptschleife: Ergebnis des Messens uebernehmen, den Ausgleich sanft nachfuehren, ausserhalb einer Datei abschalten.
+// Runs in the main loop: take over the result of the measurement, follow the correction gently, switch off outside of a file.
+
+void loudWatch() {
+    if (loudDone && !loudBusy) {
+        loudDone = false;
+        if (loudResultOk) {
+            loudAdd(loudJobKey, loudResultDb10);
+            logLine("[LOUD] " + loudJobPath + ": level " + String(loudResultRms, 1) + " dBFS, peak " + String(loudResultPeak, 1) + " dBFS, gain " + String(loudResultDb10 / 10.0f, 1) + " dB");
+            if (loudJobKey == loudCurKey && cfg.loudNorm) {
+                fileGainTargetDb = loudResultDb10 / 10.0f;
+                fileGainKnown = true;
+                fileGainOn = true;
+            }
+        } else {
+            logLine("[LOUD] " + loudJobPath + ": not measurable");
+        }
+    }
+    if (!loudBusy && !loudDone && loudPend) {
+        loudPend = false;
+        loudStartJob(loudPendPath, loudPendSd, loudPendKey);
+    }
+    bool fileNow = nowKind == "file" && playState == PS_PLAYING;
+    if (!fileNow || !cfg.loudNorm) {
+        if (fileGainOn) {
+            fileGainOn = false;
+            fileGainQ15 = 32768;
+            fileGainCurDb = 0.0f;
+        }
+        return;
+    }
+    static unsigned long last = 0;
+    if (millis() - last < 40) return;
+    last = millis();
+    float d = fileGainTargetDb - fileGainCurDb;
+    if (fabsf(d) < 0.01f) return;
+    if (d > 0.25f) d = 0.25f;
+    if (d < -0.25f) d = -0.25f;
+    fileGainCurDb += d;
+    fileGainQ15 = loudQ15(fileGainCurDb);
+}
+
+// Ein- und Ausblenden einer MP3-Datei (nicht einer Ansage), die ohne Radio ueber den Audio-Weg laeuft. Die Dauer ist die Einstellung
+// "Radio aus-/einblenden", bei kurzen Dateien hoechstens ein Viertel der geschaetzten Laenge.
+// Fade-in and fade-out of an MP3 file (not of an announcement) that plays through the audio path without radio. The duration is the
+// setting "Radio aus-/einblenden", for short files at most a quarter of the estimated length.
+
+int fileFadeMs = 0;
+bool fileFadeOutDone = false;
+
+void fileFadePrepare(const String& path, bool sd) {
+    fileFadeOutDone = false;
+    fileFadeMs = 0;
+    if (cfg.fadeMs <= 0 || !audio) return;
+    File f = sd ? SD.open(path.c_str(), FILE_READ) : LittleFS.open(path, FILE_READ);
+    size_t size = f ? f.size() : 0;
+    if (f) f.close();
+    int ms = cfg.fadeMs;
+    if (size > 0) {
+        int cap = (int)(size / 16) / 4;
+        if (cap < 80) cap = 80;
+        if (ms > cap) ms = cap;
+    }
+    fileFadeMs = ms;
+    audio->setVolume(0);
+    volRamp.on = false;
+    volRamp.now = 0;
+}
+
+void fileFadeStart() {
+    if (fileFadeMs > 0 && audio) volRampTo(currentVolume * VOL_FINE, fileFadeMs);
+}
+
+void fileFadeWatch() {
+    if (fileFadeMs <= 0 || fileFadeOutDone || !audio || playState != PS_PLAYING || nowKind != "file") return;
+    if (millis() - playStartMillis < 300) return;
+    uint32_t size = audio->getFileSize();
+    uint32_t pos = audio->getAudioFilePosition();
+    uint32_t bitrate = audio->getBitRate();
+    if (size == 0 || bitrate < 8000) return;
+    if (pos < size / 2) return;
+    uint32_t bytesLeft = size > pos ? size - pos : 0;
+    uint32_t remainMs = (uint32_t)((uint64_t)bytesLeft * 8000ULL / bitrate);
+    if (remainMs <= (uint32_t)fileFadeMs) {
+        fileFadeOutDone = true;
+        volRampTo(0, remainMs > 60 ? (int)remainMs : 60);
+    }
+}
+
 void startFile(String name) {
     FileRef r = resolveFile(name);
     if (!r.ok) {
@@ -892,8 +1275,11 @@ void startFile(String name) {
     stopPlayback();
     lastError = "";
     ensureAudio();
+    fileFadePrepare(path, r.sd);
     fs::FS& useFs = r.sd ? (fs::FS&)SD : (fs::FS&)LittleFS;
     if (audio->connecttoFS(useFs, path.c_str())) {
+        fileFadeStart();
+        loudBegin(path, r.sd);
         playStartMillis = millis();
         playState = PS_PLAYING;
         nowKind = "file";
@@ -932,6 +1318,12 @@ void startUrl(const String& url) {
         nowKind = "radio";
         nowName = "";
         nowTitle = "";
+        nowGenre = "";
+        nowDesc = "";
+        nowWeb = "";
+        nowLogo = "";
+        nowHost = "";
+        nowBitrate = 0;
         titleBoost = false;
         logLine("[PLAY] url " + url);
         publishStatus(true);
@@ -1110,6 +1502,15 @@ int32_t mixGainFor(int vol) {
 // Called in the audio task before every I2S output: adds the announcement (converted to the rate of the radio) to the radio samples.
 
 void audio_process_i2s(int32_t* buf, int16_t words, bool* continueI2S) {
+    int32_t fg = fileGainQ15;
+    if (fileGainOn && fg != 32768) {
+        for (int i = 0; i < words; i++) {
+            int64_t v = ((int64_t)buf[i] * fg) >> 15;
+            if (v > INT32_MAX) v = INT32_MAX;
+            if (v < INT32_MIN) v = INT32_MIN;
+            buf[i] = (int32_t)v;
+        }
+    }
     if (!mixActive) return;
     mixInHook = true;
     int16_t* ring = mixRing;
@@ -1330,15 +1731,17 @@ bool mixStart(const String& path, int vol, bool sd = false) {
     mixDucked = true;
     mixPending = true;
     mixActivateAt = millis() + (unsigned long)cfg.fadeMs * 6 / 10;
-    logLine("[MIX] " + path + " mixed over the radio, announcement volume " + String(vol) + ", radio " + String(currentVolume) + " -> " + String(duck / VOL_FINE) + ", source " + String(mixSrcRate) + " Hz, output " + String(mixOutRate) + " Hz");
+    logLine("[MIX] " + path + " mixed over the running audio, announcement volume " + String(vol) + ", radio " + String(currentVolume) + " -> " + String(duck / VOL_FINE) + ", source " + String(mixSrcRate) + " Hz, output " + String(mixOutRate) + " Hz");
     return true;
 }
 
-// Kann eine Ansage oder Datei jetzt ueber das laufende Radio gemischt werden?
-// Can an announcement or file be mixed over the running radio now?
+// Kann eine Ansage oder Datei jetzt ueber das laufende Radio oder eine laufende MP3-Datei gemischt werden?
+// Can an announcement or file be mixed over the running radio or a running MP3 file now?
 
 bool mixPossible() {
-    return cfg.mixAnn && audio && streamActive && playState == PS_PLAYING && nowKind == "radio" && !streamWaitingReady && !fadeInWaiting && !fadeInActive && audio->isRunning();
+    if (!cfg.mixAnn || !audio || playState != PS_PLAYING || !audio->isRunning()) return false;
+    if (streamActive) return nowKind == "radio" && !streamWaitingReady && !fadeInWaiting && !fadeInActive;
+    return nowKind == "file";
 }
 
 // Meldet einen Fehler, ohne das laufende Radio anzutasten.
@@ -1372,7 +1775,7 @@ void mixWatch() {
     }
     bool empty = mixProducerDone && (mixWr.load() - rd) < 2;
     bool stuck = mixActive && (mixWr.load() - rd) > 0 && millis() - mixLastProgress > 4000;
-    if (empty || mixDrained || stuck || !audio || playState != PS_PLAYING || !streamActive) mixStop();
+    if (empty || mixDrained || stuck || !audio || playState != PS_PLAYING || !(streamActive || nowKind == "file")) mixStop();
 }
 
 // Ansage ueber das Radio mischen: Text laden, dann mit dem Mischer ueber das laufende Radio legen. false = normaler Weg.
@@ -1551,9 +1954,24 @@ bool announceBusy() {
 // Takes the next entry from the queue as soon as the previous announcement or file has ended.
 
 void processQueue() {
-    if (annCount == 0 || pending.type != PEND_NONE || announceBusy() || playState == PS_LOADING) return;
+    if (annCount == 0 || pending.type != PEND_NONE || playState == PS_LOADING) return;
     Pending next;
-    if (annPop(next)) pending = next;
+    if (!announceBusy()) {
+        if (annPop(next)) pending = next;
+        return;
+    }
+
+    // Spielt nur eine MP3-Datei (keine Ansage, kein Mischer), kommt die erste Ansage der Warteschlange vor und wird leise darueber gemischt.
+    // If only an MP3 file is playing (no announcement, no mixer), the first announcement of the queue jumps ahead and is mixed quietly over it.
+
+    if (!voiceBusy && !mixInUse && nowKind == "file" && mixPossible()) {
+        for (int i = 0; i < annCount; i++) {
+            if (annQueue[i].type == PEND_SAY && annTake(i, next)) {
+                pending = next;
+                return;
+            }
+        }
+    }
 }
 
 void processPending() {
@@ -1583,7 +2001,7 @@ void processPending() {
     // If a web radio is running, an announcement or MP3 file is mixed over it quietly; the radio keeps playing without interruption.
 
     bool mixable = p.type == PEND_SAY;
-    if (p.type == PEND_FILE) {
+    if (p.type == PEND_FILE && streamActive) {
         String lowerName = p.text;
         lowerName.toLowerCase();
         mixable = lowerName.endsWith(".mp3");
@@ -1851,6 +2269,18 @@ void handleAudioEvent(uint8_t type, const String& text) {
         nowTitle = text;
         titleRule(text);
         publishStatus();
+    } else if (type == (uint8_t)Audio::evt_genre) {
+        if (nowKind == "radio") nowGenre = text;
+    } else if (type == (uint8_t)Audio::evt_icydescription) {
+        if (nowKind == "radio") nowDesc = text;
+    } else if (type == (uint8_t)Audio::evt_icyurl) {
+        if (nowKind == "radio") nowWeb = text;
+    } else if (type == (uint8_t)Audio::evt_icylogo) {
+        if (nowKind == "radio") nowLogo = text;
+    } else if (type == (uint8_t)Audio::evt_lasthost) {
+        if (nowKind == "radio") nowHost = text;
+    } else if (type == (uint8_t)Audio::evt_bitrate) {
+        if (nowKind == "radio") nowBitrate = (uint32_t)text.toInt();
     } else if (type == (uint8_t)Audio::evt_info || type == (uint8_t)Audio::evt_log) {
         if (text.indexOf("Stream lost") >= 0 && streamActive) {
             streamWaitingReady = true;
@@ -2738,6 +3168,8 @@ void loop() {
     ledWatch();
     autostartWatch();
     mixWatch();
+    fileFadeWatch();
+    loudWatch();
     resumeStateWatch();
     delay(2);
 }

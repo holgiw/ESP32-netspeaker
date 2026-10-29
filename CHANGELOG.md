@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-29 - Version 1.2.0
+
+**Deutsch**
+
+- Eine Ansage stoppt eine laufende MP3-Datei (auch aus einem Ordner der SD-Karte) nicht mehr, sondern wird leise darübergemischt; die Datei läuft abgesenkt weiter. Voraussetzung ist der Haken *Radio unter Ansagen weiterlaufen lassen* im Tab *Audio*. Mehrere Ansagen laufen nacheinander und kommen vor den wartenden Dateien dran.
+- Bei laufender MP3-Datei zeigt die Oberfläche unter dem Namen einen Fortschrittsbalken (Position und Länge in der Statusabfrage: `pos`, `dur` in Sekunden). Zufall und Ordner-Knopf gibt es nun auch im Hauptverzeichnis der SD-Karte.
+- MP3-Dateien werden beim Start ein- und am Ende ausgeblendet (Dauer: *Radio aus-/einblenden*); Ansagen werden nie ein- oder ausgeblendet.
+- MP3-Dateien werden in der Lautstärke angeglichen: Beim ersten Abspielen misst das Gerät im Hintergrund die Lautheit der Datei und speichert den Ausgleich (`/loudness.bin`); Ansagen und Radio bleiben unverändert. Haken *MP3-Lautstärke angleichen* im Tab *Audio* (Standard: an).
+- Tab *Webradio*: aufklappbarer Bereich *Stream-Info* mit Sender, Titel, Genre, Beschreibung, Webseite, Logo-Adresse, Bitrate und Server, soweit der Sender sie liefert; die Werte stehen auch im Status.
+
+**English**
+
+- An announcement no longer stops a running MP3 file (including one from a folder of the SD card): it is mixed quietly over it and the file keeps playing, lowered. This needs the checkbox *Radio unter Ansagen weiterlaufen lassen* in the *Audio* tab. Several announcements play one after another and come before the waiting files.
+- While an MP3 file plays, the web interface shows a progress bar under the name (position and length in the status query: `pos`, `dur` in seconds). Random and the folder button are now also available in the root of the SD card.
+- MP3 files fade in at the start and out at the end (duration: *Radio aus-/einblenden*); announcements are never faded in or out.
+- The volume of MP3 files is matched: on the first play the device measures the loudness of the file in the background and stores the correction (`/loudness.bin`); announcements and radio stay unchanged. Checkbox *MP3-Lautstärke angleichen* in the *Audio* tab (default: on).
+- *Webradio* tab: collapsible *Stream-Info* area with station, title, genre, description, website, logo address, bitrate and server as far as the station delivers them; the values are also in the status.
+
 ## 2026-10-29 - Version 1.1.0
 
 **Deutsch**
