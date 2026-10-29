@@ -11,7 +11,7 @@
 #define PROJECT_NVS "voicerss"
 
 #define PROJECT_TITLE "NetSpeaker"
-#define PROJECT_TAG "VOICE"
+#define PROJECT_TAG "SPEAKER"
 
 // Der Text steht im Binary; checkDevices.ps1 liest ihn als Soll-Stand der .bin.
 // The text is stored in the binary; checkDevices.ps1 reads it as the target state of the .bin.

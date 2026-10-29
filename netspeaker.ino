@@ -30,6 +30,7 @@
 #include <atomic>
 #include "mp3_decoder/mp3_decoder.h"
 #include <esp_task_wdt.h>
+#include <driver/i2s_std.h>
 #include <time.h>
 
 #include "config.h"
@@ -63,6 +64,7 @@ struct Settings {
     int fadeMs;
     int switchFadeMs;
     bool autoStart;
+    bool bootTone;
     bool mixAnn;
     bool loudNorm;
     int duckPct;
@@ -77,6 +79,7 @@ struct Settings {
     int sdMiso;
     String titleMatch;
     int titleVol;
+    int titleMaxS;
 };
 
 Settings cfg;
@@ -434,6 +437,7 @@ void loadSettings() {
     cfg.fadeMs = constrain(prefs.getInt("fade", FADE_DEFAULT_MS), 0, FADE_MAX_MS);
     cfg.switchFadeMs = constrain(prefs.getInt("swfade", SWITCH_FADE_DEFAULT_MS), 0, FADE_MAX_MS);
     cfg.autoStart = prefs.getBool("autostart", false);
+    cfg.bootTone = prefs.getBool("btone", true);
     cfg.mixAnn = prefs.getBool("mix", true);
     cfg.loudNorm = prefs.getBool("loud", true);
     cfg.duckPct = constrain(prefs.getInt("duck", 35), 0, 100);
@@ -448,6 +452,7 @@ void loadSettings() {
     cfg.sdMiso = prefs.getInt("sdmiso", DEFAULT_SD_MISO);
     cfg.titleMatch = prefs.getString("tmatch", "Cambodia");
     cfg.titleVol = constrain(prefs.getInt("tvol", 86), 0, VOLUME_MAX);
+    cfg.titleMaxS = constrain(prefs.getInt("tmax", 0), 0, 3600);
     for (int i = 0; i < RADIO_SLOTS; i++) {
         cfg.radioName[i] = prefs.getString(("rn" + String(i + 1)).c_str(), "");
         cfg.radioUrl[i] = prefs.getString(("ru" + String(i + 1)).c_str(), "");
@@ -518,6 +523,19 @@ String nowWeb;
 String nowLogo;
 String nowHost;
 uint32_t nowBitrate = 0;
+
+// Titel des Senders kommen mit dem Datenstrom, die Musik dazu spielt erst, wenn der Eingangspuffer abgespielt ist. Darum wird ein neuer Titel
+// um die Dauer des gepufferten Tons verzoegert angezeigt (und fuer die Titelregel gemeldet).
+// Titles of the station come with the data stream, the music for them plays only when the input buffer has been played. So a new title is shown
+// (and passed on to the title rule) delayed by the duration of the buffered sound.
+
+#define TITLE_Q_LEN 4
+struct TitlePend {
+    String text;
+    unsigned long due;
+};
+TitlePend titleQ[TITLE_Q_LEN];
+int titleQn = 0;
 String lastPublishedNow;
 String resumeUrl;
 int resumeVolume = 57;
@@ -571,6 +589,7 @@ void releaseAudio() {
 }
 
 bool titleBoost = false;
+unsigned long titleBoostSince = 0;
 int titleSavedVol = 0;
 int titleBoostVol = 0;
 
@@ -1324,6 +1343,7 @@ void startUrl(const String& url) {
         nowLogo = "";
         nowHost = "";
         nowBitrate = 0;
+        titleQn = 0;
         titleBoost = false;
         logLine("[PLAY] url " + url);
         publishStatus(true);
@@ -2228,6 +2248,7 @@ void titleRule(const String& title) {
     bool hit = nowKind == "radio" && cfg.titleMatch.length() > 0 && title.length() > 0 && titleRuleMatch(title, keyword, vol);
     if (hit && !titleBoost) {
         titleBoost = true;
+        titleBoostSince = millis();
 
         // Kommt der Titel schon beim Einblenden, ist currentVolume noch niedrig: dann gilt das Ziel des Einblendens als vorherige Lautstaerke.
         // If the title arrives during the fade-in, currentVolume is still low: then the target of the fade-in counts as the previous volume.
@@ -2266,9 +2287,22 @@ void handleAudioEvent(uint8_t type, const String& text) {
         nowName = text;
         publishStatus();
     } else if (type == (uint8_t)Audio::evt_streamtitle) {
-        nowTitle = text;
-        titleRule(text);
-        publishStatus();
+        if (nowKind == "radio" && audio && titleQn < TITLE_Q_LEN) {
+            uint32_t br = audio->getBitRate();
+            if (br < 8000) br = 128000;
+            unsigned long delayMs = (unsigned long)((uint64_t)audio->inBufferFilled() * 8000ULL / br) + 150;
+            if (delayMs > 20000) delayMs = 20000;
+            unsigned long due = millis() + delayMs;
+            if (titleQn > 0 && (long)(due - titleQ[titleQn - 1].due) < 0) due = titleQ[titleQn - 1].due;
+            titleQ[titleQn].text = text;
+            titleQ[titleQn].due = due;
+            titleQn++;
+            logLine("[TITLE] \"" + text + "\" shown in " + String(delayMs) + " ms (buffered sound)");
+        } else {
+            nowTitle = text;
+            titleRule(text);
+            publishStatus();
+        }
     } else if (type == (uint8_t)Audio::evt_genre) {
         if (nowKind == "radio") nowGenre = text;
     } else if (type == (uint8_t)Audio::evt_icydescription) {
@@ -2303,6 +2337,28 @@ void handleAudioEvent(uint8_t type, const String& text) {
 
 // Arbeitet die Ereignisse der Audio-Bibliothek in der Hauptschleife ab (hoechstens 16 pro Durchlauf).
 // Handles the events of the audio library in the main loop (at most 16 per pass).
+
+void titleWatch() {
+
+    // Ein Sender meldet das Ende eines Titels nicht; darum kann die Titelregel nach einer festen Zeit enden (Werbung nach dem Titel bleibt sonst laut).
+    // A station does not report the end of a title; so the title rule can end after a fixed time (otherwise ads after the title stay loud).
+
+    if (titleBoost && cfg.titleMaxS > 0 && millis() - titleBoostSince > (unsigned long)cfg.titleMaxS * 1000UL) {
+        titleBoost = false;
+        applyVolumeSmooth(titleSavedVol);
+        logLine("[TITLE] time limit of " + String(cfg.titleMaxS) + " s reached, volume back to " + String(titleSavedVol));
+        publishStatus(true);
+    }
+    if (titleQn == 0 || (long)(millis() - titleQ[0].due) < 0) return;
+    String text = titleQ[0].text;
+    for (int i = 1; i < titleQn; i++) titleQ[i - 1] = titleQ[i];
+    titleQn--;
+    titleQ[titleQn].text = "";
+    if (nowKind != "radio") return;
+    nowTitle = text;
+    titleRule(text);
+    publishStatus();
+}
 
 void audioEventPump() {
     if (!audioEvtQueue) return;
@@ -2434,6 +2490,7 @@ void wifiWatch() {
     if (!apActive && now - wifiLostAt > WIFI_RESTART_AFTER_MS) {
         logLine("[WiFi] no connection for " + String((now - wifiLostAt) / 1000) + " s, restarting");
         delay(200);
+        prefs.putBool("quiet", true);
         ESP.restart();
     }
     if (wifiTryIdx >= 0) {
@@ -2783,6 +2840,7 @@ void onMqttMessage(char* topic, uint8_t* payload, unsigned int length) {
 void restartWatch() {
     if (restartAt != 0 && (long)(millis() - restartAt) >= 0) {
         if (mqttClient.connected()) mqttClient.disconnect();
+        prefs.putBool("quiet", true);
         ESP.restart();
     }
 }
@@ -3062,6 +3120,7 @@ void healthWatch() {
         if (now - heapLowSince > HEAP_LOW_RESTART_MS) {
             logLine("[HEALTH] free heap below " + String(HEAP_LOW_BYTES) + " bytes for " + String(HEAP_LOW_RESTART_MS / 1000) + " s, restarting");
             delay(200);
+            prefs.putBool("quiet", true);
             ESP.restart();
         }
     } else {
@@ -3091,6 +3150,78 @@ void ledWatch() {
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, on ? HIGH : LOW);
 #endif
+}
+
+// Kurzer Ton "buub" beim Start, direkt ueber den I2S-Treiber (die Audio-Bibliothek wird erst bei Bedarf angelegt). Er ist so laut wie die
+// allgemeine Lautstaerke; nach einem Absturz, im abgesicherten Modus und nach einem Neustart per MQTT bleibt er aus.
+// Short tone "buub" at the start, directly through the I2S driver (the audio library is only created when needed). It is as loud as the
+// general volume; after a crash, in safe mode and after a restart via MQTT it stays off.
+
+void bootTone() {
+    int vol = cfg.vol;
+    if (vol <= 0) return;
+    int bclk = pinAllowed(cfg.bclk) ? cfg.bclk : DEFAULT_PIN_BCLK;
+    int lrc = pinAllowed(cfg.lrc) ? cfg.lrc : DEFAULT_PIN_LRC;
+    int din = pinAllowed(cfg.din) ? cfg.din : DEFAULT_PIN_DIN;
+    i2s_chan_handle_t tx = nullptr;
+    i2s_chan_config_t cc = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_AUTO, I2S_ROLE_MASTER);
+    cc.auto_clear = true;
+    if (i2s_new_channel(&cc, &tx, nullptr) != ESP_OK) return;
+    i2s_std_config_t sc = {};
+    sc.clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(22050);
+    sc.slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
+    sc.gpio_cfg.mclk = I2S_GPIO_UNUSED;
+    sc.gpio_cfg.bclk = (gpio_num_t)bclk;
+    sc.gpio_cfg.ws = (gpio_num_t)lrc;
+    sc.gpio_cfg.dout = (gpio_num_t)din;
+    sc.gpio_cfg.din = I2S_GPIO_UNUSED;
+    if (i2s_channel_init_std_mode(tx, &sc) != ESP_OK || i2s_channel_enable(tx) != ESP_OK) {
+        i2s_del_channel(tx);
+        return;
+    }
+
+    // Zwei kurze, abfallende Toene (hoch-tief), je mit weichem Ein- und Ausklang; die Amplitude folgt der Lautstaerkekurve, hoechstens halbe Aussteuerung.
+    // Two short falling tones (high-low), each with a soft attack and release; the amplitude follows the volume curve, at most half scale.
+
+    float amp = (float)mixGainFor(vol) / 32768.0f * 0.5f;
+    struct Seg {
+        float f0, f1;
+        int ms;
+    };
+    const Seg segs[] = {{300.0f, 240.0f, 130}, {0.0f, 0.0f, 40}, {220.0f, 150.0f, 200}};
+    const float rate = 22050.0f;
+    int16_t buf[256 * 2];
+    float phase = 0;
+    for (size_t s = 0; s < sizeof(segs) / sizeof(segs[0]); s++) {
+        int total = (int)(rate * segs[s].ms / 1000.0f);
+        int done = 0;
+        while (done < total) {
+            int n = total - done > 256 ? 256 : total - done;
+            for (int i = 0; i < n; i++) {
+                float x = (float)(done + i) / (float)total;
+                float v = 0;
+                if (segs[s].f0 > 0) {
+                    float f = segs[s].f0 + (segs[s].f1 - segs[s].f0) * x;
+                    phase += 2.0f * 3.14159265f * f / rate;
+                    if (phase > 6.2831853f) phase -= 6.2831853f;
+                    float env = x < 0.1f ? x / 0.1f : (x > 0.6f ? (1.0f - x) / 0.4f : 1.0f);
+                    v = (sinf(phase) + 0.25f * sinf(2.0f * phase)) / 1.25f * env * amp;
+                }
+                int16_t o = (int16_t)(v * 32767.0f);
+                buf[2 * i] = o;
+                buf[2 * i + 1] = o;
+            }
+            size_t written = 0;
+            i2s_channel_write(tx, buf, n * 4, &written, 1000);
+            done += n;
+        }
+    }
+    memset(buf, 0, sizeof(buf));
+    size_t written = 0;
+    i2s_channel_write(tx, buf, sizeof(buf), &written, 1000);
+    i2s_channel_disable(tx);
+    i2s_del_channel(tx);
+    logLine("[BOOT] start tone played");
 }
 
 void setup() {
@@ -3126,6 +3257,11 @@ void setup() {
 #endif
     esp_task_wdt_add(NULL);
 
+    bool quietStart = prefs.getBool("quiet", false);
+    if (quietStart) prefs.putBool("quiet", false);
+    if (cfg.bootTone && !quietStart && !safeMode && !isCrashReset()) bootTone();
+    else logLine("[BOOT] start tone skipped");
+
     checkSerialWifi();
     WiFi.setHostname(cfg.host.c_str());
     WiFi.persistent(false);
@@ -3154,6 +3290,7 @@ void loop() {
     esp_task_wdt_reset();
     if (audio) audio->loop();
     audioEventPump();
+    titleWatch();
     fadeInStep();
     webserver.handleClient();
     dirFeed();

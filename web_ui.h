@@ -93,7 +93,7 @@ pre.code{text-align:left;white-space:pre-wrap;word-break:break-all;font-family:v
 #include "wiring_svg.h"
 
 static const char TAB_KEYS[][12] = {"sprechen", "radio", "sd", "mp3", "audio", "mqtt", "wlan", "zeit", "status", "log", "doku"};
-static const char* const TAB_LABELS[] = {"Sprechen", "Webradio", "SD-Karte", "MP3", "Audio", "MQTT", "WLAN", "Zeit", "Status", "Log", "Doku"};
+static const char* const TAB_LABELS[] = {"Sprechen", "Webradio", "SD-Karte", "MP3 (Flash)", "Audio", "MQTT", "WLAN", "Zeit", "Status", "Log", "Doku"};
 static const char* const TAB_TIPS[] = {"Text ansagen, stoppen, Lautst&auml;rke", "Webradio-URL abspielen und bis zu 15 Sender speichern", "Dateien der SD-Karte abspielen, hochladen und verwalten", "MP3-Dateien im Ger&auml;t hochladen und abspielen", "Anschl&uuml;sse (Pins von Verst&auml;rker und SD-Karte), Lautst&auml;rke, &Uuml;berblenden, Start und Sprachausgabe (VoiceRSS)", "MQTT-Broker und Basis-Topic", "Hostname und WLAN-Zugangsdaten", "Zeitserver und Zeitzone", "Zustand des Ger&auml;ts", "Ereignisprotokoll", "Alle REST- und MQTT-Aufrufe zum Kopieren"};
 static const int TAB_COUNT = 11;
 
@@ -361,10 +361,11 @@ String panelAudio() {
     h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' name='mix' value='1'" + String(cfg.mixAnn ? " checked" : "") + " style='width:auto;margin:0;'>Radio unter Ansagen weiterlaufen lassen</label> " + infoTip("Ansagen (und bei Webradio auch MP3-Dateien) werden leise &uuml;ber das laufende Webradio oder eine laufende MP3-Datei gelegt, die ohne Unterbrechung weiterl&auml;uft. Aus: das Radio stoppt f&uuml;r die Ansage und wird danach neu verbunden; eine MP3-Datei stoppt ebenfalls") + " Radio dabei auf <input type='number' name='duck' min='0' max='100' value='" + String(cfg.duckPct) + "' style='width:64px'> % " + infoTip("Lautst&auml;rke des Radios w&auml;hrend der Ansage in Prozent der eingestellten Lautst&auml;rke") + "</div>";
     h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' name='loud' value='1'" + String(cfg.loudNorm ? " checked" : "") + " style='width:auto;margin:0;'>MP3-Lautst&auml;rke angleichen</label> " + infoTip("Beim ersten Abspielen einer MP3-Datei misst das Ger&auml;t im Hintergrund ihre Lautst&auml;rke und gleicht sie auf einen einheitlichen Pegel an; der Ausgleich wird gespeichert, die Datei selbst bleibt unver&auml;ndert. W&auml;hrend der Messung (einige Sekunden bis eine Minute) l&auml;uft die Datei noch unver&auml;ndert und wird dann sanft angepasst. Ansagen und Radio bleiben unver&auml;ndert") + "</div>";
     h += "</div><div class='sub'><h4>Titelregel</h4>";
-    h += "<div class='row'>Titelregel: Titel enth&auml;lt " + infoTip("Stichworte der Titelregel:&#10;&#8226; Mehrere Stichworte mit Komma oder Semikolon trennen.&#10;&#8226; Gro&szlig;-/Kleinschreibung ist egal; es gen&uuml;gt, wenn der Titel das Stichwort enth&auml;lt.&#10;&#8226; Mit =Wert (0-100) bekommt ein Stichwort eine eigene Lautst&auml;rke, zum Beispiel: Cambodia=90, Thunder&#10;&#8226; Leer = Regel aus") + " <input name='tmatch' maxlength='120' value='" + htmlEsc(cfg.titleMatch) + "' placeholder='z. B. Cambodia, Thunder=90' style='width:280px'> Lautst&auml;rke <input type='number' name='tvol' min='0' max='" + String(VOLUME_MAX) + "' value='" + String(cfg.titleVol) + "' style='width:64px'> " + infoTip("Lautst&auml;rke (0-100) f&uuml;r Stichworte ohne eigenen Wert; sie gilt, solange der Titel l&auml;uft, danach wieder die vorherige") + "</div>";
+    h += "<div class='row'>Titelregel: Titel enth&auml;lt " + infoTip("Stichworte der Titelregel:&#10;&#8226; Mehrere Stichworte mit Komma oder Semikolon trennen.&#10;&#8226; Gro&szlig;-/Kleinschreibung ist egal; es gen&uuml;gt, wenn der Titel das Stichwort enth&auml;lt.&#10;&#8226; Mit =Wert (0-100) bekommt ein Stichwort eine eigene Lautst&auml;rke, zum Beispiel: Cambodia=90, Thunder&#10;&#8226; Leer = Regel aus") + " <input name='tmatch' maxlength='120' value='" + htmlEsc(cfg.titleMatch) + "' placeholder='z. B. Cambodia, Thunder=90' style='width:280px'> Lautst&auml;rke <input type='number' name='tvol' min='0' max='" + String(VOLUME_MAX) + "' value='" + String(cfg.titleVol) + "' style='width:64px'> " + infoTip("Lautst&auml;rke (0-100) f&uuml;r Stichworte ohne eigenen Wert; sie gilt, solange der Titel l&auml;uft, danach wieder die vorherige") + " h&ouml;chstens <input type='number' name='tmax' min='0' max='3600' value='" + String(cfg.titleMaxS) + "' style='width:70px'> s " + infoTip("Ein Sender meldet das Ende eines Titels nicht. Mit einem Wert gr&ouml;&szlig;er als 0 endet die Titelregel nach so vielen Sekunden (zum Beispiel 210 f&uuml;r einen Titel von 3:30), damit Werbung nach dem Titel nicht laut bleibt; 0 = bis zum n&auml;chsten Titel") + "</div>";
     h += "</div></div>";
     h += "<div class='card wide'><h3>Start</h3>";
     h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' name='autostart' value='1'" + String(cfg.autoStart ? " checked" : "") + " style='width:auto;margin:0;'>Beim Start Sender 1 abspielen</label> " + infoTip("Spielt nach dem Start nach einigen Sekunden Sender 1 der Liste ab, sobald das WLAN steht und der Stream antwortet. Ausgeschaltet bleibt das Ger&auml;t nach dem Start stumm") + "</div>";
+    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' name='btone' value='1'" + String(cfg.bootTone ? " checked" : "") + " style='width:auto;margin:0;'>Kurzer Ton beim Start</label> " + infoTip("Beim Einschalten und nach einem Neustart &uuml;ber die Weboberfl&auml;che spielt das Ger&auml;t einen kurzen Ton (&bdquo;buub&ldquo;) in der eingestellten Lautst&auml;rke. Nach einem Neustart per MQTT, nach einem Absturz und im abgesicherten Modus bleibt er aus") + "</div>";
     h += "<small>Aus (Standard): Das Ger&auml;t startet stumm. An: Nach dem Start spielt es nach einigen Sekunden Sender 1 der Liste im Tab Webradio, sobald der Stream antwortet (bis zu 10 Versuche im Abstand von 6 s).</small><br>";
     h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' name='resume' value='1'" + String(cfg.resumeLast ? " checked" : "") + " style='width:auto;margin:0;'>Zuletzt gespielten Sender nach einem Neustart fortsetzen</label> " + infoTip("Merkt sich den laufenden Sender mit seiner Lautst&auml;rke und spielt ihn nach einem Neustart oder Stromausfall wieder ab; ein Stopp l&ouml;scht den Merker") + "</div>";
     h += "<small>Das Ger&auml;t merkt sich Sender und Lautst&auml;rke (erst wenn die Lautst&auml;rke 3 s unver&auml;ndert ist). Nach einem Neustart spielt es ihn wieder ab, mit derselben Lautst&auml;rke; ein Stopp l&ouml;scht den Merker, dann startet das Ger&auml;t stumm. Hat dieser Haken Vorrang vor &bdquo;Beim Start Sender 1 abspielen&ldquo;.</small>";
@@ -417,7 +418,7 @@ String panelMqtt() {
     static const char* const exVolState[] = {"12"};
     static const char* const exAvail[] = {"online", "offline"};
     h += mqttRow(base, "/say", true, "Text, der angesagt wird. Oder JSON mit <code>text</code> und optional <code>lang</code>, <code>voice</code>, <code>rate</code>, <code>vol</code>.", exSay, 2);
-    h += mqttRow(base, "/play", true, "URL (Webradio, MP3) <em>oder</em> Dateiname aus dem Tab MP3 oder <code>sd:/Pfad.mp3</code> von der SD-Karte. Das Ger&auml;t erkennt selbst, was es ist. JSON: <code>url</code> oder <code>file</code>, optional <code>vol</code>; bei einem Ordner (<code>sd:/Pfad/</code>) auch <code>shuffle</code> (zuf&auml;llige Reihenfolge) und <code>loop</code> (endlos), z. B. <code>{&quot;file&quot;:&quot;sd:/Musik/&quot;,&quot;shuffle&quot;:1,&quot;loop&quot;:1}</code>.", exPlay, 3);
+    h += mqttRow(base, "/play", true, "URL (Webradio, MP3) <em>oder</em> Dateiname aus dem Tab MP3 (Flash) oder <code>sd:/Pfad.mp3</code> von der SD-Karte. Das Ger&auml;t erkennt selbst, was es ist. JSON: <code>url</code> oder <code>file</code>, optional <code>vol</code>; bei einem Ordner (<code>sd:/Pfad/</code>) auch <code>shuffle</code> (zuf&auml;llige Reihenfolge) und <code>loop</code> (endlos), z. B. <code>{&quot;file&quot;:&quot;sd:/Musik/&quot;,&quot;shuffle&quot;:1,&quot;loop&quot;:1}</code>.", exPlay, 3);
     h += mqttRow(base, "/url", true, "Nur URL (http:// oder https://).", exUrl, 1);
     h += mqttRow(base, "/file", true, "Nur Dateiname einer hochgeladenen Datei.", exFile, 1);
     h += mqttRow(base, "/station", true, "Gespeicherter Sender: Platznummer 1-15 oder Name. JSON: <code>n</code> oder <code>name</code>, optional <code>vol</code>.", exStation, 3);
@@ -591,7 +592,7 @@ curl "http://@HOST@/api/station?name=Radio%20Eins&vol=10"
 curl http://@HOST@/api/stations
 curl -d "n=3" http://@HOST@/api/stationdelete)d");
     h += docCard("Hochgeladene MP3-Datei abspielen",
-        "<code>file</code> ist der Dateiname aus dem Tab MP3. Dort gibt es f&uuml;r jede Datei Kn&ouml;pfe, die den fertigen Aufruf kopieren. Mit <code>/api/files</code> kommt die Liste, mit <code>/api/delete</code> wird eine Datei gel&ouml;scht. Hochladen geht per <code>/upload</code> (Formular, Feld <code>file</code>).",
+        "<code>file</code> ist der Dateiname aus dem Tab MP3 (Flash). Dort gibt es f&uuml;r jede Datei Kn&ouml;pfe, die den fertigen Aufruf kopieren. Mit <code>/api/files</code> kommt die Liste, mit <code>/api/delete</code> wird eine Datei gel&ouml;scht. Hochladen geht per <code>/upload</code> (Formular, Feld <code>file</code>).",
         R"d(curl -d "file=glocke.mp3" http://@HOST@/api/file
 curl "http://@HOST@/api/file?file=glocke.mp3&vol=15"
 curl http://@HOST@/api/files
@@ -752,11 +753,12 @@ function pollPlay(){if(document.hidden)return;fetch('/api/status',{cache:'no-sto
     barTick();
     var ib=document.getElementById('radioInfoBox');
     if(ib){var tb=document.getElementById('radioInfo'),rows=[];
-      if(j.source==='radio'){rows=[['Sender',j.name],['Titel',j.title],['Genre',j.genre],['Beschreibung',j.desc],['Webseite',j.web,1],['Logo',j.logo,1],['Bitrate',j.bitrate?(j.bitrate>=1000?Math.round(j.bitrate/1000):j.bitrate)+' kbit/s':''],['Server',j.host]].filter(function(r){return r[1];});}
+      if(j.source==='radio'){rows=[['Sender',j.name],['Titel',j.title],['Genre',j.genre],['Beschreibung',j.desc],['Webseite',j.web,1],['Logo',j.logo,1],['Bitrate',j.bitrate?(j.bitrate>=1000?Math.round(j.bitrate/1000):j.bitrate)+' kbit/s':''],['Server',j.host],['Codec',j.codec],['Abtastrate',j.rate?j.rate+' Hz':''],['Kan\u00e4le',j.ch],['Bits',j.bits]].filter(function(r){return r[1];});}
       ib.style.display=rows.length?'':'none';
       var key=JSON.stringify(rows);
       if(tb.getAttribute('data-k')!==key){tb.setAttribute('data-k',key);tb.textContent='';
-        rows.forEach(function(r){var tr=document.createElement('tr'),a=document.createElement('td'),b=document.createElement('td');a.style.cssText='color:var(--muted);width:30%;vertical-align:top';a.textContent=r[0];
+        rows.forEach(function(r){var tr=document.createElement('tr'),a=document.createElement('td'),b=document.createElement('td');a.style.cssText='color:var(--muted);width:30%;vertical-align:top;word-break:break-all';a.textContent=r[0];
+          b.style.wordBreak='break-all';
           if(r[2]&&/^https?:\/\//i.test(r[1])){var l=document.createElement('a');l.href=r[1];l.target='_blank';l.rel='noopener noreferrer';l.textContent=r[1];b.appendChild(l);}else b.textContent=r[1];
           tr.appendChild(a);tr.appendChild(b);tb.appendChild(tr);});}}
     document.querySelectorAll('.stationrow').forEach(function(r){var on=j.source==='radio'&&j.url&&r.getAttribute('data-url')===j.url;var n=r.firstChild;n.style.color=on?'var(--ok)':'var(--muted)';n.style.fontWeight=on?'bold':'normal';var b=r.querySelector('.playbtn');if(b&&r.getAttribute('data-url')){var num=r.getAttribute('data-n');
@@ -973,6 +975,8 @@ void handleSave() {
         cfg.titleVol = constrain(webserver.arg("tvol").toInt(), 0, VOLUME_MAX);
         prefs.putString("tmatch", cfg.titleMatch);
         prefs.putInt("tvol", cfg.titleVol);
+        cfg.titleMaxS = constrain(webserver.arg("tmax").toInt(), 0, 3600);
+        prefs.putInt("tmax", cfg.titleMaxS);
         cfg.mixAnn = webserver.hasArg("mix");
         cfg.loudNorm = webserver.hasArg("loud");
         prefs.putBool("loud", cfg.loudNorm);
@@ -983,6 +987,8 @@ void handleSave() {
         prefs.putBool("sdon", cfg.sdOn);
         if (sdOldOn != cfg.sdOn || sdOld[0] != cfg.sdCs || sdOld[1] != cfg.sdSck || sdOld[2] != cfg.sdMosi || sdOld[3] != cfg.sdMiso) sdMount();
         cfg.autoStart = webserver.hasArg("autostart");
+        cfg.bootTone = webserver.hasArg("btone");
+        prefs.putBool("btone", cfg.bootTone);
         prefs.putBool("autostart", cfg.autoStart);
         cfg.resumeLast = webserver.hasArg("resume");
         prefs.putBool("rlast", cfg.resumeLast);
@@ -1067,7 +1073,7 @@ void handleExport() {
     t += "vlang=" + cfg.vlang + "\nvvoice=" + cfg.vvoice + "\nvfmt=" + cfg.vfmt + "\nvrate=" + String(cfg.vrate) + "\n";
     t += "vol=" + String(cfg.vol) + "\nbclk=" + String(cfg.bclk) + "\nlrc=" + String(cfg.lrc) + "\ndin=" + String(cfg.din) + "\n";
     t += "mq_srv=" + cfg.mqttServer + "\nmq_port=" + String(cfg.mqttPort) + "\nmq_base=" + cfg.mqttBase + "\n";
-    t += "fade=" + String(cfg.fadeMs) + "\nswfade=" + String(cfg.switchFadeMs) + "\nautostart=" + String(cfg.autoStart ? 1 : 0) + "\nresume=" + String(cfg.resumeLast ? 1 : 0) + "\nsdon=" + String(cfg.sdOn ? 1 : 0) + "\nsdcs=" + String(cfg.sdCs) + "\nsdsck=" + String(cfg.sdSck) + "\nsdmosi=" + String(cfg.sdMosi) + "\nsdmiso=" + String(cfg.sdMiso) + "\nvolmax=" + String(VOLUME_MAX) + "\nvramp=" + String(cfg.volRampMs) + "\nmix=" + String(cfg.mixAnn ? 1 : 0) + "\nloud=" + String(cfg.loudNorm ? 1 : 0) + "\nduck=" + String(cfg.duckPct) + "\ntmatch=" + cfg.titleMatch + "\ntvol=" + String(cfg.titleVol) + "\n";
+    t += "fade=" + String(cfg.fadeMs) + "\nswfade=" + String(cfg.switchFadeMs) + "\nautostart=" + String(cfg.autoStart ? 1 : 0) + "\nbtone=" + String(cfg.bootTone ? 1 : 0) + "\nresume=" + String(cfg.resumeLast ? 1 : 0) + "\nsdon=" + String(cfg.sdOn ? 1 : 0) + "\nsdcs=" + String(cfg.sdCs) + "\nsdsck=" + String(cfg.sdSck) + "\nsdmosi=" + String(cfg.sdMosi) + "\nsdmiso=" + String(cfg.sdMiso) + "\nvolmax=" + String(VOLUME_MAX) + "\nvramp=" + String(cfg.volRampMs) + "\nmix=" + String(cfg.mixAnn ? 1 : 0) + "\nloud=" + String(cfg.loudNorm ? 1 : 0) + "\nduck=" + String(cfg.duckPct) + "\ntmatch=" + cfg.titleMatch + "\ntvol=" + String(cfg.titleVol) + "\ntmax=" + String(cfg.titleMaxS) + "\n";
     t += "log=" + String(cfg.logEnabled ? 1 : 0) + "\n";
     for (int i = 0; i < RADIO_SLOTS; i++) t += "rn" + String(i + 1) + "=" + cfg.radioName[i] + "\nru" + String(i + 1) + "=" + cfg.radioUrl[i] + "\nrv" + String(i + 1) + "=" + (cfg.radioVol[i] >= 0 ? String(cfg.radioVol[i]) : String()) + "\n";
     webserver.sendHeader("Content-Disposition", "attachment; filename=" + cfg.host + "-settings.txt");
@@ -1153,8 +1159,10 @@ void handleImport() {
         } else if (k == "loud") { cfg.loudNorm = v.toInt() != 0; prefs.putBool("loud", cfg.loudNorm);
         } else if (k == "duck") { cfg.duckPct = constrain(v.toInt(), 0, 100); prefs.putInt("duck", cfg.duckPct);
         } else if (k == "tmatch") { cfg.titleMatch = v; prefs.putString("tmatch", v);
+        } else if (k == "tmax") { cfg.titleMaxS = constrain(v.toInt(), 0, 3600); prefs.putInt("tmax", cfg.titleMaxS);
         } else if (k == "tvol") { cfg.titleVol = constrain(importVol(v.toInt()), 0, VOLUME_MAX); prefs.putInt("tvol", cfg.titleVol);
         } else if (k == "resume") { cfg.resumeLast = v.toInt() != 0; prefs.putBool("rlast", cfg.resumeLast);
+        } else if (k == "btone") { cfg.bootTone = v.toInt() != 0; prefs.putBool("btone", cfg.bootTone);
         } else if (k == "autostart") { cfg.autoStart = v.toInt() != 0; prefs.putBool("autostart", cfg.autoStart);
         } else if (k == "swfade") { cfg.switchFadeMs = constrain(v.toInt(), 0, FADE_MAX_MS); prefs.putInt("swfade", cfg.switchFadeMs);
         } else if (k == "fade") { cfg.fadeMs = constrain(v.toInt(), 0, FADE_MAX_MS); prefs.putInt("fade", cfg.fadeMs);
@@ -1299,6 +1307,7 @@ void handleApiStatus() {
     if (!idleNow && nowKind == "file" && playState == PS_PLAYING && audio) j += ",\"pos\":" + String(audio->getAudioCurrentTime()) + ",\"dur\":" + String(audio->getAudioFileDuration());
     if (!idleNow && nowKind == "radio") {
         j += ",\"genre\":\"" + jsonEscape(nowGenre) + "\",\"desc\":\"" + jsonEscape(nowDesc) + "\",\"web\":\"" + jsonEscape(nowWeb) + "\",\"logo\":\"" + jsonEscape(nowLogo) + "\",\"host\":\"" + jsonEscape(nowHost) + "\",\"bitrate\":" + String(nowBitrate);
+        if (audio && playState == PS_PLAYING) j += ",\"codec\":\"" + jsonEscape(String(audio->getCodecname())) + "\",\"rate\":" + String(audio->getSampleRate()) + ",\"ch\":" + String(audio->getChannels()) + ",\"bits\":" + String(audio->getBitsPerSample());
     }
     if (!idleNow && nowKind == "file" && playState == PS_PLAYING && cfg.loudNorm) j += ",\"gainDb\":" + (fileGainKnown ? String(fileGainCurDb, 1) : String("null"));
     if (!idleNow && nowKind == "file" && playState == PS_PLAYING && audio && audio->getFileSize() > 0) {

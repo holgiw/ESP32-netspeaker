@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-29 - Version 1.2.1
+
+**Deutsch**
+
+- Der Titel eines Webradios wird erst angezeigt (und für die Titelregel gemeldet), wenn die dazu gehörende Musik zu hören ist: Er wird um die Dauer des gepufferten Tons verzögert. Im Log steht bei jedem neuen Titel die Verzögerung (`[TITLE] ... shown in ... ms`).
+- Titelregel: Mit *höchstens … s* im Tab *Audio* endet die angehobene Lautstärke nach einer festen Zeit (zum Beispiel 210 s), weil ein Sender das Ende eines Titels nicht meldet und Werbung danach sonst laut bleibt. 0 = bis zum nächsten Titel (Standard).
+- Der Tab *MP3* heißt jetzt *MP3 (Flash)*, zur Abgrenzung von der SD-Karte. In der Statuszeile steht als Marke jetzt *SPEAKER* statt *VOICE*.
+- *Stream-Info* zeigt zusätzlich Codec, Abtastrate und Kanäle; sie stehen auch im Status als `codec`, `rate`, `ch` und `bits`.
+- Kurzer Ton („buub“) beim Start in der eingestellten Lautstärke; nach einem Neustart per MQTT, nach eigenen Neustarts des Geräts (WLAN lange weg, Speicher knapp), nach einem Absturz und im abgesicherten Modus bleibt er aus. Haken *Kurzer Ton beim Start* im Tab *Audio* (Standard: an).
+
+**English**
+
+- The title of a web radio is only shown (and passed to the title rule) when the matching music is audible: it is delayed by the duration of the buffered sound. The log shows the delay for every new title (`[TITLE] ... shown in ... ms`).
+- Title rule: with *höchstens … s* in the *Audio* tab the raised volume ends after a fixed time (for example 210 s), because a station does not report the end of a title and ads after it would otherwise stay loud. 0 = until the next title (default).
+- The tab *MP3* is now called *MP3 (Flash)*, to tell it apart from the SD card. The brand in the status bar is now *SPEAKER* instead of *VOICE*.
+- *Stream-Info* additionally shows codec, sample rate and channels; they are also in the status as `codec`, `rate`, `ch` and `bits`.
+- Short tone ("buub") at the start at the set volume; it stays off after a restart via MQTT, after restarts the device triggers itself (WiFi lost for long, low memory), after a crash and in safe mode. Checkbox *Kurzer Ton beim Start* in the *Audio* tab (default: on).
+
 ## 2026-10-29 - Version 1.2.0
 
 **Deutsch**
