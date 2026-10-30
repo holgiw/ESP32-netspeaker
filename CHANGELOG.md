@@ -4,11 +4,11 @@
 
 **Deutsch**
 
-- Das ZIP des Repositorys reicht zum Flashen: Fehlt `esptool.exe` (keine Arduino IDE), lädt `voicesetup.ps1` es aus `netspeaker_flash.zip` des neuesten Releases (SHA-256 geprüft, neu: `netspeaker_flash.sha256`) und legt es neben das Skript. Die README sagt gleich oben, dass das Repository-ZIP keine fertigen `.bin`-Dateien enthält und wo sie liegen. Die Firmware ist unverändert.
+- Das ZIP des Repositorys reicht zum Flashen: Fehlt `esptool.exe` (keine Arduino IDE), lädt `voicesetup.ps1` es aus `netspeaker_flash.zip` des neuesten Releases (SHA-256 geprüft, neu: `netspeaker_flash.sha256`) und legt es neben das Skript. Das Repository-ZIP enthält jetzt auch die Firmware in `build_netspeaker/esp32s3/` (ohne `merged.bin`, die liegt am Release). `netspeaker_flash.zip` enthält zusätzlich den Lizenztext von `esptool` (`esptool-LICENSE.txt`, GPL-2.0+); die README ist angepasst. Die Firmware ist unverändert.
 
 **English**
 
-- The ZIP of the repository is enough for flashing: if `esptool.exe` is missing (no Arduino IDE), `voicesetup.ps1` downloads it from `netspeaker_flash.zip` of the newest release (SHA-256 checked, new: `netspeaker_flash.sha256`) and puts it next to the script. The README says right at the top that the repository ZIP contains no finished `.bin` files and where they are. The firmware is unchanged.
+- The ZIP of the repository is enough for flashing: if `esptool.exe` is missing (no Arduino IDE), `voicesetup.ps1` downloads it from `netspeaker_flash.zip` of the newest release (SHA-256 checked, new: `netspeaker_flash.sha256`) and puts it next to the script. The repository ZIP now also contains the firmware in `build_netspeaker/esp32s3/` (without `merged.bin`, which is attached to the release). `netspeaker_flash.zip` additionally contains the `esptool` license text (`esptool-LICENSE.txt`, GPL-2.0+); the README is adjusted. The firmware is unchanged.
 
 ## 2026-10-30 - Version 1.3.4
 
