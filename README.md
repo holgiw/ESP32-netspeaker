@@ -46,6 +46,17 @@ Das Modul arbeitet mit 3,3 V über SPI und braucht keinen Pegelwandler. Es nimmt
 
 Die Pins sind im Tab *Audio* änderbar (wirkt sofort). Das Verkabelungsbild ([verkabelung.svg](verkabelung.svg)) steht auch im Tab *Doku* der Weboberfläche. Leitungen kurz halten (unter 10 cm). Ohne Karte läuft alles andere unverändert.
 
+## Fertige Firmware flashen
+
+Ohne Arduino IDE und ohne das Repository klonen zu müssen:
+
+1. Aus dem [neuesten Release](https://github.com/holgiw/netspeaker/releases/latest) `netspeaker_flash.zip` laden und **komplett** in einen Ordner auspacken (`esptool.exe` muss neben `flashESP.bat` liegen).
+2. ESP32-S3 per USB anschließen und `flashESP.bat` doppelklicken.
+
+Das Skript sucht den ESP, lädt `netspeaker-esp32s3.zip` vom neuesten Release (Prüfsumme SHA-256, Internet nötig), flasht ihn und fragt danach das WLAN ab (siehe unten). Die Einstellungen im Gerät bleiben erhalten, auch die Sprachdatei. Meldet der Virenscanner `esptool.exe` (Fehlalarm), richte eine Ausnahme für den Ordner ein.
+
+Die Firmware liegt **nicht** im Repository: Der Ordner `build_netspeaker/` enthält nur die Flash-Werkzeuge (`flashESP.bat`, `voicesetup.ps1`, `publish_builds.ps1`, `readme.txt`); die Binärdateien kommen als Anhang der Releases (`netspeaker-esp32s3.zip`, `netspeaker-esp32s3.sha256`, `netspeaker_flash.zip` und die vollständige `netspeaker-<Version>-esp32s3-merged.bin`). Mit der `merged.bin` flasht man auch von Hand: `esptool --chip esp32s3 --port COM3 write_flash 0x0 netspeaker-<Version>-esp32s3-merged.bin` (das löscht das Dateisystem; danach die Sprachdatei neu hochladen).
+
 ## Bauen
 
 Mit der Arduino IDE (oder `buildAll.bat`):
@@ -53,7 +64,7 @@ Mit der Arduino IDE (oder `buildAll.bat`):
 - Board: **ESP32S3 Dev Module** mit 4 MB Flash, Partitionsschema **No OTA (2MB APP/2MB SPIFFS)**, PSRAM (QSPI) und USB CDC On Boot aktivieren. Die Firmware ist etwa 1,9 MB groß und passt nicht in zwei OTA-Slots; es gibt daher kein OTA, Updates nur per USB. Das Dateisystem hat etwa 1,9 MB für MP3-Dateien.
 - Bibliotheken: **ESP32-audioI2S** von schreibfaul1 (Version 4.0.0) und **PubSubClient**.
 
-`buildAll.bat` baut mit `arduino-cli` und legt die Dateien in `build_netspeaker\esp32s3` ab. `flashESP.bat` flasht ein Gerät per USB, `flashAll.bat` prüft die Geräte im Netz und flasht angeschlossene Geräte per USB (OTA-Updates gibt es nicht).
+`buildAll.bat` baut mit `arduino-cli` und legt die Dateien in `build_netspeaker\esp32s3` ab. `build_netspeaker\flashESP.bat` flasht ein Gerät per USB, mit dem eigenen Build aus `esp32s3` oder, wenn es ihn nicht gibt, mit dem Paket vom neuesten Release. `flashAll.bat` prüft die Geräte im Netz und flasht angeschlossene Geräte per USB (OTA-Updates gibt es nicht). `build_netspeaker\publish_builds.ps1` erzeugt die Pakete für ein Release (`-Upload` lädt sie hoch).
 
 **WLAN beim Flashen einrichten:** Beide Skripte fragen nach dem Flashen das WLAN ab (bei `flashAll.bat -Yes` entfällt die Frage). Sie zeigen die sichtbaren 2,4-GHz-Netze nach Signalstärke; ist der PC mit einem davon verbunden, genügt ein Tastendruck, um Namen und das im PC gespeicherte Passwort zu übernehmen. Sonst gibst du die Nummer oder den Namen ein und das Passwort zweimal verdeckt (8 bis 63 Zeichen, bei einem offenen Netz leer). Mit der Eingabetaste bleibt das WLAN unverändert. Die Daten gehen über das USB-Kabel an das Gerät; Zugangspunkt und Browser sind nicht nötig, und die übrigen Einstellungen bleiben erhalten. Kommt keine Bestätigung vom Gerät, richtest du das WLAN wie unter *Erster Start* im Browser ein.
 
@@ -163,6 +174,7 @@ Das Projekt steht unter der **GNU General Public License v3.0** (Datei `LICENSE`
 | Vorbis-Decoder (Xiph.Org) in der Bibliothek | BSD-Stil | Lizenztext in den Quelldateien |
 | Arduino-ESP32 (Espressif) | LGPL-2.1 | wird beim Bauen eingebunden, nicht mitgeliefert |
 | PubSubClient (Nick O'Leary) | MIT | wird beim Bauen eingebunden, nicht mitgeliefert |
+| esptool (Espressif) | GPL-2.0+ | liegt als `esptool.exe` nur im Anhang `netspeaker_flash.zip` der Releases, Quelltext: https://github.com/espressif/esptool |
 
 **VoiceRSS** ist ein fremder Dienst: Es gelten dessen Nutzungsbedingungen und Tageslimits, der API-Schlüssel ist persönlich. **Webradio-Streams** unterliegen den Rechten der Sender. Das Repository enthält keine Sounds und keine Produktfotos (Rechte nicht geklärt); eigene MP3-Dateien werden über den Tab *MP3* hochgeladen.
 
@@ -217,6 +229,17 @@ The module works at 3.3 V over SPI and needs no level shifter. It takes micro SD
 
 The pins can be changed in the *Audio* tab (applies immediately). The wiring picture ([verkabelung.svg](verkabelung.svg)) is also in the *Doku* tab of the web interface. Keep the wires short (under 10 cm). Without a card everything else works unchanged.
 
+### Flashing the finished firmware
+
+Without the Arduino IDE and without cloning the repository:
+
+1. Download `netspeaker_flash.zip` from the [newest release](https://github.com/holgiw/netspeaker/releases/latest) and unpack the **whole** zip into a folder (`esptool.exe` has to be next to `flashESP.bat`).
+2. Connect the ESP32-S3 via USB and double-click `flashESP.bat`.
+
+The script finds the ESP, downloads `netspeaker-esp32s3.zip` from the newest release (SHA-256 checked, internet needed), flashes it and then asks for the WiFi (see below). The settings in the device stay, including the language file. If the virus scanner reports `esptool.exe` (false alarm), add an exception for the folder.
+
+The firmware is **not** in the repository: the folder `build_netspeaker/` only holds the flash tools (`flashESP.bat`, `voicesetup.ps1`, `publish_builds.ps1`, `readme.txt`); the binaries are attached to the releases (`netspeaker-esp32s3.zip`, `netspeaker-esp32s3.sha256`, `netspeaker_flash.zip` and the complete `netspeaker-<version>-esp32s3-merged.bin`). With the `merged.bin` you can also flash by hand: `esptool --chip esp32s3 --port COM3 write_flash 0x0 netspeaker-<version>-esp32s3-merged.bin` (this erases the file system; upload the language file again afterwards).
+
 ### Build
 
 With the Arduino IDE (or `buildAll.bat`):
@@ -224,7 +247,7 @@ With the Arduino IDE (or `buildAll.bat`):
 - Board: **ESP32S3 Dev Module** with 4 MB flash, partition scheme **No OTA (2MB APP/2MB SPIFFS)**, enable PSRAM (QSPI) and USB CDC On Boot. The firmware is about 1.9 MB and does not fit two OTA slots; there is therefore no OTA, updates only via USB. The file system has about 1.9 MB for MP3 files.
 - Libraries: **ESP32-audioI2S** by schreibfaul1 (version 4.0.0) and **PubSubClient**.
 
-`buildAll.bat` builds with `arduino-cli` and puts the files in `build_netspeaker\esp32s3`. `flashESP.bat` flashes one device via USB, `flashAll.bat` checks the devices on the network and flashes connected devices via USB (no OTA updates).
+`buildAll.bat` builds with `arduino-cli` and puts the files in `build_netspeaker\esp32s3`. `build_netspeaker\flashESP.bat` flashes one device via USB, with your own build from `esp32s3` or, if there is none, with the package from the newest release. `flashAll.bat` checks the devices on the network and flashes connected devices via USB (no OTA updates). `build_netspeaker\publish_builds.ps1` creates the packages for a release (`-Upload` uploads them).
 
 **Setting up the WiFi while flashing:** Both scripts ask for the WiFi after flashing (with `flashAll.bat -Yes` the question is skipped). They show the visible 2.4 GHz networks by signal strength; if the PC is connected to one of them, one key press takes over its name and the password stored in the PC. Otherwise you enter the number or the name and the password twice, hidden (8 to 63 characters, empty for an open network). Enter leaves the WiFi unchanged. The data goes to the device over the USB cable; the access point and the browser are not needed, and the other settings stay. If the device sends no confirmation, set up the WiFi in the browser as described under *First start*.
 
@@ -299,6 +322,7 @@ The project is licensed under the **GNU General Public License v3.0** (file `LIC
 | Vorbis decoder (Xiph.Org) inside the library | BSD-style | license text in the source files |
 | Arduino-ESP32 (Espressif) | LGPL-2.1 | pulled in at build time, not shipped |
 | PubSubClient (Nick O'Leary) | MIT | pulled in at build time, not shipped |
+| esptool (Espressif) | GPL-2.0+ | included as `esptool.exe` only in the release attachment `netspeaker_flash.zip`, source: https://github.com/espressif/esptool |
 
 **VoiceRSS** is a third-party service: its terms of use and daily limits apply, and the API key is personal. **Web radio streams** are subject to the broadcasters' rights. The repository contains no sounds and no product photos (rights not clarified); upload your own MP3 files in the *MP3* tab.
 

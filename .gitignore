@@ -1,4 +1,7 @@
-build_netspeaker/
+build_netspeaker/esp32s3/
+build_netspeaker/esptool.exe
+build_netspeaker/*.zip
+build_netspeaker/*.sha256
 *-settings.txt
 wiring_svg.h.bak
 *.bak

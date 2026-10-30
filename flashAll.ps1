@@ -86,7 +86,7 @@ foreach ($b in $boards) {
     if (-not (Ask "COM$($b.Port) (ESP32-S3) mit dem Build aus build_netspeaker flashen / flash with the build from build_netspeaker?")) { continue }
     $wifiArg = @()
     if (-not $Yes) { $wifiArg = @('-AskWifi') }
-    & powershell -NoProfile -ExecutionPolicy Bypass -File "$root\voicesetup.ps1" -Port $b.Port @wifiArg
+    & powershell -NoProfile -ExecutionPolicy Bypass -File "$root\build_netspeaker\voicesetup.ps1" -Port $b.Port @wifiArg
     if ($LASTEXITCODE -ne 0) { Write-Host "  Flashen fehlgeschlagen / flashing failed (COM$($b.Port))"; $failed++ }
 }
 

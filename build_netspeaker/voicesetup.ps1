@@ -1,25 +1,29 @@
 # Flasht die Sprachausgabe (ESP32-S3) per USB, Aufruf aus flashESP.bat.
-#   Ohne -Port (Doppelklick auf flashESP.bat): sucht den ESP am USB und flasht die Dateien aus
-#   build_netspeaker\esp32s3 (von buildAll.bat erzeugt). Bootloader, Partitionen und App werden
+#   Ohne -Port (Doppelklick auf flashESP.bat): sucht den ESP am USB und flasht die Dateien aus dem Ordner esp32s3 neben
+#   diesem Skript (von buildAll.bat erzeugt); fehlt er, laedt das Skript netspeaker-esp32s3.zip vom neuesten GitHub-Release
+#   (SHA-256 geprueft). -Download erzwingt das Laden, NETSPEAKER_BUILD_URL ersetzt die Adresse (Test). Bootloader, Partitionen und App werden
 #   einzeln geschrieben, die Einstellungen (NVS) bleiben erhalten. Danach fragt das Skript das WLAN ab und sendet es per USB
 #   ("WIFI:<SSID><Tab><Passwort>", siehe checkSerialWifi() in netspeaker.ino); Enter = WLAN nicht aendern.
 #   Mit -Port (z. B. 3 fuer COM3) ohne Rueckfragen (dann ohne WLAN), ausser mit -AskWifi (so ruft flashAll.ps1 es auf): dann wird
 #   nach dem Flashen auch das WLAN abgefragt.
 #
 # Flashes the voice output (ESP32-S3) via USB, called from flashESP.bat.
-#   Without -Port (double-click on flashESP.bat): finds the ESP on USB and flashes the files
-#   from build_netspeaker\esp32s3 (made by buildAll.bat). Bootloader, partitions and app are written
+#   Without -Port (double-click on flashESP.bat): finds the ESP on USB and flashes the files from the folder esp32s3 next to
+#   this script (made by buildAll.bat); if it is missing, the script downloads netspeaker-esp32s3.zip from the newest GitHub release
+#   (SHA-256 checked). -Download forces the download, NETSPEAKER_BUILD_URL replaces the address (test). Bootloader, partitions and app are written
 #   separately, the settings (NVS) stay. Afterwards the script asks for the WiFi and sends it via USB
 #   ("WIFI:<SSID><Tab><password>", see checkSerialWifi() in netspeaker.ino); Enter = leave the WiFi unchanged.
 #   With -Port (e.g. 3 for COM3) without questions (then without WiFi), except with -AskWifi (how flashAll.ps1 calls it): then the
 #   WiFi is asked for after flashing as well.
-param([string]$Port, [switch]$AskWifi)
+param([string]$Port, [switch]$AskWifi, [switch]$Download)
 
 # Chip des Projekts: Ordner, esptool-Name, Bootloader-Adresse / project chip: folder, esptool name, bootloader address
 $c = @{ Dir = 'esp32s3'; Name = 'esp32s3'; Boot = '0x0' }
 
 # Neuestes esptool.exe aus dem ESP32-Core der Arduino IDE / newest esptool.exe from the Arduino IDE's ESP32 core
 function Find-Esptool {
+    $near = Join-Path $PSScriptRoot 'esptool.exe'
+    if (Test-Path $near) { return $near }
     $root = Join-Path $env:LOCALAPPDATA 'Arduino15\packages\esp32\tools\esptool_py'
     $exe = Get-ChildItem -Path $root -Filter esptool.exe -Recurse -ErrorAction SilentlyContinue | Sort-Object { $_.Directory.Name } | Select-Object -Last 1
     if ($exe) { return $exe.FullName }
@@ -225,7 +229,8 @@ function Send-Wifi([string]$ssid, [string]$pass) {
 $interactive = -not $Port
 $esptool = Find-Esptool
 if (-not $esptool) {
-    Write-Host 'esptool.exe nicht gefunden - ESP32-Core in der Arduino IDE installieren. / esptool.exe not found - install the ESP32 core in the Arduino IDE.'
+    Write-Host 'esptool.exe nicht gefunden - neben dieses Skript legen (Werkzeug-ZIP) oder den ESP32-Core in der Arduino IDE installieren.'
+    Write-Host 'esptool.exe not found - put it next to this script (tools zip) or install the ESP32 core in the Arduino IDE.'
     exit 1
 }
 
@@ -252,14 +257,62 @@ else {
     $num = [int]($a -replace '\D', '')
 }
 
-# 2) Dateien pruefen / check the files
-$binDir = Join-Path $PSScriptRoot ('build_netspeaker\' + $c.Dir)
+# 2) Dateien bestimmen / determine the files
+# Ordner esp32s3 neben dem Skript (buildAll.bat), sonst Download des Pakets vom neuesten GitHub-Release, per SHA-256 geprueft.
+# Folder esp32s3 next to the script (buildAll.bat), otherwise download of the package from the newest GitHub release, checked by SHA-256.
 $files = @('netspeaker.ino.bootloader.bin', 'netspeaker.ino.partitions.bin', 'boot_app0.bin', 'netspeaker.ino.bin')
-$missing = $files | Where-Object { -not (Test-Path (Join-Path $binDir $_)) }
-if ($missing) {
-    Write-Host "Fehlende Dateien / missing files in ${binDir}: $($missing -join ', ')"
-    Write-Host 'Zuerst buildAll.bat ausfuehren. / Run buildAll.bat first.'
-    exit 1
+$buildUrl = if ($env:NETSPEAKER_BUILD_URL) { $env:NETSPEAKER_BUILD_URL.TrimEnd('/') } else { 'https://github.com/holgiw/netspeaker/releases/latest/download' }
+
+function Get-BuildDir {
+    $name = 'netspeaker-esp32s3'
+    $work = Join-Path ([IO.Path]::GetTempPath()) "netspeaker-flash$([IO.Path]::DirectorySeparatorChar)$name"
+    if (Test-Path $work) { Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue }
+    New-Item -ItemType Directory -Path $work -Force | Out-Null
+    $zip = Join-Path $work "$name.zip"
+    Write-Host "Build wird geladen / downloading the build: $buildUrl/$name.zip"
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        $wc = New-Object System.Net.WebClient
+        $wc.Headers.Add('User-Agent', 'netspeaker-flash')
+        $wc.Proxy = [Net.WebRequest]::GetSystemWebProxy()
+        $wc.Proxy.Credentials = [Net.CredentialCache]::DefaultCredentials
+        $shaText = $wc.DownloadString("$buildUrl/$name.sha256")
+        $wc.DownloadFile("$buildUrl/$name.zip", $zip)
+    }
+    catch {
+        Write-Host "Download fehlgeschlagen / download failed: $($_.Exception.Message)"
+        Write-Host 'Internetverbindung des PCs pruefen (GitHub erreichbar?), dann erneut starten.'
+        Write-Host 'Check the PC internet connection (is GitHub reachable?), then start again.'
+        exit 1
+    }
+    $want = ($shaText.Trim() -split '\s+')[0].ToLower()
+    $have = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLower()
+    if ($want -ne $have) {
+        Write-Host 'Pruefsumme der geladenen Datei stimmt nicht - nichts wird geflasht. Spaeter erneut versuchen.'
+        Write-Host 'Checksum of the downloaded file does not match - nothing is flashed. Try again later.'
+        exit 1
+    }
+    $out = Join-Path $work 'files'
+    Expand-Archive -Path $zip -DestinationPath $out -Force
+    $lack = $files | Where-Object { -not (Test-Path (Join-Path $out $_)) }
+    if ($lack) {
+        Write-Host "Das Paket ist unvollstaendig / the package is incomplete: $($lack -join ', ')"
+        exit 1
+    }
+    return $out
+}
+
+$binDir = Join-Path $PSScriptRoot $c.Dir
+$missing = @($files | Where-Object { -not (Test-Path (Join-Path $binDir $_)) })
+if ($Download -or $env:NETSPEAKER_DOWNLOAD -eq '1' -or $missing.Count -gt 0) {
+    if ($missing.Count -gt 0 -and -not $Download) {
+        Write-Host 'Kein lokaler Build (buildAll.bat) - das Paket wird vom GitHub-Release geladen.'
+        Write-Host 'No local build (buildAll.bat) - the package is downloaded from the GitHub release.'
+    }
+    $binDir = Get-BuildDir
+    Write-Host 'Build vom GitHub-Release / build from the GitHub release.'
+} else {
+    Write-Host "Build aus dem lokalen Ordner / build from the local folder: $binDir"
 }
 
 # 3) WLAN abfragen (im Doppelklick-Betrieb oder mit -AskWifi) / ask for the WiFi (in double-click mode or with -AskWifi)

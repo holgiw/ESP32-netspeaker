@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-30 - Version 1.3.4
+
+**Deutsch**
+
+- Flash-Werkzeuge wie bei der Uhr: `flashESP.bat` und `voicesetup.ps1` liegen jetzt im Ordner `build_netspeaker/` des Repositorys (nur die Werkzeuge, die Binärdateien bleiben ausgeschlossen). Fehlt ein lokaler Build, lädt `flashESP.bat` das Paket `netspeaker-esp32s3.zip` vom neuesten Release und prüft die SHA-256-Summe. Neu: `publish_builds.ps1` erzeugt die Pakete (`netspeaker-esp32s3.zip`, `.sha256` und `netspeaker_flash.zip` mit `esptool.exe`) und lädt sie mit `-Upload` ins Release. Neuer README-Abschnitt *Fertige Firmware flashen*. Die Firmware ist unverändert.
+
+**English**
+
+- Flash tools as with the clock: `flashESP.bat` and `voicesetup.ps1` now live in the folder `build_netspeaker/` of the repository (only the tools, the binaries stay excluded). Without a local build `flashESP.bat` downloads the package `netspeaker-esp32s3.zip` from the newest release and checks the SHA-256 sum. New: `publish_builds.ps1` creates the packages (`netspeaker-esp32s3.zip`, `.sha256` and `netspeaker_flash.zip` with `esptool.exe`) and uploads them to the release with `-Upload`. New README section *Flashing the finished firmware*. The firmware is unchanged.
+
 ## 2026-10-30 - Version 1.3.3
 
 **Deutsch**
