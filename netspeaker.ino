@@ -674,6 +674,7 @@ VolRamp volRamp;
 // The radio level is lowered because of a running announcement.
 
 bool mixDucked = false;
+unsigned long mixDuckAt = 0;
 
 void ensureAudio() {
     if (audio) return;
@@ -1020,11 +1021,21 @@ FileRef resolveFile(String name) {
         }
         return r;
     }
+    String plain = name;
+    if (plain.startsWith("/")) plain.remove(0, 1);
     if (name.startsWith("/")) name.remove(0, 1);
     if (name.startsWith("mp3/")) name.remove(0, 4);
     r.path = String(MP3_DIR) + "/" + name;
     r.shown = name;
     r.ok = fsReady && !name.isEmpty() && name.indexOf("..") < 0 && LittleFS.exists(r.path);
+
+    // Ein Name ohne "sd:" wird zuerst im Flash gesucht, dann auf der SD-Karte (Pfad ab Wurzel).
+    // A name without "sd:" is looked up in the flash first, then on the SD card (path from the root).
+
+    if (!r.ok && sdReady && !plain.isEmpty()) {
+        FileRef s = resolveFile("sd:/" + plain);
+        if (s.ok) return s;
+    }
     return r;
 }
 
@@ -1857,10 +1868,19 @@ bool mixStart(const String& path, int vol, bool sd = false) {
     mixLastRd = 0;
     mixLastProgress = millis();
     int duck = currentVolume * VOL_FINE * cfg.duckPct / 100;
-    volRampTo(duck, cfg.fadeMs);
+
+    // War das Radio oder die Datei schon beim Aufruf abgesenkt (Ansage), startet die Ansage ohne weitere Wartezeit.
+    // If the radio or file was already lowered when the call came in (announcement), the announcement starts without further delay.
+
+    unsigned long lead = (unsigned long)cfg.fadeMs * 6 / 10;
+    unsigned long since = mixDucked ? millis() - mixDuckAt : 0;
+    if (!mixDucked) {
+        volRampTo(duck, cfg.fadeMs);
+        mixDuckAt = millis();
+    }
     mixDucked = true;
     mixPending = true;
-    mixActivateAt = millis() + (unsigned long)cfg.fadeMs * 6 / 10;
+    mixActivateAt = millis() + (since >= lead ? 0 : lead - since);
     logLine("[MIX] " + path + " mixed over the running audio, announcement volume " + String(vol) + ", radio " + String(currentVolume) + " -> " + String(duck / VOL_FINE) + ", source " + String(mixSrcRate) + " Hz, output " + String(mixOutRate) + " Hz");
     return true;
 }
@@ -1908,6 +1928,35 @@ void mixWatch() {
     if (empty || mixDrained || stuck || !audio || playState != PS_PLAYING || !(streamActive || nowKind == "file")) mixStop();
 }
 
+// Waehrend der Text geladen wird, blockiert die Hauptschleife; ein kleiner Task fuehrt das Absenken in dieser Zeit weiter, damit es sanft bleibt.
+// While the text is being loaded the main loop is blocked; a small task keeps the lowering going meanwhile so it stays smooth.
+
+volatile bool duckWorkerRun = false;
+volatile bool duckWorkerDone = true;
+
+void duckWorker(void*) {
+    while (duckWorkerRun) {
+        volRampStep();
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+    duckWorkerDone = true;
+    vTaskDelete(nullptr);
+}
+
+void duckWorkerStart() {
+    duckWorkerDone = false;
+    duckWorkerRun = true;
+    if (xTaskCreate(duckWorker, "duck", 4096, nullptr, 1, nullptr) != pdPASS) {
+        duckWorkerRun = false;
+        duckWorkerDone = true;
+    }
+}
+
+void duckWorkerStop() {
+    duckWorkerRun = false;
+    for (int i = 0; i < 50 && !duckWorkerDone; i++) delay(2);
+}
+
 // Ansage ueber das Radio mischen: Text laden, dann mit dem Mischer ueber das laufende Radio legen. false = normaler Weg.
 // Mix an announcement over the radio: download the text, then lay it over the running radio with the mixer. false = normal way.
 
@@ -1922,11 +1971,22 @@ bool speakMixed(const Pending& p) {
     }
     mixHalt();
     lastError = "";
+
+    // Radio oder Datei sofort absenken, damit die Ansage nach dem Laden gleich zu hoeren ist.
+    // Lower the radio or file right away so the announcement is audible as soon as it is loaded.
+
+    if (!mixDucked) {
+        volRampTo(currentVolume * VOL_FINE * cfg.duckPct / 100, cfg.fadeMs);
+        mixDucked = true;
+        mixDuckAt = millis();
+    }
     voiceBusy = true;
     voiceEver = true;
     publishStatus(true);
     String err;
+    duckWorkerStart();
     bool ok = downloadSpeech(buildSpeechUrl(p), err);
+    duckWorkerStop();
     voiceBusy = false;
     voiceLastOk = ok;
     if (!ok) {
@@ -1956,7 +2016,11 @@ bool fileMixed(const Pending& p) {
     }
     lastError = "";
     if (!mixStart(r.path, p.vol >= 0 ? p.vol : cfg.vol, r.sd)) return false;
-    nowFile = r.shown;
+
+    // Laeuft schon eine Datei, bleibt sie die angezeigte; nur ueber einem Radio steht die gemischte Datei in nowFile.
+    // If a file is already playing it stays the one shown; only over a radio the mixed file goes into nowFile.
+
+    if (nowKind != "file") nowFile = r.shown;
     publishStatus(true);
     return true;
 }
@@ -2080,6 +2144,25 @@ bool announceBusy() {
     return voiceBusy || mixInUse || ((nowKind == "speech" || nowKind == "file") && playState != PS_IDLE);
 }
 
+// Ist p eine MP3-Datei aus dem Flash, waehrend gerade eine MP3-Datei von der SD-Karte spielt? Dann wird sie sofort ueber die Karte gemischt.
+// Is p an MP3 file from the flash while an MP3 file from the SD card is playing? Then it is mixed over the card file right away.
+
+bool flashOverSd(const Pending& p) {
+    if (p.type != PEND_FILE || p.text.startsWith("sd:") || nowKind != "file" || !nowFile.startsWith("sd:") || !mixPossible()) return false;
+    String lower = p.text;
+    lower.toLowerCase();
+    if (!lower.endsWith(".mp3")) return false;
+
+    // Nur eine Datei, die im Flash liegt; ein Name, der erst auf der SD-Karte gefunden wird, wartet wie jede Datei der Karte.
+    // Only a file that is in the flash; a name that is only found on the SD card waits like any file of the card.
+
+    String n = p.text;
+    n.trim();
+    if (n.startsWith("/")) n.remove(0, 1);
+    if (n.startsWith("mp3/")) n.remove(0, 4);
+    return fsReady && !n.isEmpty() && n.indexOf("..") < 0 && LittleFS.exists(String(MP3_DIR) + "/" + n);
+}
+
 // Holt den naechsten Eintrag aus der Warteschlange, sobald die vorige Ansage oder Datei zu Ende ist.
 // Takes the next entry from the queue as soon as the previous announcement or file has ended.
 
@@ -2091,12 +2174,14 @@ void processQueue() {
         return;
     }
 
-    // Spielt nur eine MP3-Datei (keine Ansage, kein Mischer), kommt die erste Ansage der Warteschlange vor und wird leise darueber gemischt.
-    // If only an MP3 file is playing (no announcement, no mixer), the first announcement of the queue jumps ahead and is mixed quietly over it.
+    // Spielt nur eine MP3-Datei (keine Ansage, kein Mischer), kommt die erste Ansage der Warteschlange vor und wird leise darueber gemischt;
+    // ebenso eine Flash-MP3-Datei vor einer laufenden Datei der SD-Karte.
+    // If only an MP3 file is playing (no announcement, no mixer), the first announcement of the queue jumps ahead and is mixed quietly over it;
+    // so does a flash MP3 file ahead of a running file of the SD card.
 
     if (!voiceBusy && !mixInUse && nowKind == "file" && mixPossible()) {
         for (int i = 0; i < annCount; i++) {
-            if (annQueue[i].type == PEND_SAY && annTake(i, next)) {
+            if ((annQueue[i].type == PEND_SAY || flashOverSd(annQueue[i])) && annTake(i, next)) {
                 pending = next;
                 return;
             }
@@ -2136,6 +2221,7 @@ void processPending() {
         lowerName.toLowerCase();
         mixable = lowerName.endsWith(".mp3");
     }
+    if (flashOverSd(p)) mixable = true;
     if (mixInUse && !(mixable && mixPossible())) {
         mixHalt();
         mixDucked = false;
@@ -2876,7 +2962,7 @@ void rejectCommand(const String& why) {
 
 void publishStations() {
     if (!mqttClient.connected()) return;
-    mqttClient.publish((mqttBaseTopic() + "/stations").c_str(), stationsJson().c_str(), true);
+    if (!mqttClient.publish((mqttBaseTopic() + "/stations").c_str(), stationsJson().c_str(), true)) logLine("[MQTT] station list not published (too large for the buffer?)");
 }
 
 // Meldet die Lautstaerken per MQTT (retained): <Basis>/volume/state = gerade wirkende, <Basis>/volume/general = allgemeine.
@@ -3487,7 +3573,7 @@ void setup() {
     applyVolume(cfg.vol);
     logLine("[AUDIO] I2S pins BCLK=" + String(cfg.bclk) + " LRC=" + String(cfg.lrc) + " DIN=" + String(cfg.din) + ", free heap " + String(ESP.getFreeHeap()));
 
-    mqttClient.setBufferSize(5120);
+    mqttClient.setBufferSize(8192);
     mqttClient.setSocketTimeout(1);
     mqttClient.setKeepAlive(MQTT_KEEPALIVE_S);
     mqttClient.setCallback(onMqttMessage);

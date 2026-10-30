@@ -148,6 +148,6 @@
 
 #define VOL_FINE 1
 
-#define RADIO_SLOTS 15
+#define RADIO_SLOTS 30
 #define RADIO_NAME_MAX 24
 #define RADIO_URL_MAX 200

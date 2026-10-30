@@ -94,7 +94,7 @@ pre.code{text-align:left;white-space:pre-wrap;word-break:break-all;font-family:v
 
 static const char TAB_KEYS[][12] = {"sprechen", "radio", "sd", "mp3", "pins", "audio", "mqtt", "wlan", "zeit", "status", "log", "doku"};
 static const char* const TAB_LABELS[] = {"Sprechen", "Webradio", "SD-Karte", "MP3 (Flash)", "Eing&auml;nge", "Audio", "MQTT", "WLAN", "Zeit", "Status", "Log", "Doku"};
-static const char* const TAB_TIPS[] = {"Text ansagen, stoppen, Lautst&auml;rke", "Webradio-URL abspielen und bis zu 15 Sender speichern", "Dateien der SD-Karte abspielen, hochladen und verwalten", "MP3-Dateien im Ger&auml;t hochladen und abspielen", "Freie Pins mit Pull-up: bei Kontakt nach GND eine Ansage oder MP3-Datei abspielen", "Anschl&uuml;sse (Pins von Verst&auml;rker und SD-Karte), Lautst&auml;rke, &Uuml;berblenden, Start und Sprachausgabe (VoiceRSS)", "MQTT-Broker und Basis-Topic", "Hostname und WLAN-Zugangsdaten", "Zeitserver und Zeitzone", "Zustand des Ger&auml;ts", "Ereignisprotokoll", "Alle REST- und MQTT-Aufrufe zum Kopieren"};
+static const char* const TAB_TIPS[] = {"Text ansagen, stoppen, Lautst&auml;rke", "Webradio-URL abspielen und bis zu 30 Sender speichern", "Dateien der SD-Karte abspielen, hochladen und verwalten", "MP3-Dateien im Ger&auml;t hochladen und abspielen", "Freie Pins mit Pull-up: bei Kontakt nach GND eine Ansage oder MP3-Datei abspielen", "Anschl&uuml;sse (Pins von Verst&auml;rker und SD-Karte), Lautst&auml;rke, &Uuml;berblenden, Start und Sprachausgabe (VoiceRSS)", "MQTT-Broker und Basis-Topic", "Hostname und WLAN-Zugangsdaten", "Zeitserver und Zeitzone", "Zustand des Ger&auml;ts", "Ereignisprotokoll", "Alle REST- und MQTT-Aufrufe zum Kopieren"};
 static const int TAB_COUNT = 12;
 
 // ⓘ-Hinweis mit Erklaerung als Tooltip (title) - der Punkt am Satzende kommt hier dazu; im Text keine einfachen Anfuehrungszeichen.
@@ -215,6 +215,14 @@ function importSettings(inp){
     alert(t.indexOf('OK|')===0?t.substring(3):('Fehler: '+t.substring(5)));location.reload();});};
   rd.readAsText(f);
 }
+function loadStations(inp){
+  var f=inp.files[0];if(!f)return;
+  if(!confirm('Die gespeicherte Senderliste wird durch die Datei ersetzt. Fortfahren?')){inp.value='';return;}
+  var rd=new FileReader();
+  rd.onload=function(){fetch('/importstations',{method:'POST',headers:{'Content-Type':'text/plain'},body:rd.result}).then(function(r){return r.text();}).then(function(t){
+    alert(t.indexOf('OK|')===0?t.substring(3):('Fehler: '+t.substring(5)));location.reload();});};
+  rd.readAsText(f);
+}
 )js";
 
 // ---------------------------------------------------------------------------
@@ -294,7 +302,9 @@ String panelRadio() {
         h += "<button type='button' class='copy-btn' style='position:static;margin:2px' title='Platz l&ouml;schen (Name und URL); die folgenden Pl&auml;tze r&uuml;cken auf' onclick='delStation(" + n + ")'" + off + ">&#10006;</button></div>";
     }
     h += "<small>Das Feld rechts neben der URL ist die Lautst&auml;rke des Senders (0-100, leer = allgemeine Lautst&auml;rke). Speichern, bevor du &#9654; dr&uuml;ckst. &#9650;&#9660; verschieben den Sender und speichern sofort. Der URL-Knopf kopiert den REST-Aufruf <code>/api/station?n=Platz</code>; auch der Name geht (<code>?name=...</code>).</small>";
-    h += "<button type='submit'>Speichern</button><div id='stResult'></div></form></div>";
+    h += "<button type='submit'>Speichern</button><div id='stResult'></div></form>";
+    h += "<div class='row'><button type='button' onclick=\"location.href='/stations.txt'\" style='width:auto;padding:8px 14px'>Liste speichern</button> " + infoTip("Speichert die Senderliste (Name, URL, Lautst&auml;rke) als Textdatei auf deinem Rechner") + " ";
+    h += "<button type='button' onclick=\"document.getElementById('stFile').click()\" style='width:auto;padding:8px 14px'>Liste laden</button><input type='file' id='stFile' accept='.txt' style='display:none' onchange='loadStations(this)'> " + infoTip("Ersetzt die gespeicherte Senderliste durch eine zuvor gespeicherte Datei") + "</div></div>";
     return h;
 }
 
@@ -445,7 +455,7 @@ String panelMqtt() {
     h += mqttRow(base, "/play", true, "URL (Webradio, MP3) <em>oder</em> Dateiname aus dem Tab MP3 (Flash) oder <code>sd:/Pfad.mp3</code> von der SD-Karte. Das Ger&auml;t erkennt selbst, was es ist. JSON: <code>url</code> oder <code>file</code>, optional <code>vol</code>; bei einem Ordner (<code>sd:/Pfad/</code>) auch <code>shuffle</code> (zuf&auml;llige Reihenfolge) und <code>loop</code> (endlos), z. B. <code>{&quot;file&quot;:&quot;sd:/Musik/&quot;,&quot;shuffle&quot;:1,&quot;loop&quot;:1}</code>.", exPlay, 3);
     h += mqttRow(base, "/url", true, "URL (http:// oder https://). JSON: <code>url</code>, optional <code>vol</code>.", exUrl, 1);
     h += mqttRow(base, "/file", true, "Dateiname einer hochgeladenen Datei, <code>sd:/Pfad.mp3</code> oder ein Ordner <code>sd:/Ordner/</code>. JSON: <code>file</code>, optional <code>vol</code>, <code>shuffle</code> und <code>loop</code>.", exFile, 1);
-    h += mqttRow(base, "/station", true, "Gespeicherter Sender: Platznummer 1-15 oder Name. JSON: <code>n</code> oder <code>name</code>, optional <code>vol</code>.", exStation, 3);
+    h += mqttRow(base, "/station", true, "Gespeicherter Sender: Platznummer 1-30 oder Name. JSON: <code>n</code> oder <code>name</code>, optional <code>vol</code>.", exStation, 3);
     h += mqttRow(base, "/stop", true, "Keine Nutzlast: beendet die Wiedergabe, auch ein Webradio.", exStop, 1);
     h += mqttRow(base, "/volume", true, "Allgemeine Lautst&auml;rke 0 bis 100 (wird gespeichert); sie wandert sanft zum neuen Wert. Als JSON l&auml;sst sich die Dauer je Aufruf in Millisekunden angeben: <code>{\"v\":60,\"ms\":3000}</code>.", exVol, 2);
     h += mqttRow(base, "/list", true, "Keine Nutzlast: sendet die Senderliste erneut.", exList, 1);
@@ -632,13 +642,15 @@ curl -d "path=/Musik/lied.mp3" http://@HOST@/api/sddelete
 curl -o lied.mp3 "http://@HOST@/api/sdfile?path=/Musik/lied.mp3"
 curl -X POST http://@HOST@/api/sdmount)d");
     h += docCard("Gespeicherte Webradios / URLs",
-        "Im Tab Webradio lassen sich 15 Pl&auml;tze mit Name, URL und eigener Lautst&auml;rke speichern (leer = allgemeine Lautst&auml;rke; ein <code>vol</code> im Aufruf hat Vorrang). <code>n</code> ist die Platznummer (1-15), alternativ <code>name</code> (Gro&szlig;-/Kleinschreibung egal). <code>/api/stations</code> liefert die belegten Pl&auml;tze (JSON mit n, name, url, vol), <code>/api/stationdelete</code> l&ouml;scht einen Platz (Name und URL), die folgenden Pl&auml;tze r&uuml;cken nach oben.",
+        "Im Tab Webradio lassen sich 30 Pl&auml;tze mit Name, URL und eigener Lautst&auml;rke speichern (leer = allgemeine Lautst&auml;rke; ein <code>vol</code> im Aufruf hat Vorrang). <code>n</code> ist die Platznummer (1-30), alternativ <code>name</code> (Gro&szlig;-/Kleinschreibung egal). <code>/api/stations</code> liefert die belegten Pl&auml;tze (JSON mit n, name, url, vol), <code>/api/stationdelete</code> l&ouml;scht einen Platz (Name und URL), die folgenden Pl&auml;tze r&uuml;cken nach oben. <code>/stations.txt</code> l&auml;dt die Liste als Textdatei, <code>POST /importstations</code> ersetzt sie durch eine solche Datei (im Tab Webradio: Liste speichern / Liste laden).",
         R"d(curl -d "n=3" http://@HOST@/api/station
 curl "http://@HOST@/api/station?name=Radio%20Eins&vol=10"
 curl http://@HOST@/api/stations
+curl http://@HOST@/stations.txt -o stations.txt
+curl --data-binary @stations.txt -H "Content-Type: text/plain" http://@HOST@/importstations
 curl -d "n=3" http://@HOST@/api/stationdelete)d");
     h += docCard("Hochgeladene MP3-Datei abspielen",
-        "<code>file</code> ist der Dateiname aus dem Tab MP3 (Flash). Dort gibt es f&uuml;r jede Datei Kn&ouml;pfe, die den fertigen Aufruf kopieren. Mit <code>/api/files</code> kommt die Liste, mit <code>/api/delete</code> wird eine Datei gel&ouml;scht. Hochladen geht per <code>/upload</code> (Formular, Feld <code>file</code>).",
+        "<code>file</code> ist der Dateiname aus dem Tab MP3 (Flash). Dort gibt es f&uuml;r jede Datei Kn&ouml;pfe, die den fertigen Aufruf kopieren. Mit <code>/api/files</code> kommt die Liste, mit <code>/api/delete</code> wird eine Datei gel&ouml;scht. Hochladen geht per <code>/upload</code> (Formular, Feld <code>file</code>). Ein Name ohne <code>sd:</code> wird zuerst im Flash und dann auf der SD-Karte gesucht (<code>sd:/Pfad.mp3</code> nur auf der Karte).",
         R"d(curl -d "file=glocke.mp3" http://@HOST@/api/file
 curl "http://@HOST@/api/file?file=glocke.mp3&vol=15"
 curl http://@HOST@/api/files
@@ -658,8 +670,9 @@ curl -d "enable=1" http://@HOST@/api/log
 curl -d "clear=1" http://@HOST@/api/log
 curl http://@HOST@/log)d");
     h += docCard("MQTT-Broker per API setzen",
-        "Setzt nur Broker und Port (optional auch <code>user</code> und <code>pass</code>), alles andere bleibt unver&auml;ndert. GET liefert Broker, Port, <code>user</code> und <code>connected</code>; das Passwort wird nie ausgegeben.",
+        "Setzt nur Broker und Port (optional auch <code>user</code> und <code>pass</code>), alles andere bleibt unver&auml;ndert. GET liefert Broker, Port, <code>user</code> und <code>connected</code>; das Passwort wird nie ausgegeben. Mit <code>group1</code> bis <code>group5</code> lassen sich die Gruppen-Topics setzen (leer = entfernt); GET liefert sie als <code>groups</code>.",
         R"d(curl -d "broker=192.168.0.70&port=1883" http://@HOST@/api/mqtt
+curl -d "group1=netspeaker/all&group2=netspeaker/haus" http://@HOST@/api/mqtt
 curl http://@HOST@/api/mqtt)d");
     h += docCard("Eing&auml;nge (Pins)",
         "<code>GET /api/pins</code> liefert die freien Pins: <code>p</code> (Nummer), <code>l</code> (Zustand, 1 = High, 0 = Low), <code>t</code> (Aktion), <code>x</code> (Text) und <code>v</code> (Lautst&auml;rke, -1 = allgemeine). <code>POST /api/pins</code> mit <code>pin</code>, <code>type</code> (<code>say</code>, <code>file</code>, <code>station</code> oder leer = keine Aktion), <code>text</code> (Ansage, Dateiname, <code>sd:</code>-Pfad, URL oder Sender) und optional <code>vol</code> (0-100) speichert die Aktion eines Pins. Sie l&ouml;st aus, sobald der Pin etwa 40 ms Kontakt nach GND hat.",
@@ -681,7 +694,7 @@ curl "http://@HOST@/lang.json?l=en")d");
 curl -o netspeaker-settings.txt http://@HOST@/export
 curl -X POST http://@HOST@/restart)d");
     h += docCard("MQTT",
-        "Basis-Topic <code>" + htmlEsc(base) + "</code> (im Tab MQTT &auml;nderbar). Nutzlast als Text oder als JSON. <code>/say</code>: Text oder <code>{\"text\":\"...\",\"lang\":\"..\",\"voice\":\"..\",\"rate\":0,\"vol\":60}</code>. <code>/play</code>: URL oder Dateiname, auch <code>{\"url\":\"...\"}</code> oder <code>{\"file\":\"...\"}</code>. <code>/url</code> nur URL, <code>/file</code> nur Dateiname, <code>/station</code> Platz 1-15 oder Name (auch JSON <code>{\"n\":3}</code> oder <code>{\"name\":\"..\"}</code>). <code>/stop</code> ohne Nutzlast. <code>/volume</code> 0-100. <code>/restart</code> ohne Nutzlast startet das Ger&auml;t neu (nicht retained senden; eine Nachricht in den ersten 3 s nach dem Verbinden wird ignoriert). "
+        "Basis-Topic <code>" + htmlEsc(base) + "</code> (im Tab MQTT &auml;nderbar). Nutzlast als Text oder als JSON. <code>/say</code>: Text oder <code>{\"text\":\"...\",\"lang\":\"..\",\"voice\":\"..\",\"rate\":0,\"vol\":60}</code>. <code>/play</code>: URL oder Dateiname, auch <code>{\"url\":\"...\"}</code> oder <code>{\"file\":\"...\"}</code>. <code>/url</code> nur URL, <code>/file</code> nur Dateiname, <code>/station</code> Platz 1-30 oder Name (auch JSON <code>{\"n\":3}</code> oder <code>{\"name\":\"..\"}</code>). <code>/stop</code> ohne Nutzlast. <code>/volume</code> 0-100. <code>/restart</code> ohne Nutzlast startet das Ger&auml;t neu (nicht retained senden; eine Nachricht in den ersten 3 s nach dem Verbinden wird ignoriert). "
         "Zur&uuml;ck kommen <code>/status</code> (idle, loading, playing, error: ...), <code>/now</code> (was gerade l&auml;uft, zum Beispiel &quot;Sendername - Titel&quot;) und <code>/availability</code> (online, offline). <code>/volume/state</code> (gerade wirkende Lautst&auml;rke) und <code>/volume/general</code> (allgemeine) werden bei jeder &Auml;nderung gesendet. <code>/stations</code> enth&auml;lt die Senderliste (retained, wird nach jeder &Auml;nderung neu gesendet); ein Aufruf von <code>/list</code> sendet sie erneut; ein ung&uuml;ltiger Befehl erscheint in <code>/status</code> als Fehler. Zus&auml;tzliche Gruppen-Topics (bis zu 5, im Tab MQTT) nehmen dieselben Befehle an, zum Beispiel <code>netspeaker/all/stop</code> f&uuml;r alle Ger&auml;te; Standard ist <code>netspeaker/all</code>.",
         "mosquitto_pub -h <broker> -t " + base + "/say -m \"Hallo Welt\"\n"
         "mosquitto_pub -h <broker> -t " + base + "/say -m '{\"text\":\"Hallo\",\"lang\":\"en-gb\",\"vol\":10}'\n"
@@ -1469,6 +1482,76 @@ void handleApiStationDelete() {
     sendOk("Platz " + String(n) + " gel\xC3\xB6scht");
 }
 
+// Senderliste als Textdatei sichern und wieder laden; das Laden ersetzt die ganze Liste.
+// Save the station list as a text file and load it again; loading replaces the whole list.
+
+void handleStationsExport() {
+    String t = "# " PROJECT_NAME " stations\n";
+    int n = 0;
+    for (int i = 0; i < RADIO_SLOTS; i++) {
+        if (cfg.radioUrl[i].isEmpty()) continue;
+        n++;
+        String nm = cfg.radioName[i];
+        nm.replace("\r", " ");
+        nm.replace("\n", " ");
+        t += "rn" + String(n) + "=" + nm + "\nru" + String(n) + "=" + cfg.radioUrl[i] + "\nrv" + String(n) + "=" + (cfg.radioVol[i] >= 0 ? String(cfg.radioVol[i]) : String()) + "\n";
+    }
+    webserver.sendHeader("Content-Disposition", "attachment; filename=" + cfg.host + "-stations.txt");
+    webserver.sendHeader("Cache-Control", "no-store");
+    webserver.send(200, "text/plain; charset=utf-8", t);
+}
+
+void handleStationsImport() {
+    String body = webserver.arg("plain");
+    if (body.startsWith("\xEF\xBB\xBF")) body.remove(0, 3);
+    if (!body.startsWith("# " PROJECT_NAME " stations")) {
+        webserver.send(200, "text/plain", "FAIL|Das ist keine Senderliste dieses Ger\xC3\xA4ts.");
+        return;
+    }
+
+    // Erst in Hilfsfelder lesen: eine Datei ohne gueltigen Sender laesst die gespeicherte Liste unberuehrt.
+    // Read into helper arrays first: a file without a valid station leaves the stored list untouched.
+
+    String names[RADIO_SLOTS], urls[RADIO_SLOTS];
+    int vols[RADIO_SLOTS];
+    for (int i = 0; i < RADIO_SLOTS; i++) vols[i] = -1;
+    int pos = 0;
+    while (pos < (int)body.length()) {
+        int e = body.indexOf('\n', pos);
+        if (e < 0) e = body.length();
+        String line = body.substring(pos, e);
+        pos = e + 1;
+        line.trim();
+        int eq = line.indexOf('=');
+        if (eq < 3 || line.startsWith("#")) continue;
+        String k = line.substring(0, eq);
+        String v = line.substring(eq + 1);
+        v.trim();
+        int slot = k.substring(2).toInt() - 1;
+        if (slot < 0 || slot >= RADIO_SLOTS) continue;
+        if (k.startsWith("rn")) names[slot] = v.substring(0, RADIO_NAME_MAX);
+        else if (k.startsWith("ru")) urls[slot] = ((v.startsWith("http://") || v.startsWith("https://")) && v.length() <= RADIO_URL_MAX) ? v : "";
+        else if (k.startsWith("rv")) vols[slot] = v.isEmpty() ? -1 : constrain(v.toInt(), 0, VOLUME_MAX);
+    }
+    int count = 0;
+    for (int i = 0; i < RADIO_SLOTS; i++) {
+        if (!urls[i].isEmpty()) count++;
+    }
+    if (count == 0) {
+        webserver.send(200, "text/plain", "FAIL|Die Datei enth\xC3\xA4lt keinen g\xC3\xBCltigen Sender (URL mit http:// oder https://).");
+        return;
+    }
+    for (int i = 0; i < RADIO_SLOTS; i++) {
+        bool used = !urls[i].isEmpty();
+        cfg.radioName[i] = used ? names[i] : String();
+        cfg.radioUrl[i] = used ? urls[i] : String();
+        cfg.radioVol[i] = used ? vols[i] : -1;
+    }
+    compactStations();
+    logLine("[WEB] station list loaded: " + String(count) + " stations");
+    webserver.send(200, "text/plain", "OK|" + String(count) + " Sender geladen.");
+}
+
 void handleApiStations() {
     sendJson(200, stationsJson());
 }
@@ -2061,7 +2144,9 @@ void handleTestNtp() {
 }
 
 String brokerJson() {
-    return "{\"broker\":\"" + jsonEscape(cfg.mqttServer) + "\",\"port\":" + String(cfg.mqttPort) + ",\"user\":\"" + jsonEscape(cfg.mqttUser) + "\",\"connected\":" + (mqttClient.connected() ? "true" : "false") + "}";
+    String groups;
+    for (int i = 0; i < 5; i++) groups += String(i > 0 ? "," : "") + "\"" + jsonEscape(cfg.mqttGroup[i]) + "\"";
+    return "{\"broker\":\"" + jsonEscape(cfg.mqttServer) + "\",\"port\":" + String(cfg.mqttPort) + ",\"user\":\"" + jsonEscape(cfg.mqttUser) + "\",\"groups\":[" + groups + "],\"connected\":" + (mqttClient.connected() ? "true" : "false") + "}";
 }
 
 void handleApiMqtt() {
@@ -2093,6 +2178,13 @@ void handleApiMqtt() {
         if (webserver.hasArg("pass") && cfg.mqttUser.length() > 0) {
             cfg.mqttPass = webserver.arg("pass");
             prefs.putString("mq_pw", cfg.mqttPass);
+        }
+        for (int i = 1; i <= 5; i++) {
+            if (!webserver.hasArg("group" + String(i))) continue;
+            String g = webserver.arg("group" + String(i));
+            g.trim();
+            cfg.mqttGroup[i - 1] = g;
+            prefs.putString(("mq_g" + String(i)).c_str(), g);
         }
         mqttReconnectNow();
         logLine("[MQTT] Broker set via API: " + cfg.mqttServer + ":" + String(cfg.mqttPort));
@@ -2160,6 +2252,8 @@ void setupWeb() {
     webserver.on("/save", HTTP_POST, handleSave);
     webserver.on("/export", HTTP_GET, handleExport);
     webserver.on("/import", HTTP_POST, handleImport);
+    webserver.on("/stations.txt", HTTP_GET, handleStationsExport);
+    webserver.on("/importstations", HTTP_POST, handleStationsImport);
     webserver.on("/restart", HTTP_POST, handleRestart);
     webserver.on("/log", HTTP_GET, handleLog);
     webserver.on("/favicon.ico", HTTP_GET, handleFavicon);

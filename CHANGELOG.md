@@ -1,16 +1,32 @@
 # Changelog
 
+## 2026-10-30 - Version 1.3.7
+
+**Deutsch**
+
+- Webradio: bis zu 30 statt 15 gespeicherte Plätze (Tab *Webradio*, REST `/api/station`, MQTT `…/station`, Eingänge). Bereits gespeicherte Plätze bleiben erhalten; der MQTT-Puffer ist für die längere Senderliste auf 8 KB gewachsen.
+- Senderliste sichern und laden: Im Tab *Webradio* speichern *Liste speichern* und *Liste laden* die Liste als Textdatei (`/stations.txt`, `POST /importstations`); das Laden ersetzt die ganze Liste.
+- Eine MP3-Datei aus dem Flash, die während einer Datei der SD-Karte aufgerufen wird, startet sofort: Die SD-Datei wird abgesenkt (wie bei einer Ansage), die Flash-Datei läuft darüber und danach wird die SD-Datei wieder aufgeblendet. Bisher wartete sie, bis die SD-Datei zu Ende war. Auch beim Sprechen sinkt das Radio oder die Datei jetzt schon beim Aufruf und nicht erst, wenn der Text geladen ist; die Ansage ist dadurch früher zu hören.
+- Dateisuche: Ein Dateiname ohne `sd:` (REST und MQTT) wird zuerst im Flash gesucht, dann auf der SD-Karte (Pfad ab Wurzel).
+
+**English**
+
+- Web radio: up to 30 instead of 15 stored slots (*Webradio* tab, REST `/api/station`, MQTT `…/station`, inputs). Already stored slots are kept; the MQTT buffer grew to 8 KB for the longer station list.
+- Saving and loading the station list: in the *Webradio* tab *Liste speichern* (save list) and *Liste laden* (load list) store the list as a text file (`/stations.txt`, `POST /importstations`); loading replaces the whole list.
+- An MP3 file from the flash called while a file of the SD card is playing starts right away: the SD file is lowered (like for an announcement), the flash file plays over it and afterwards the SD file is faded back up. Before, it waited until the SD file had ended. Speaking works the same way: the radio or file is lowered when the call comes in, not only when the text has been loaded, so the announcement is heard earlier.
+- File lookup: a file name without `sd:` (REST and MQTT) is looked up in the flash first and then on the SD card (path from the root).
+
 ## 2026-10-30 - Version 1.3.6
 
 **Deutsch**
 
-- MQTT: bis zu 5 zusätzliche Abos (Gruppen-Topics) im Tab *MQTT*, Standard `netspeaker/all`, immer ein leeres Feld sichtbar. Das Gerät nimmt unter `<Topic>/#` dieselben Befehle an wie unter dem Basis-Topic (`say`, `play`, `url`, `file`, `station`, `list`, `stop`, `volume`, `restart`), so erreicht ein Befehl mehrere Geräte. Export und Import der Einstellungen enthalten die Felder (`mq_g1` bis `mq_g5`); Doku-Seite, README und `en.json` sind ergänzt.
+- MQTT: bis zu 5 zusätzliche Abos (Gruppen-Topics) im Tab *MQTT*, Standard `netspeaker/all`, immer ein leeres Feld sichtbar. Das Gerät nimmt unter `<Topic>/#` dieselben Befehle an wie unter dem Basis-Topic (`say`, `play`, `url`, `file`, `station`, `list`, `stop`, `volume`, `restart`), so erreicht ein Befehl mehrere Geräte. Export und Import der Einstellungen enthalten die Felder (`mq_g1` bis `mq_g5`); per REST setzt `/api/mqtt` sie mit `group1` bis `group5` und liefert sie als `groups`. Doku-Seite, README und `en.json` sind ergänzt.
 - Sprachdatei von GitHub laden: Das Eingabefeld ist mit `en.json` vorbelegt und breiter; ein angehängtes `.json` wird vor dem Laden entfernt.
 - Das Repository-ZIP enthält die Firmware in `build_netspeaker/esp32s3/`; das Werkzeug-ZIP enthält den Lizenztext von `esptool`.
 
 **English**
 
-- MQTT: up to 5 additional subscriptions (group topics) in the *MQTT* tab, default `netspeaker/all`, one empty field always shown. Under `<topic>/#` the device accepts the same commands as under the base topic (`say`, `play`, `url`, `file`, `station`, `list`, `stop`, `volume`, `restart`), so one command reaches several devices. Export and import of the settings contain the fields (`mq_g1` to `mq_g5`); documentation page, README and `en.json` are updated.
+- MQTT: up to 5 additional subscriptions (group topics) in the *MQTT* tab, default `netspeaker/all`, one empty field always shown. Under `<topic>/#` the device accepts the same commands as under the base topic (`say`, `play`, `url`, `file`, `station`, `list`, `stop`, `volume`, `restart`), so one command reaches several devices. Export and import of the settings contain the fields (`mq_g1` to `mq_g5`); via REST `/api/mqtt` sets them with `group1` to `group5` and returns them as `groups`. Documentation page, README and `en.json` are updated.
 - Loading a language file from GitHub: the input field is prefilled with `en.json` and wider; a trailing `.json` is removed before loading.
 - The repository ZIP contains the firmware in `build_netspeaker/esp32s3/`; the tools ZIP contains the license text of `esptool`.
 
