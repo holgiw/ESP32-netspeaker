@@ -25,7 +25,7 @@
 param([string]$OutDir, [switch]$Upload, [string]$Tag)
 
 $ErrorActionPreference = 'Stop'
-$repo = 'holgiw/netspeaker'
+$repo = 'holgiw/ESP32-netspeaker'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 if (-not $OutDir) { $OutDir = Join-Path ([System.IO.Path]::GetTempPath()) 'netspeaker-packages' }
 New-Item -ItemType Directory -Path $OutDir -Force | Out-Null

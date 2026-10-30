@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](#english)
 
-> **Fertige Firmware (`.bin`):** Das ZIP unter *Code → Download ZIP* enthält die Firmware des jeweiligen Stands in `build_netspeaker/esp32s3/` und das Flash-Werkzeug. Doppelklick auf `build_netspeaker/flashESP.bat` genügt; fehlt `esptool`, lädt das Skript es selbst. Die komplette `merged.bin` und die Werkzeug-ZIP mit `esptool.exe` liegen im [neuesten Release](https://github.com/holgiw/netspeaker/releases/latest) unter *Assets*. Siehe *Fertige Firmware flashen*.
+> **Fertige Firmware (`.bin`):** Das ZIP unter *Code → Download ZIP* enthält die Firmware des jeweiligen Stands in `build_netspeaker/esp32s3/` und das Flash-Werkzeug. Doppelklick auf `build_netspeaker/flashESP.bat` genügt; fehlt `esptool`, lädt das Skript es selbst. Die komplette `merged.bin` und die Werkzeug-ZIP mit `esptool.exe` liegen im [neuesten Release](https://github.com/holgiw/ESP32-netspeaker/releases/latest) unter *Assets*. Siehe *Fertige Firmware flashen*.
 
 Sprachausgabe und MP3-Player für den **ESP32-S3** (4 MB Flash, 2 MB PSRAM) mit einem **MAX98357A** I2S-Verstärker. Texte werden über [VoiceRSS](https://www.voicerss.org/) in Sprache umgewandelt, MP3-Dateien und Webradio-Streams werden direkt abgespielt. Bedienung über eine Weboberfläche, eine HTTP-API und MQTT.
 
@@ -54,7 +54,7 @@ Ohne Arduino IDE und ohne das Repository klonen zu müssen. Es gibt zwei Wege:
 
 **A. Werkzeug-ZIP aus dem Release (klein):**
 
-1. Aus dem [neuesten Release](https://github.com/holgiw/netspeaker/releases/latest) `netspeaker_flash.zip` laden und **komplett** in einen Ordner auspacken (`esptool.exe` muss neben `flashESP.bat` liegen).
+1. Aus dem [neuesten Release](https://github.com/holgiw/ESP32-netspeaker/releases/latest) `netspeaker_flash.zip` laden und **komplett** in einen Ordner auspacken (`esptool.exe` muss neben `flashESP.bat` liegen).
 2. ESP32-S3 per USB anschließen und `flashESP.bat` doppelklicken.
 
 **B. ZIP des Repositorys (*Code → Download ZIP*):** auspacken und `build_netspeaker/flashESP.bat` doppelklicken. Fehlt `esptool.exe` (keine Arduino IDE), lädt das Skript es aus `netspeaker_flash.zip` des Releases (rund 14 MB, Prüfsumme geprüft) und legt es neben die Datei.
@@ -188,13 +188,13 @@ Das Projekt steht unter der **GNU General Public License v3.0** (Datei `LICENSE`
 ## Kontakt
 
 E-Mail: [carleaner@gmx.de](mailto:carleaner@gmx.de)  
-GitHub: <https://github.com/holgiw/netspeaker>
+GitHub: <https://github.com/holgiw/ESP32-netspeaker>
 
 ## English
 
 Voice output and MP3 player for the **ESP32-S3** (4 MB Flash, 2 MB PSRAM) with a **MAX98357A** I2S amplifier. Text is converted to speech by [VoiceRSS](https://www.voicerss.org/); MP3 files and web radio streams play directly. Control via a web interface, an HTTP API and MQTT.
 
-> **Finished firmware (`.bin`):** The ZIP under *Code → Download ZIP* contains the firmware of that state in `build_netspeaker/esp32s3/` and the flash tool. Double-clicking `build_netspeaker/flashESP.bat` is enough; if `esptool` is missing, the script downloads it. The complete `merged.bin` and the tools ZIP with `esptool.exe` are in the [newest release](https://github.com/holgiw/netspeaker/releases/latest) under *Assets*. See *Flashing the finished firmware*.
+> **Finished firmware (`.bin`):** The ZIP under *Code → Download ZIP* contains the firmware of that state in `build_netspeaker/esp32s3/` and the flash tool. Double-clicking `build_netspeaker/flashESP.bat` is enough; if `esptool` is missing, the script downloads it. The complete `merged.bin` and the tools ZIP with `esptool.exe` are in the [newest release](https://github.com/holgiw/ESP32-netspeaker/releases/latest) under *Assets*. See *Flashing the finished firmware*.
 
 ### Hardware
 
@@ -244,7 +244,7 @@ Without the Arduino IDE and without cloning the repository. There are two ways:
 
 **A. Tools zip from the release (small):**
 
-1. Download `netspeaker_flash.zip` from the [newest release](https://github.com/holgiw/netspeaker/releases/latest) and unpack the **whole** zip into a folder (`esptool.exe` has to be next to `flashESP.bat`).
+1. Download `netspeaker_flash.zip` from the [newest release](https://github.com/holgiw/ESP32-netspeaker/releases/latest) and unpack the **whole** zip into a folder (`esptool.exe` has to be next to `flashESP.bat`).
 2. Connect the ESP32-S3 via USB and double-click `flashESP.bat`.
 
 **B. ZIP of the repository (*Code → Download ZIP*):** unpack it and double-click `build_netspeaker/flashESP.bat`. If `esptool.exe` is missing (no Arduino IDE), the script downloads it from `netspeaker_flash.zip` of the release (about 14 MB, checksum checked) and puts it next to the file.
@@ -343,4 +343,4 @@ The project is licensed under the **GNU General Public License v3.0** (file `LIC
 ## Contact
 
 E-mail: [carleaner@gmx.de](mailto:carleaner@gmx.de)  
-GitHub: <https://github.com/holgiw/netspeaker>
+GitHub: <https://github.com/holgiw/ESP32-netspeaker>

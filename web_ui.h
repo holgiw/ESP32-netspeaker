@@ -552,7 +552,7 @@ String panelStatus() {
     h += "</table></div>";
     h += "<div class='card'><h3>Sprache / Language</h3><p>Weitere Sprachen kommen als Datei (zum Beispiel <code>en.json</code>) in den Speicher des Ger&auml;ts und werden im Browser angewendet. Mit der Schaltfl&auml;che in der Statuszeile wechselst du die Sprache.</p><div id='langList'></div>";
     h += "<div class='row'><input type='file' id='langFile' accept='.json,application/json' style='width:60%'><button type='button' onclick='langUpload()' style='width:auto;padding:8px 14px'>Hochladen</button></div>";
-    h += "<div class='row'><input type='text' id='langCode' value='en.json' maxlength='24' style='width:130px'><button type='button' onclick='langFetch()' style='width:auto;padding:8px 14px'>Von GitHub laden</button> " + infoTip("L&auml;dt die Sprachdatei (zum Beispiel en.json) aus dem Ordner lang des Projekts auf GitHub (holgiw/netspeaker) in das Ger&auml;t; dazu braucht das Ger&auml;t Internet. Eine vorhandene Datei gleichen Namens wird ersetzt") + "</div><div id='langResult'></div></div>";
+    h += "<div class='row'><input type='text' id='langCode' value='en.json' maxlength='24' style='width:130px'><button type='button' onclick='langFetch()' style='width:auto;padding:8px 14px'>Von GitHub laden</button> " + infoTip("L&auml;dt die Sprachdatei (zum Beispiel en.json) aus dem Ordner lang des Projekts auf GitHub (holgiw/ESP32-netspeaker) in das Ger&auml;t; dazu braucht das Ger&auml;t Internet. Eine vorhandene Datei gleichen Namens wird ersetzt") + "</div><div id='langResult'></div></div>";
     return h;
 }
 
@@ -695,7 +695,7 @@ curl -X POST http://@HOST@/restart)d");
         "mosquitto_pub -h <broker> -t " + base + "/restart -n\n"
         "mosquitto_sub -h <broker> -t " + base + "/stations -C 1\n"
         "mosquitto_sub -h <broker> -t \"" + base + "/#\" -v", false);
-    h += docCard("Kontakt", "E-Mail: <a href='mailto:carleaner@gmx.de'>carleaner@gmx.de</a><br>GitHub: <a href='https://github.com/holgiw/netspeaker' target='_blank' rel='noopener'>github.com/holgiw/netspeaker</a>", "");
+    h += docCard("Kontakt", "E-Mail: <a href='mailto:carleaner@gmx.de'>carleaner@gmx.de</a><br>GitHub: <a href='https://github.com/holgiw/ESP32-netspeaker' target='_blank' rel='noopener'>github.com/holgiw/ESP32-netspeaker</a>", "");
     return h;
 }
 static const char PINS_JS[] PROGMEM = R"js(
@@ -1774,7 +1774,7 @@ void handleApiPins() {
 // Sprachdatei vom Projekt auf GitHub laden (feste Adresse, nur der Sprachcode kommt von aussen) und als /lang_<code>.json ablegen.
 // Load a language file from the project on GitHub (fixed address, only the language code comes from outside) and store it as /lang_<code>.json.
 
-#define LANG_GITHUB_BASE "https://raw.githubusercontent.com/holgiw/netspeaker/main/lang/"
+#define LANG_GITHUB_BASE "https://raw.githubusercontent.com/holgiw/ESP32-netspeaker/main/lang/"
 
 bool langFetch(const String& code, String& err) {
     if (WiFi.status() != WL_CONNECTED) {

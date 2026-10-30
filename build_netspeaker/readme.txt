@@ -7,7 +7,7 @@ Dieser Ordner enthaelt die Werkzeuge zum Flashen eines NetSpeaker (ESP32-S3) per
 
 Nur flashen (ohne Arduino IDE, ohne das Repository):
   1. netspeaker_flash.zip aus dem neuesten Release laden:
-     https://github.com/holgiw/netspeaker/releases/latest
+     https://github.com/holgiw/ESP32-netspeaker/releases/latest
   2. Das Zip KOMPLETT in einen Ordner auspacken (esptool.exe muss neben flashESP.bat liegen).
   3. ESP32-S3 per USB anschliessen, flashESP.bat doppelklicken.
 Das Skript sucht den ESP, laedt netspeaker-esp32s3.zip vom neuesten Release (Pruefsumme SHA-256, Internet noetig),
@@ -33,7 +33,7 @@ This folder holds the tools for flashing a NetSpeaker (ESP32-S3) via USB.
 
 Flash only (no Arduino IDE, no repository):
   1. Download netspeaker_flash.zip from the newest release:
-     https://github.com/holgiw/netspeaker/releases/latest
+     https://github.com/holgiw/ESP32-netspeaker/releases/latest
   2. Unpack the WHOLE zip into a folder (esptool.exe has to be next to flashESP.bat).
   3. Connect the ESP32-S3 via USB and double-click flashESP.bat.
 The script finds the ESP, downloads netspeaker-esp32s3.zip from the newest release (SHA-256 checked, internet needed),

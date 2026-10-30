@@ -227,7 +227,7 @@ function Send-Wifi([string]$ssid, [string]$pass) {
 # ---------------------------------------------------------------------------
 # Ablauf / flow
 $interactive = -not $Port
-$buildUrl = if ($env:NETSPEAKER_BUILD_URL) { $env:NETSPEAKER_BUILD_URL.TrimEnd('/') } else { 'https://github.com/holgiw/netspeaker/releases/latest/download' }
+$buildUrl = if ($env:NETSPEAKER_BUILD_URL) { $env:NETSPEAKER_BUILD_URL.TrimEnd('/') } else { 'https://github.com/holgiw/ESP32-netspeaker/releases/latest/download' }
 
 # Fehlt esptool.exe (zum Beispiel nach "Download ZIP" des Repositorys, ohne Arduino IDE), wird es aus netspeaker_flash.zip des neuesten
 # Releases geholt (SHA-256 geprueft) und neben dieses Skript gelegt; -FetchTools erzwingt das (Test).
