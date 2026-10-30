@@ -61,7 +61,7 @@ Ohne Arduino IDE und ohne das Repository klonen zu müssen. Es gibt zwei Wege:
 
 In beiden Fällen sucht das Skript den ESP, lädt `netspeaker-esp32s3.zip` vom neuesten Release (Prüfsumme SHA-256, Internet nötig), flasht ihn und fragt danach das WLAN ab (siehe unten). Die Einstellungen im Gerät bleiben erhalten, auch die Sprachdatei. Meldet der Virenscanner `esptool.exe` (Fehlalarm), richte eine Ausnahme für den Ordner ein.
 
-Die Firmware liegt **nicht** im Repository: Der Ordner `build_netspeaker/` enthält nur die Flash-Werkzeuge (`flashESP.bat`, `voicesetup.ps1`, `publish_builds.ps1`, `readme.txt`); die Binärdateien kommen als Anhang der Releases (`netspeaker-esp32s3.zip`, `netspeaker-esp32s3.sha256`, `netspeaker_flash.zip` und die vollständige `netspeaker-<Version>-esp32s3-merged.bin`). Mit der `merged.bin` flasht man auch von Hand: `esptool --chip esp32s3 --port COM3 write_flash 0x0 netspeaker-<Version>-esp32s3-merged.bin` (das löscht das Dateisystem; danach die Sprachdatei neu hochladen).
+Der Ordner `build_netspeaker/` enthält die Flash-Werkzeuge (`flashESP.bat`, `voicesetup.ps1`, `publish_builds.ps1`, `readme.txt`) und in `esp32s3/` die Firmware des jeweiligen Stands; ohne `esptool.exe` und ohne die vollständige `merged.bin` – beide kommen als Anhang der Releases (`netspeaker-esp32s3.zip`, `netspeaker-esp32s3.sha256`, `netspeaker_flash.zip` und die vollständige `netspeaker-<Version>-esp32s3-merged.bin`). Mit der `merged.bin` flasht man auch von Hand: `esptool --chip esp32s3 --port COM3 write_flash 0x0 netspeaker-<Version>-esp32s3-merged.bin` (das löscht das Dateisystem; danach die Sprachdatei neu hochladen).
 
 ## Bauen
 
@@ -250,7 +250,7 @@ Without the Arduino IDE and without cloning the repository. There are two ways:
 
 In both cases the script finds the ESP, downloads `netspeaker-esp32s3.zip` from the newest release (SHA-256 checked, internet needed), flashes it and then asks for the WiFi (see below). The settings in the device stay, including the language file. If the virus scanner reports `esptool.exe` (false alarm), add an exception for the folder.
 
-The firmware is **not** in the repository: the folder `build_netspeaker/` only holds the flash tools (`flashESP.bat`, `voicesetup.ps1`, `publish_builds.ps1`, `readme.txt`); the binaries are attached to the releases (`netspeaker-esp32s3.zip`, `netspeaker-esp32s3.sha256`, `netspeaker_flash.zip` and the complete `netspeaker-<version>-esp32s3-merged.bin`). With the `merged.bin` you can also flash by hand: `esptool --chip esp32s3 --port COM3 write_flash 0x0 netspeaker-<version>-esp32s3-merged.bin` (this erases the file system; upload the language file again afterwards).
+The folder `build_netspeaker/` holds the flash tools (`flashESP.bat`, `voicesetup.ps1`, `publish_builds.ps1`, `readme.txt`) and, in `esp32s3/`, the firmware of that state; `esptool.exe` and the complete `merged.bin` are not in it, they are attached to the releases (`netspeaker-esp32s3.zip`, `netspeaker-esp32s3.sha256`, `netspeaker_flash.zip` and the complete `netspeaker-<version>-esp32s3-merged.bin`). With the `merged.bin` you can also flash by hand: `esptool --chip esp32s3 --port COM3 write_flash 0x0 netspeaker-<version>-esp32s3-merged.bin` (this erases the file system; upload the language file again afterwards).
 
 ### Build
 

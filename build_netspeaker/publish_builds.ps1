@@ -61,7 +61,15 @@ if (-not (Test-Path $esptool)) {
 }
 if (-not (Test-Path $esptool)) { throw 'esptool.exe nicht gefunden / not found' }
 $toolsZip = Join-Path $OutDir 'netspeaker_flash.zip'
-New-FlatZip $toolsZip @((Join-Path $PSScriptRoot 'flashESP.bat'), (Join-Path $PSScriptRoot 'voicesetup.ps1'), (Join-Path $PSScriptRoot 'readme.txt'), $esptool)
+$toolFiles = @((Join-Path $PSScriptRoot 'flashESP.bat'), (Join-Path $PSScriptRoot 'voicesetup.ps1'), (Join-Path $PSScriptRoot 'readme.txt'), $esptool)
+# Lizenztext von esptool (GPL) mitliefern, wenn er neben esptool.exe liegt / ship the esptool (GPL) licence text if it sits next to esptool.exe
+$licFile = Join-Path (Split-Path $esptool) 'LICENSE'
+if (Test-Path $licFile) {
+    $licCopy = Join-Path ([System.IO.Path]::GetTempPath()) 'esptool-LICENSE.txt'
+    Copy-Item $licFile $licCopy -Force
+    $toolFiles += $licCopy
+}
+New-FlatZip $toolsZip $toolFiles
 $toolsHash = (Get-FileHash -Algorithm SHA256 $toolsZip).Hash.ToLower()
 $toolsSha = Join-Path $OutDir 'netspeaker_flash.sha256'
 [System.IO.File]::WriteAllText($toolsSha, "$toolsHash  netspeaker_flash.zip`n", (New-Object System.Text.UTF8Encoding($false)))
