@@ -50,6 +50,8 @@ struct Settings {
     String vvoice;
     String vfmt;
     String mqttServer;
+    String mqttUser;
+    String mqttPass;
     String mqttBase;
     int vrate;
     int vol;
@@ -58,6 +60,7 @@ struct Settings {
     int din;
     int mqttPort;
     bool logEnabled;
+    int logAutoMin;
     String radioName[RADIO_SLOTS];
     String radioUrl[RADIO_SLOTS];
     int radioVol[RADIO_SLOTS];
@@ -369,7 +372,13 @@ String jsonGet(const String& body, const String& key) {
     }
     return out;
 }
+// GPIO 33-37 sind nur frei, wenn kein Octal-PSRAM verbaut ist (der ESP32-S3FH4R2 hat Quad-PSRAM); 26-32 gehoeren dem Flash und PSRAM.
+// GPIO 33-37 are only free if no octal PSRAM is fitted (the ESP32-S3FH4R2 has quad PSRAM); 26-32 belong to flash and PSRAM.
+
 bool pinAllowed(int pin) {
+#if !defined(CONFIG_SPIRAM_MODE_OCT)
+    if (pin >= 33 && pin <= 37) return true;
+#endif
     return (pin >= 1 && pin <= 18) || pin == 21 || (pin >= 38 && pin <= 42) || pin == 47 || pin == 48;
 }
 
@@ -423,6 +432,7 @@ void loadPinActions() {
 String commandSay(const String& textIn, const String& lang, const String& voice, int rate, int vol);
 String commandPlayFile(const String& nameIn, int vol, bool shuffle, bool loop);
 String commandPlayUrl(const String& urlIn, int vol);
+String commandPlayStation(const String& selIn, int vol);
 
 void pinWatch() {
     static unsigned long lastScan = 0, lowSince[49], lastFire = 0;
@@ -448,6 +458,7 @@ void pinWatch() {
         String err;
         const String& x = pinText[pin];
         if (pinType[pin] == "say") err = commandSay(x, "", "", 99, pinVol[pin]);
+        else if (pinType[pin] == "station") err = commandPlayStation(x, pinVol[pin]);
         else if (x.startsWith("http://") || x.startsWith("https://")) err = commandPlayUrl(x, pinVol[pin]);
         else err = commandPlayFile(x, pinVol[pin], false, false);
         logLine("[PIN] GPIO " + String(pin) + " to GND -> " + pinType[pin] + " \"" + x + "\"" + (err.length() > 0 ? ": " + err : String()));
@@ -512,9 +523,12 @@ void loadSettings() {
     cfg.lrc = prefs.getInt("lrc", DEFAULT_PIN_LRC);
     cfg.din = prefs.getInt("din", DEFAULT_PIN_DIN);
     cfg.mqttServer = prefs.getString("mq_srv", "");
+    cfg.mqttUser = prefs.getString("mq_usr", "");
+    cfg.mqttPass = prefs.getString("mq_pw", "");
     cfg.mqttPort = prefs.getInt("mq_port", 1883);
     cfg.mqttBase = prefs.getString("mq_base", "");
     cfg.logEnabled = prefs.getBool("log", false);
+    cfg.logAutoMin = constrain(prefs.getInt("logmin", 60), 0, 1440);
     cfg.fadeMs = constrain(prefs.getInt("fade", FADE_DEFAULT_MS), 0, FADE_MAX_MS);
     cfg.switchFadeMs = constrain(prefs.getInt("swfade", SWITCH_FADE_DEFAULT_MS), 0, FADE_MAX_MS);
     cfg.autoStart = prefs.getBool("autostart", false);
@@ -2962,7 +2976,8 @@ void mqttConnect() {
         return;
     }
     String base = mqttBaseTopic();
-    if (mqttClient.connect(defaultHost().c_str(), nullptr, nullptr, (base + "/availability").c_str(), 0, true, "offline")) {
+    bool withLogin = cfg.mqttUser.length() > 0;
+    if (mqttClient.connect(defaultHost().c_str(), withLogin ? cfg.mqttUser.c_str() : nullptr, withLogin ? cfg.mqttPass.c_str() : nullptr, (base + "/availability").c_str(), 0, true, "offline")) {
         mqttEverConnected = true;
         mqttBackoff = MQTT_BACKOFF_START_MS;
         if (mqttWasConnected) mqttReconnects++;
@@ -3221,6 +3236,31 @@ void healthWatch() {
 // Board-LED leuchtet, solange eine Ansage geladen oder gesprochen wird (RGB-LED des Boards, sonst einfache LED).
 // Board LED is lit while an announcement is being fetched or spoken (RGB LED of the board, otherwise a plain LED).
 
+// Das Schreiben des Logs in die Datei schaltet sich nach logAutoMin Minuten selbst aus (0 = nie), damit der Flash geschont wird. Die Zeit
+// laeuft ab dem Einschalten oder ab dem Start des Geraets.
+// Writing the log to the file switches itself off after logAutoMin minutes (0 = never) to spare the flash. The time runs from switching on or
+// from the start of the device.
+
+void logWatch() {
+    static bool was = false;
+    static unsigned long since = 0;
+    if (!cfg.logEnabled) {
+        was = false;
+        return;
+    }
+    if (!was) {
+        was = true;
+        since = millis();
+        return;
+    }
+    if (cfg.logAutoMin > 0 && millis() - since > (unsigned long)cfg.logAutoMin * 60000UL) {
+        logLine("[LOG] file logging switched off automatically after " + String(cfg.logAutoMin) + " min");
+        cfg.logEnabled = false;
+        prefs.putBool("log", false);
+        was = false;
+    }
+}
+
 void ledWatch() {
     static int last = -1;
     int on = (voiceBusy || mixInUse || (nowKind == "speech" && playState != PS_IDLE)) ? 1 : 0;
@@ -3391,6 +3431,7 @@ void loop() {
     fileFadeWatch();
     loudWatch();
     pinWatch();
+    logWatch();
     resumeStateWatch();
     delay(2);
 }

@@ -305,7 +305,7 @@ String panelSd() {
 
 String panelPins() {
     String h = "<div class='card' style='max-width:900px'><h3>Eing&auml;nge (Pull-up)</h3>";
-    h += "<p>Alle freien Pins liegen mit Pull-up auf High. Bekommt ein Pin Kontakt nach GND (zum Beispiel durch eine Taste), spielt das Ger&auml;t die gew&auml;hlte Ansage oder MP3-Datei. Nicht angezeigt werden die Pins von Verst&auml;rker und SD-Karte, die Strapping-Pins und die Status-LED. " + infoTip("Aktion: Ansage = Text, der &uuml;ber VoiceRSS gesprochen wird. MP3-Datei = Dateiname aus dem Tab MP3 (Flash), sd:/Pfad.mp3 oder sd:/Ordner/ von der SD-Karte oder eine URL (http:// oder https://). Die Lautst&auml;rke ist optional (0-100, leer = allgemeine). Der Pin muss etwa 40 ms auf GND bleiben; ausgel&ouml;st wird einmal je Tastendruck") + "</p>";
+    h += "<p>Alle freien Pins liegen mit Pull-up auf High. Bekommt ein Pin Kontakt nach GND (zum Beispiel durch eine Taste), spielt das Ger&auml;t die gew&auml;hlte Ansage, MP3-Datei oder den gew&auml;hlten Webradio-Sender. Nicht angezeigt werden die Pins von Verst&auml;rker und SD-Karte, die Strapping-Pins und die Status-LED. " + infoTip("Aktion: Ansage = Text, der &uuml;ber VoiceRSS gesprochen wird. MP3-Datei = Dateiname aus dem Tab MP3 (Flash), sd:/Pfad.mp3 oder sd:/Ordner/ von der SD-Karte oder eine URL (http:// oder https://). Webradio = gespeicherter Sender, Name oder Platznummer aus dem Tab Webradio. Die Lautst&auml;rke ist optional (0-100, leer = allgemeine). Der Pin muss etwa 40 ms auf GND bleiben; ausgel&ouml;st wird einmal je Tastendruck") + "</p>";
     h += "<table id='pinTable' style='width:100%'></table><div id='pinResult'></div></div>";
     return h;
 }
@@ -356,7 +356,7 @@ String panelAudio() {
     h += pinRow("CS (Chip-Select)", "sdcs", cfg.sdCs, "Chip-Select der SD-Karte; &Auml;nderungen wirken sofort");
     h += "<small>&Auml;nderungen an den SD-Pins wirken sofort, die Karte wird neu eingebunden.</small></div>";
     h += "<small id='pinWarn' class='pinwarn'></small>";
-    h += "<small>Erlaubte Pins am ESP32-S3: 1-18, 21, 38-42, 47, 48. Jeder Pin darf nur einmal vergeben sein; sonst werden die Pins nicht gespeichert.</small></div>";
+    h += "<small>Erlaubte Pins am ESP32-S3: 1-18, 21, 33-42, 47, 48. Jeder Pin darf nur einmal vergeben sein; sonst werden die Pins nicht gespeichert.</small></div>";
     h += "<div class='card wide'><h3>Lautst&auml;rke</h3>";
     h += "<div class='row'>Standard-Lautst&auml;rke (0-" + String(VOLUME_MAX) + ") " + infoTip("Lautst&auml;rke, die nach dem Start gilt und wenn nichts anderes eingestellt ist") + " <input type='number' name='vol' min='0' max='" + String(VOLUME_MAX) + "' value='" + String(cfg.vol) + "' style='width:90px'></div>";
     h += "<div class='row'>Lautst&auml;rke &auml;ndern (ms) " + infoTip("Dauer, in der eine ge&auml;nderte Lautst&auml;rke (Regler, REST, MQTT) bei laufendem Ton zum neuen Wert wandert; 0 = sofort. Per REST und MQTT l&auml;sst sich die Dauer je Aufruf mit ms angeben") + " <input type='number' name='vramp' min='0' max='" + String(VOLUME_RAMP_MAX_MS) + "' step='100' value='" + String(cfg.volRampMs) + "' style='width:90px'></div>";
@@ -404,9 +404,13 @@ String mqttRow(const String& base, const char* suffix, bool command, const char*
 String panelMqtt() {
     String base = mqttBaseTopic();
     String h = "<div class='card mqtt' style='max-width:1000px'><h3>MQTT</h3><form method='POST' action='/save'><input type='hidden' name='sect' value='mqtt'>";
-    h += "<label for='mq_srv'>Broker " + infoTip("Adresse des MQTT-Brokers; leer = MQTT aus") + "</label><input id='mq_srv' name='mq_srv' placeholder='z. B. 192.168.0.70 (leer = MQTT aus)' value='" + htmlEsc(cfg.mqttServer) + "' style='width:min(100%,420px);margin:4px 0'>";
-    h += "<label for='mq_port'>Port " + infoTip("Port des Brokers, meist 1883") + "</label><input id='mq_port' type='number' name='mq_port' min='1' max='65535' value='" + String(cfg.mqttPort) + "' style='width:140px;margin:4px 0'>";
-    h += "<label for='mq_base'>Basis-Topic " + infoTip("Basis-Topic; darunter liegen say, play, url, file, station, stop, volume, restart, status") + "</label><input id='mq_base' name='mq_base' placeholder='" + htmlEsc(String(PROJECT_NAME) + "/" + cfg.host) + "' value='" + htmlEsc(cfg.mqttBase) + "' style='width:min(100%,420px);margin:4px 0'>";
+    h += "<div class='row' style='justify-content:flex-start;gap:6px 18px'>";
+    h += "<span style='display:inline-flex;align-items:center;gap:6px'><label for='mq_srv' style='white-space:nowrap'>Broker " + infoTip("Adresse des MQTT-Brokers; leer = MQTT aus") + "</label><input id='mq_srv' name='mq_srv' placeholder='z. B. 192.168.0.70 (leer = MQTT aus)' value='" + htmlEsc(cfg.mqttServer) + "' style='width:min(100%,300px);margin:4px 0'></span>";
+    h += "<span style='display:inline-flex;align-items:center;gap:6px'><label for='mq_port' style='white-space:nowrap'>Port " + infoTip("Port des Brokers, meist 1883") + "</label><input id='mq_port' type='number' name='mq_port' min='1' max='65535' value='" + String(cfg.mqttPort) + "' style='width:100px;margin:4px 0'></span></div>";
+    h += "<div class='row' style='justify-content:flex-start;gap:6px 18px'>";
+    h += "<span style='display:inline-flex;align-items:center;gap:6px'><label for='mq_user' style='white-space:nowrap'>Benutzer " + infoTip("Benutzername f&uuml;r den MQTT-Broker (optional); leer = ohne Anmeldung") + "</label><input id='mq_user' name='mq_user' autocomplete='off' placeholder='optional' value='" + htmlEsc(cfg.mqttUser) + "' style='width:min(100%,200px);margin:4px 0'></span>";
+    h += "<span style='display:inline-flex;align-items:center;gap:6px'><label for='mq_pass' style='white-space:nowrap'>Passwort " + infoTip("Passwort f&uuml;r den MQTT-Broker (optional); es wird nicht angezeigt. Leer lassen, um das gespeicherte zu behalten; ohne Benutzer wird es gel&ouml;scht") + "</label><input id='mq_pass' name='mq_pass' type='password' autocomplete='new-password' placeholder='" + String(cfg.mqttPass.length() > 0 ? "gespeichert (leer lassen = behalten)" : "optional") + "' value='' style='width:min(100%,260px);margin:4px 0'></span></div>";
+    h += "<div class='row' style='justify-content:flex-start'><span style='display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap'><label for='mq_base' style='white-space:nowrap'>Basis-Topic " + infoTip("Basis-Topic; darunter liegen say, play, url, file, station, stop, volume, restart, status") + "</label><input id='mq_base' name='mq_base' placeholder='" + htmlEsc(String(PROJECT_NAME) + "/" + cfg.host) + "' value='" + htmlEsc(cfg.mqttBase) + "' style='width:min(100%,420px);margin:4px 0'></span></div>";
     h += "<p><small style='font-size:.9rem'>Leer = <code>netspeaker/&lt;Hostname&gt;</code>. Bereits gespeicherte Topics folgen einem neuen Hostnamen nicht automatisch. Status: <strong>" + String(mqttClient.connected() ? "verbunden" : (cfg.mqttServer.isEmpty() ? "aus" : "nicht verbunden")) + "</strong>.</small></p>";
     h += "<button type='submit' style='width:auto;padding:10px 28px'>Speichern</button></form>";
     h += "<h3 style='margin-top:1.4rem'>Topics</h3><p>Befehle sendest du an die Topics mit <span class='kind cmd'>senden</span>, Meldungen liest du von denen mit <span class='kind msg'>lesen</span> (die meisten sind <em>retained</em>, du bekommst den letzten Stand sofort beim Abonnieren). Als Nutzlast geht Text oder JSON.</p>";
@@ -427,8 +431,8 @@ String panelMqtt() {
     static const char* const exAvail[] = {"online", "offline"};
     h += mqttRow(base, "/say", true, "Text, der angesagt wird. Oder JSON mit <code>text</code> und optional <code>lang</code>, <code>voice</code>, <code>rate</code>, <code>vol</code>.", exSay, 2);
     h += mqttRow(base, "/play", true, "URL (Webradio, MP3) <em>oder</em> Dateiname aus dem Tab MP3 (Flash) oder <code>sd:/Pfad.mp3</code> von der SD-Karte. Das Ger&auml;t erkennt selbst, was es ist. JSON: <code>url</code> oder <code>file</code>, optional <code>vol</code>; bei einem Ordner (<code>sd:/Pfad/</code>) auch <code>shuffle</code> (zuf&auml;llige Reihenfolge) und <code>loop</code> (endlos), z. B. <code>{&quot;file&quot;:&quot;sd:/Musik/&quot;,&quot;shuffle&quot;:1,&quot;loop&quot;:1}</code>.", exPlay, 3);
-    h += mqttRow(base, "/url", true, "Nur URL (http:// oder https://).", exUrl, 1);
-    h += mqttRow(base, "/file", true, "Nur Dateiname einer hochgeladenen Datei.", exFile, 1);
+    h += mqttRow(base, "/url", true, "URL (http:// oder https://). JSON: <code>url</code>, optional <code>vol</code>.", exUrl, 1);
+    h += mqttRow(base, "/file", true, "Dateiname einer hochgeladenen Datei, <code>sd:/Pfad.mp3</code> oder ein Ordner <code>sd:/Ordner/</code>. JSON: <code>file</code>, optional <code>vol</code>, <code>shuffle</code> und <code>loop</code>.", exFile, 1);
     h += mqttRow(base, "/station", true, "Gespeicherter Sender: Platznummer 1-15 oder Name. JSON: <code>n</code> oder <code>name</code>, optional <code>vol</code>.", exStation, 3);
     h += mqttRow(base, "/stop", true, "Keine Nutzlast: beendet die Wiedergabe, auch ein Webradio.", exStop, 1);
     h += mqttRow(base, "/volume", true, "Allgemeine Lautst&auml;rke 0 bis 100 (wird gespeichert); sie wandert sanft zum neuen Wert. Als JSON l&auml;sst sich die Dauer je Aufruf in Millisekunden angeben: <code>{\"v\":60,\"ms\":3000}</code>.", exVol, 2);
@@ -535,7 +539,7 @@ String panelStatus() {
 
 String panelLog() {
     String h = "<div class='card' style='max-width:900px'><form method='POST' action='/save'><input type='hidden' name='sect' value='log'>";
-    h += "<div class='row'><label style='display:flex;align-items:center;gap:6px;cursor:pointer;'><input type='checkbox' name='log' value='1'" + String(cfg.logEnabled ? " checked" : "") + " style='width:auto;margin:0;'>Log in Datei schreiben (Standard: aus)</label> " + infoTip("Schreibt Ereignisse in eine Datei im Flash (nur zur Fehlersuche; Standard: aus)") + "";
+    h += "<div class='row'><label style='display:flex;align-items:center;gap:6px;cursor:pointer;'><input type='checkbox' name='log' value='1'" + String(cfg.logEnabled ? " checked" : "") + " style='width:auto;margin:0;'>Log in Datei schreiben (Standard: aus)</label> " + infoTip("Schreibt Ereignisse in eine Datei im Flash (nur zur Fehlersuche; Standard: aus)") + " automatisch aus nach <input type='number' name='logmin' min='0' max='1440' value='" + String(cfg.logAutoMin) + "' style='width:70px'> min " + infoTip("Schaltet das Schreiben des Logs in die Datei nach so vielen Minuten von selbst aus, damit der Flash geschont wird; 0 = nie. Die Zeit l&auml;uft ab dem Einschalten oder ab dem Start des Ger&auml;ts") + "";
     h += "<button type='submit' style='width:auto;padding:8px 16px;margin:6px;'>Speichern</button>";
     h += "<button type='button' onclick='clearLog()' style='width:auto;padding:8px 16px;margin:6px;background:var(--panel);border:1px solid var(--panel-border);color:var(--text);font-weight:normal;'>Log leeren</button></div>";
     h += "<small>Ausgeschaltet wird nichts in den Flash geschrieben; die serielle Ausgabe l&auml;uft immer.</small><div id='logResult'></div></form></div>";
@@ -587,7 +591,7 @@ String panelDoc() {
         h += "<div style='background:#fff;border-radius:8px;padding:6px;overflow-x:auto'>" + svg + "</div></div>";
     }
     h += docCard("Text ansagen (VoiceRSS)",
-        "<code>text</code> (Pflicht, h&ouml;chstens 500 Zeichen), optional <code>lang</code> (z. B. de-de, en-gb), <code>voice</code> (z. B. Hanna), <code>rate</code> (-10 bis 10), <code>vol</code> (0-21). Ohne Angabe gelten die Werte aus dem Tab VoiceRSS. Der API-Schl&uuml;ssel muss gespeichert sein.",
+        "<code>text</code> (Pflicht, h&ouml;chstens 500 Zeichen), optional <code>lang</code> (z. B. de-de, en-gb), <code>voice</code> (z. B. Hanna), <code>rate</code> (-10 bis 10), <code>vol</code> (0-100). Ohne Angabe gelten die Werte aus dem Tab VoiceRSS. Der API-Schl&uuml;ssel muss gespeichert sein.",
         R"d(curl -d "text=Hallo Welt" http://@HOST@/api/say
 curl "http://@HOST@/api/say?text=Hallo%20Welt&lang=en-gb&voice=Alice&vol=10"
 curl -H "Content-Type: application/json" -d '{"text":"Hallo Welt","lang":"de-de","voice":"Hanna","rate":0,"vol":12}' http://@HOST@/api/say)d");
@@ -622,7 +626,7 @@ curl http://@HOST@/api/files
 curl -d "file=glocke.mp3" http://@HOST@/api/delete
 curl -F "file=@glocke.mp3" http://@HOST@/upload)d");
     h += docCard("Stopp, Lautst&auml;rke, Status",
-        "<code>v</code> ist 0-100 und wird gespeichert; die Lautst&auml;rke wandert sanft zum neuen Wert, die Dauer in Millisekunden steht im Tab Audio und l&auml;sst sich je Aufruf mit <code>ms</code> &uuml;berschreiben. Ohne <code>v</code> meldet <code>/api/volume</code> nur: <code>volume</code> (allgemein) und <code>playVolume</code> (gerade wirkend). <code>/api/status</code> liefert <code>state</code> (idle, loading, playing), <code>error</code>, <code>queue</code> (wartende Ansagen und Dateien), <code>volume</code> (allgemein), <code>playVolume</code> (die gerade wirkende Lautst&auml;rke), den freien Speicher und was gerade l&auml;uft: <code>source</code> (radio, file, speech), <code>name</code> (Sendername oder Dateiname), <code>title</code> (aktueller Titel, wenn der Sender ihn meldet) und <code>url</code>.",
+        "<code>v</code> ist 0-100 und wird gespeichert; die Lautst&auml;rke wandert sanft zum neuen Wert, die Dauer in Millisekunden steht im Tab Audio und l&auml;sst sich je Aufruf mit <code>ms</code> &uuml;berschreiben. Ohne <code>v</code> meldet <code>/api/volume</code> nur: <code>volume</code> (allgemein) und <code>playVolume</code> (gerade wirkend). <code>/api/status</code> liefert <code>state</code> (idle, loading, playing), <code>error</code>, <code>queue</code> (wartende Ansagen und Dateien), <code>volume</code> (allgemein), <code>playVolume</code> (die gerade wirkende Lautst&auml;rke), den freien Speicher und was gerade l&auml;uft: <code>source</code> (radio, file, speech), <code>name</code> (Sendername oder Dateiname), <code>title</code> (aktueller Titel, wenn der Sender ihn meldet) und <code>url</code>. Bei einer laufenden Datei kommen <code>pos</code> und <code>dur</code> (Sekunden), <code>pm</code> (Fortschritt in Promille) und <code>rate</code> (Promille je Sekunde) dazu, bei einem Webradio <code>genre</code>, <code>desc</code>, <code>web</code>, <code>logo</code>, <code>host</code>, <code>bitrate</code>, <code>codec</code>, <code>rate</code> (Abtastrate in Hz), <code>ch</code> und <code>bits</code>, und mit der Lautst&auml;rke-Angleichung <code>gainDb</code>.",
         R"d(curl -X POST http://@HOST@/api/stop
 curl -d "v=50" http://@HOST@/api/volume
 curl -d "v=60&ms=3000" http://@HOST@/api/volume
@@ -635,16 +639,29 @@ curl -d "enable=1" http://@HOST@/api/log
 curl -d "clear=1" http://@HOST@/api/log
 curl http://@HOST@/log)d");
     h += docCard("MQTT-Broker per API setzen",
-        "Setzt nur Broker und Port, alles andere bleibt unver&auml;ndert. GET liefert Broker, Port und <code>connected</code>.",
+        "Setzt nur Broker und Port (optional auch <code>user</code> und <code>pass</code>), alles andere bleibt unver&auml;ndert. GET liefert Broker, Port, <code>user</code> und <code>connected</code>; das Passwort wird nie ausgegeben.",
         R"d(curl -d "broker=192.168.0.70&port=1883" http://@HOST@/api/mqtt
 curl http://@HOST@/api/mqtt)d");
+    h += docCard("Eing&auml;nge (Pins)",
+        "<code>GET /api/pins</code> liefert die freien Pins: <code>p</code> (Nummer), <code>l</code> (Zustand, 1 = High, 0 = Low), <code>t</code> (Aktion), <code>x</code> (Text) und <code>v</code> (Lautst&auml;rke, -1 = allgemeine). <code>POST /api/pins</code> mit <code>pin</code>, <code>type</code> (<code>say</code>, <code>file</code>, <code>station</code> oder leer = keine Aktion), <code>text</code> (Ansage, Dateiname, <code>sd:</code>-Pfad, URL oder Sender) und optional <code>vol</code> (0-100) speichert die Aktion eines Pins. Sie l&ouml;st aus, sobald der Pin etwa 40 ms Kontakt nach GND hat.",
+        R"d(curl http://@HOST@/api/pins
+curl -d "pin=5&type=say&text=Die Tür ist offen" http://@HOST@/api/pins
+curl -d "pin=6&type=file&text=gong.mp3&vol=60" http://@HOST@/api/pins
+curl -d "pin=7&type=station&text=RSA" http://@HOST@/api/pins
+curl -d "pin=5&type=" http://@HOST@/api/pins)d");
+    h += docCard("Sprachen",
+        "Sprachdateien (zum Beispiel <code>en.json</code>) liegen im Speicher des Ger&auml;ts. <code>/upload?target=lang</code> (Formular, Feld <code>file</code>) l&auml;dt eine hoch, <code>GET /api/lang</code> listet die vorhandenen Sprachen, <code>POST /api/lang</code> mit <code>delete=en</code> l&ouml;scht eine und <code>/lang.json?l=en</code> liefert die Datei.",
+        R"d(curl http://@HOST@/api/lang
+curl -F "file=@en.json" "http://@HOST@/upload?target=lang"
+curl -d "delete=en" http://@HOST@/api/lang
+curl "http://@HOST@/lang.json?l=en")d");
     h += docCard("Weitere Aufrufe",
         "<code>/api/scan</code> (WLAN-Suche), <code>/api/testNtp?server=...</code> (NTP-Test, nur im Tab Zeit n&ouml;tig), <code>/api/topbarStatus</code> (Statusleiste), <code>/api/version</code> (Firmware-Stand), <code>/export</code> und <code>/import</code> (Einstellungen ohne WLAN-Passw&ouml;rter, mit API-Schl&uuml;ssel), <code>/restart</code> (POST, Neustart).",
         R"d(curl http://@HOST@/api/version
 curl -o netspeaker-settings.txt http://@HOST@/export
 curl -X POST http://@HOST@/restart)d");
     h += docCard("MQTT",
-        "Basis-Topic <code>" + htmlEsc(base) + "</code> (im Tab MQTT &auml;nderbar). Nutzlast als Text oder als JSON. <code>/say</code>: Text oder <code>{\"text\":\"...\",\"lang\":\"..\",\"voice\":\"..\",\"rate\":0,\"vol\":60}</code>. <code>/play</code>: URL oder Dateiname, auch <code>{\"url\":\"...\"}</code> oder <code>{\"file\":\"...\"}</code>. <code>/url</code> nur URL, <code>/file</code> nur Dateiname, <code>/station</code> Platz 1-15 oder Name (auch JSON <code>{\"n\":3}</code> oder <code>{\"name\":\"..\"}</code>). <code>/stop</code> ohne Nutzlast. <code>/volume</code> 0-21. <code>/restart</code> ohne Nutzlast startet das Ger&auml;t neu (nicht retained senden; eine Nachricht in den ersten 3 s nach dem Verbinden wird ignoriert). "
+        "Basis-Topic <code>" + htmlEsc(base) + "</code> (im Tab MQTT &auml;nderbar). Nutzlast als Text oder als JSON. <code>/say</code>: Text oder <code>{\"text\":\"...\",\"lang\":\"..\",\"voice\":\"..\",\"rate\":0,\"vol\":60}</code>. <code>/play</code>: URL oder Dateiname, auch <code>{\"url\":\"...\"}</code> oder <code>{\"file\":\"...\"}</code>. <code>/url</code> nur URL, <code>/file</code> nur Dateiname, <code>/station</code> Platz 1-15 oder Name (auch JSON <code>{\"n\":3}</code> oder <code>{\"name\":\"..\"}</code>). <code>/stop</code> ohne Nutzlast. <code>/volume</code> 0-100. <code>/restart</code> ohne Nutzlast startet das Ger&auml;t neu (nicht retained senden; eine Nachricht in den ersten 3 s nach dem Verbinden wird ignoriert). "
         "Zur&uuml;ck kommen <code>/status</code> (idle, loading, playing, error: ...), <code>/now</code> (was gerade l&auml;uft, zum Beispiel &quot;Sendername - Titel&quot;) und <code>/availability</code> (online, offline). <code>/volume/state</code> (gerade wirkende Lautst&auml;rke) und <code>/volume/general</code> (allgemeine) werden bei jeder &Auml;nderung gesendet. <code>/stations</code> enth&auml;lt die Senderliste (retained, wird nach jeder &Auml;nderung neu gesendet); ein Aufruf von <code>/list</code> sendet sie erneut; ein ung&uuml;ltiger Befehl erscheint in <code>/status</code> als Fehler.",
         "mosquitto_pub -h <broker> -t " + base + "/say -m \"Hallo Welt\"\n"
         "mosquitto_pub -h <broker> -t " + base + "/say -m '{\"text\":\"Hallo\",\"lang\":\"en-gb\",\"vol\":10}'\n"
@@ -663,7 +680,7 @@ curl -X POST http://@HOST@/restart)d");
 }
 static const char PINS_JS[] PROGMEM = R"js(
 (function(){
-  var picks=[],fl=[],sdl=[];
+  var picks=[],spicks=[],fl=[],sdl=[],stl=[];
   function el(n,c){var e=document.createElement(n);if(c)e.className=c;return e;}
   function lvl(j){var s=document.getElementById('pinlvl'+j.p);if(!s)return;s.textContent=j.l?'High':'Low (GND)';s.style.color=j.l?'var(--muted)':'var(--ok)';s.style.fontWeight=j.l?'normal':'bold';}
   function fillPick(p){
@@ -671,29 +688,34 @@ static const char PINS_JS[] PROGMEM = R"js(
     if(fl.length){var g=el('optgroup');g.label='Flash';fl.forEach(function(f){var x=el('option');x.value=f;x.textContent=f;g.appendChild(x);});p.appendChild(g);}
     if(sdl.length){var g2=el('optgroup');g2.label='SD-Karte';sdl.forEach(function(s){var x=el('option');x.value=s[0];x.textContent=s[1];g2.appendChild(x);});p.appendChild(g2);}
   }
+  function fillSta(p){p.textContent='';var o=el('option');o.value='';o.textContent='Sender w\u00e4hlen \u2026';p.appendChild(o);stl.forEach(function(s){var x=el('option');x.value=s[0];x.textContent=s[1];p.appendChild(x);});}
   function lists(cb){
     Promise.all([
       fetch('/api/files',{cache:'no-store'}).then(function(r){return r.json();}).catch(function(){return {};}),
-      fetch('/api/sd?dir=/',{cache:'no-store'}).then(function(r){return r.json();}).catch(function(){return {};})
+      fetch('/api/sd?dir=/',{cache:'no-store'}).then(function(r){return r.json();}).catch(function(){return {};}),
+      fetch('/api/stations',{cache:'no-store'}).then(function(r){return r.json();}).catch(function(){return {};})
     ]).then(function(a){
+      stl=((a[2]&&a[2].stations)||[]).map(function(s){return [s.name||String(s.n),s.n+': '+(s.name||s.url)];});
       fl=(a[0].files||[]).map(function(f){return f.name;});
       sdl=[];var s=a[1];
       if(s&&s.mounted){sdl.push(['sd:/','\uD83D\uDCC1 / (Hauptverzeichnis)']);(s.entries||[]).forEach(function(e){sdl.push(e.d?['sd:/'+e.n+'/','\uD83D\uDCC1 '+e.n]:['sd:/'+e.n,e.n]);});}
-      picks.forEach(fillPick);if(cb)cb();
+      picks.forEach(fillPick);spicks.forEach(fillSta);if(cb)cb();
     });
   }
   function build(list){
-    var tb=document.getElementById('pinTable');if(!tb)return;tb.textContent='';picks=[];
+    var tb=document.getElementById('pinTable');if(!tb)return;tb.textContent='';picks=[];spicks=[];
     var h=el('tr');['GPIO','Zustand','Aktion','Text oder Datei','Lautst\u00e4rke',''].forEach(function(t){var c=el('th');c.textContent=t;h.appendChild(c);});tb.appendChild(h);
     list.forEach(function(j){
       var tr=el('tr'),c1=el('td'),c2=el('td'),c3=el('td'),c4=el('td'),c5=el('td'),c6=el('td');
-      c1.textContent='GPIO '+j.p;
+      c1.textContent='GPIO '+j.p;c1.style.whiteSpace='nowrap';c2.style.whiteSpace='nowrap';
       var st=el('span');st.id='pinlvl'+j.p;c2.appendChild(st);
-      var sel=el('select');sel.style.cssText='width:auto;margin:2px';[['','Keine Aktion'],['say','Ansage (VoiceRSS)'],['file','MP3-Datei / URL']].forEach(function(o){var op=el('option');op.value=o[0];op.textContent=o[1];sel.appendChild(op);});sel.value=j.t||'';c3.appendChild(sel);
+      var sel=el('select');sel.style.cssText='width:auto;margin:2px';[['','Keine Aktion'],['say','Ansage (VoiceRSS)'],['file','MP3-Datei / URL'],['station','Webradio']].forEach(function(o){var op=el('option');op.value=o[0];op.textContent=o[1];sel.appendChild(op);});sel.value=j.t||'';c3.appendChild(sel);
       var tx=el('input');tx.type='text';tx.maxLength=300;tx.value=j.x||'';tx.placeholder='z. B. Die T\u00fcr ist offen / gong.mp3';tx.style.cssText='width:95%;margin:2px';c4.appendChild(tx);
       var pk=el('select');pk.style.cssText='width:95%;margin:2px';fillPick(pk);picks.push(pk);c4.appendChild(pk);
       pk.onchange=function(){if(pk.value){tx.value=pk.value;pk.value='';}};
-      function vis(){pk.style.display=sel.value==='file'?'':'none';}
+      var ps=el('select');ps.style.cssText='width:95%;margin:2px';fillSta(ps);spicks.push(ps);c4.appendChild(ps);
+      ps.onchange=function(){if(ps.value){tx.value=ps.value;ps.value='';}};
+      function vis(){pk.style.display=sel.value==='file'?'':'none';ps.style.display=sel.value==='station'?'':'none';}
       sel.onchange=vis;vis();
       var vo=el('input');vo.type='number';vo.min=0;vo.max=100;vo.value=j.v>=0?j.v:'';vo.placeholder='Std';vo.style.cssText='width:64px;margin:2px';c5.appendChild(vo);
       var bt=el('button');bt.type='button';bt.className='copy-btn';bt.style.cssText='position:static;margin:2px';bt.textContent='Speichern';
@@ -1135,6 +1157,12 @@ void handleSave() {
         prefs.putString("mq_srv", cfg.mqttServer);
         prefs.putInt("mq_port", cfg.mqttPort);
         prefs.putString("mq_base", cfg.mqttBase);
+        cfg.mqttUser = webserver.arg("mq_user");
+        cfg.mqttUser.trim();
+        if (webserver.arg("mq_pass").length() > 0) cfg.mqttPass = webserver.arg("mq_pass");
+        if (cfg.mqttUser.isEmpty()) cfg.mqttPass = "";
+        prefs.putString("mq_usr", cfg.mqttUser);
+        prefs.putString("mq_pw", cfg.mqttPass);
         mqttReconnectNow();
     } else if (sect == "radio") {
         for (int i = 0; i < RADIO_SLOTS; i++) {
@@ -1161,6 +1189,8 @@ void handleSave() {
     } else if (sect == "log") {
         cfg.logEnabled = webserver.hasArg("log");
         prefs.putBool("log", cfg.logEnabled);
+        cfg.logAutoMin = constrain(webserver.arg("logmin").toInt(), 0, 1440);
+        prefs.putInt("logmin", cfg.logAutoMin);
     } else if (sect == "time") {
         cfg.ntp1 = webserver.arg("ntp1");
         cfg.ntp2 = webserver.arg("ntp2");
@@ -1183,15 +1213,15 @@ void handleSave() {
 }
 
 void handleExport() {
-    String t = "# " PROJECT_NAME " settings export (WiFi passwords and API key omitted)\n";
+    String t = "# " PROJECT_NAME " settings export (WiFi passwords, MQTT password and API key omitted)\n";
     t += "host=" + cfg.host + "\n";
     for (int i = 0; i < 3; i++) t += "ssid" + String(i + 1) + "=" + cfg.ssid[i] + "\n";
     t += "ntp1=" + cfg.ntp1 + "\nntp2=" + cfg.ntp2 + "\ntz=" + cfg.tz + "\n";
     t += "vlang=" + cfg.vlang + "\nvvoice=" + cfg.vvoice + "\nvfmt=" + cfg.vfmt + "\nvrate=" + String(cfg.vrate) + "\n";
     t += "vol=" + String(cfg.vol) + "\nbclk=" + String(cfg.bclk) + "\nlrc=" + String(cfg.lrc) + "\ndin=" + String(cfg.din) + "\n";
-    t += "mq_srv=" + cfg.mqttServer + "\nmq_port=" + String(cfg.mqttPort) + "\nmq_base=" + cfg.mqttBase + "\n";
+    t += "mq_srv=" + cfg.mqttServer + "\nmq_port=" + String(cfg.mqttPort) + "\nmq_user=" + cfg.mqttUser + "\nmq_base=" + cfg.mqttBase + "\n";
     t += "fade=" + String(cfg.fadeMs) + "\nswfade=" + String(cfg.switchFadeMs) + "\nautostart=" + String(cfg.autoStart ? 1 : 0) + "\nbtone=" + String(cfg.bootTone ? 1 : 0) + "\nresume=" + String(cfg.resumeLast ? 1 : 0) + "\nsdon=" + String(cfg.sdOn ? 1 : 0) + "\nsdcs=" + String(cfg.sdCs) + "\nsdsck=" + String(cfg.sdSck) + "\nsdmosi=" + String(cfg.sdMosi) + "\nsdmiso=" + String(cfg.sdMiso) + "\nvolmax=" + String(VOLUME_MAX) + "\nvramp=" + String(cfg.volRampMs) + "\nmix=" + String(cfg.mixAnn ? 1 : 0) + "\nloud=" + String(cfg.loudNorm ? 1 : 0) + "\nduck=" + String(cfg.duckPct) + "\ntmatch=" + cfg.titleMatch + "\ntvol=" + String(cfg.titleVol) + "\ntmax=" + String(cfg.titleMaxS) + "\n";
-    t += "log=" + String(cfg.logEnabled ? 1 : 0) + "\n";
+    t += "log=" + String(cfg.logEnabled ? 1 : 0) + "\nlogmin=" + String(cfg.logAutoMin) + "\n";
     for (int i = 0; i < RADIO_SLOTS; i++) t += "rn" + String(i + 1) + "=" + cfg.radioName[i] + "\nru" + String(i + 1) + "=" + cfg.radioUrl[i] + "\nrv" + String(i + 1) + "=" + (cfg.radioVol[i] >= 0 ? String(cfg.radioVol[i]) : String()) + "\n";
     webserver.sendHeader("Content-Disposition", "attachment; filename=" + cfg.host + "-settings.txt");
     webserver.sendHeader("Cache-Control", "no-store");
@@ -1260,6 +1290,8 @@ void handleImport() {
             if (*target != pin) needRestart = true;
             *target = pin;
             prefs.putInt(k.c_str(), pin);
+        } else if (k == "mq_user") { cfg.mqttUser = v; prefs.putString("mq_usr", v);
+        } else if (k == "mq_pass") { cfg.mqttPass = v; prefs.putString("mq_pw", v);
         } else if (k == "mq_srv") { cfg.mqttServer = v; prefs.putString("mq_srv", v);
         } else if (k == "mq_port") { int p = v.toInt(); cfg.mqttPort = (p >= 1 && p <= 65535) ? p : 1883; prefs.putInt("mq_port", cfg.mqttPort);
         } else if (k == "mq_base") { cfg.mqttBase = v; prefs.putString("mq_base", v);
@@ -1284,6 +1316,7 @@ void handleImport() {
         } else if (k == "swfade") { cfg.switchFadeMs = constrain(v.toInt(), 0, FADE_MAX_MS); prefs.putInt("swfade", cfg.switchFadeMs);
         } else if (k == "fade") { cfg.fadeMs = constrain(v.toInt(), 0, FADE_MAX_MS); prefs.putInt("fade", cfg.fadeMs);
         } else if (k == "vkey" && v.length() > 0) { cfg.vkey = v; prefs.putString("vkey", v);
+        } else if (k == "logmin") { cfg.logAutoMin = constrain(v.toInt(), 0, 1440); prefs.putInt("logmin", cfg.logAutoMin);
         } else if (k == "log") { cfg.logEnabled = v.toInt() != 0; prefs.putBool("log", cfg.logEnabled);
         } else if (k.startsWith("rv") && k.substring(2).toInt() >= 1 && k.substring(2).toInt() <= RADIO_SLOTS) {
             int slot = k.substring(2).toInt() - 1;
@@ -1659,7 +1692,7 @@ void handleApiPins() {
         int pin = pinArg.toInt();
         if (pin < 1 || pin > 48 || !pinIdle(pin)) return sendErr(400, "Pin nicht verf\xC3\xBCgbar");
         String type = apiArg("type");
-        if (type != "say" && type != "file") type = "";
+        if (type != "say" && type != "file" && type != "station") type = "";
         String text = apiArg("text");
         text.trim();
         if (text.length() > 300) return sendErr(400, "Text zu lang (max. 300 Zeichen)");
@@ -1875,7 +1908,7 @@ void handleTestNtp() {
 }
 
 String brokerJson() {
-    return "{\"broker\":\"" + jsonEscape(cfg.mqttServer) + "\",\"port\":" + String(cfg.mqttPort) + ",\"connected\":" + (mqttClient.connected() ? "true" : "false") + "}";
+    return "{\"broker\":\"" + jsonEscape(cfg.mqttServer) + "\",\"port\":" + String(cfg.mqttPort) + ",\"user\":\"" + jsonEscape(cfg.mqttUser) + "\",\"connected\":" + (mqttClient.connected() ? "true" : "false") + "}";
 }
 
 void handleApiMqtt() {
@@ -1896,6 +1929,17 @@ void handleApiMqtt() {
             if (p < 1 || p > 65535) return sendErr(400, "port invalid");
             cfg.mqttPort = p;
             prefs.putInt("mq_port", p);
+        }
+        if (webserver.hasArg("user")) {
+            cfg.mqttUser = webserver.arg("user");
+            cfg.mqttUser.trim();
+            if (cfg.mqttUser.isEmpty()) cfg.mqttPass = "";
+            prefs.putString("mq_usr", cfg.mqttUser);
+            prefs.putString("mq_pw", cfg.mqttPass);
+        }
+        if (webserver.hasArg("pass") && cfg.mqttUser.length() > 0) {
+            cfg.mqttPass = webserver.arg("pass");
+            prefs.putString("mq_pw", cfg.mqttPass);
         }
         mqttReconnectNow();
         logLine("[MQTT] Broker set via API: " + cfg.mqttServer + ":" + String(cfg.mqttPort));

@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-10-30 - Version 1.3.1
+
+**Deutsch**
+
+- Das Schreiben des Logs in die Datei schaltet sich nach einer einstellbaren Zeit selbst aus (Tab *Log*, Standard 60 Minuten, 0 = nie), damit der Flash geschont wird. Die Zeit läuft ab dem Einschalten oder ab dem Start des Geräts; im Log steht eine Zeile `[LOG] … switched off automatically`.
+- MQTT: Im Tab *MQTT* lassen sich optional Benutzer und Passwort für den Broker eintragen; leer = ohne Anmeldung. Das Passwort wird nicht angezeigt, nicht exportiert und nie über die API ausgegeben; ein leeres Feld behält das gespeicherte. `/api/mqtt` nimmt optional `user` und `pass`.
+- Tab *Eingänge*: „GPIO 47“ und der Zustand werden nicht mehr umgebrochen.
+- GPIO 33-37 gelten als freie Pins (Tab *Audio*, Tab *Eingänge*), weil der ESP32-S3FH4R2 Quad-PSRAM hat und diese Pins nur bei Octal-PSRAM belegt sind. Welche Pins das Board herausführt, hängt vom Board ab.
+- Tab *Eingänge*: Als Aktion lässt sich auch ein gespeicherter Webradio-Sender wählen (Auswahl der gespeicherten Sender, Name oder Platznummer); `type=station` in `/api/pins`.
+- Tab *MQTT* kompakter: Broker und Port stehen in einer Zeile, Benutzer und Passwort in der nächsten.
+- Doku ergänzt und berichtigt: Die Lautstärke geht überall von 0 bis 100 (statt 0-21); neu sind die Karten *Eingänge (Pins)* und *Sprachen*, die Felder von `/api/status` (Fortschritt, Stream-Info, `gainDb`) und die JSON-Formen von MQTT `/url` und `/file`.
+
+**English**
+
+- Writing the log to the file switches itself off after an adjustable time (*Log* tab, default 60 minutes, 0 = never) to spare the flash. The time runs from switching on or from the start of the device; the log gets a line `[LOG] … switched off automatically`.
+- MQTT: in the *MQTT* tab a user and password for the broker can optionally be entered; empty = no login. The password is not shown, not exported and never output by the API; an empty field keeps the saved one. `/api/mqtt` optionally takes `user` and `pass`.
+- *Eingänge* tab: "GPIO 47" and the state are no longer wrapped.
+- GPIO 33-37 count as free pins (*Audio* tab, *Eingänge* tab), because the ESP32-S3FH4R2 has quad PSRAM and these pins are only taken with octal PSRAM. Which pins the board brings out depends on the board.
+- *Eingänge* tab: a saved web radio station can now also be chosen as the action (list of the saved stations, name or slot number); `type=station` in `/api/pins`.
+- *MQTT* tab more compact: broker and port are in one line, user and password in the next.
+- Docs completed and corrected: the volume goes from 0 to 100 everywhere (instead of 0-21); new are the cards *Eingänge (Pins)* and *Sprachen*, the fields of `/api/status` (progress, stream info, `gainDb`) and the JSON forms of MQTT `/url` and `/file`.
+
 ## 2026-10-29 - Version 1.3.0
 
 **Deutsch**
