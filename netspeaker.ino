@@ -42,8 +42,7 @@ struct Settings {
     String host;
     String ssid[3];
     String pass[3];
-    String ntp1;
-    String ntp2;
+    String ntp[5];
     String tz;
     String vkey;
     String vlang;
@@ -510,8 +509,9 @@ void loadSettings() {
         cfg.ssid[i] = prefs.getString(("ssid" + String(i + 1)).c_str(), "");
         cfg.pass[i] = prefs.getString(("pass" + String(i + 1)).c_str(), "");
     }
-    cfg.ntp1 = prefs.getString("ntp1", "pool.ntp.org");
-    cfg.ntp2 = prefs.getString("ntp2", "time.google.com");
+    cfg.ntp[0] = prefs.getString("ntp1", "pool.ntp.org");
+    cfg.ntp[1] = prefs.getString("ntp2", "time.google.com");
+    for (int i = 2; i < 5; i++) cfg.ntp[i] = prefs.getString(("ntp" + String(i + 1)).c_str(), "");
     cfg.tz = prefs.getString("tz", "CET-1CEST,M3.5.0,M10.5.0/3");
     cfg.vkey = prefs.getString("vkey", "");
     cfg.vlang = prefs.getString("vlang", "de-de");
@@ -3041,8 +3041,55 @@ void mqttWatch() {
 // ---------------------------------------------------------------------------
 // Zeit und Statusanzeigen / time and status indicators
 
+// Bis zu fuenf NTP-Server; die Netzwerk-Bibliothek fragt aber nur drei gleichzeitig. Es gelten die ersten drei belegten; kommt nach 45 s
+// keine Zeit an, wechselt ntpWatch() zu den naechsten drei (der Reihe nach, mit Wiederholung).
+// Up to five NTP servers; the network library only asks three at a time. The first three used ones apply; if no time arrives after 45 s,
+// ntpWatch() switches to the next three (in turn, wrapping around).
+
+int ntpOffset = 0;
+
+int ntpCount() {
+    int n = 0;
+    for (int i = 0; i < 5; i++) {
+        if (!cfg.ntp[i].isEmpty()) n++;
+    }
+    return n;
+}
+
+void ntpApply() {
+    String list[5];
+    int n = 0;
+    for (int i = 0; i < 5; i++) {
+        if (!cfg.ntp[i].isEmpty()) list[n++] = cfg.ntp[i];
+    }
+    if (n == 0) list[n++] = "pool.ntp.org";
+    int m = n < 3 ? n : 3;
+    String s[3];
+    for (int i = 0; i < m; i++) s[i] = list[(ntpOffset + i) % n];
+    configTzTime(cfg.tz.c_str(), s[0].c_str(), m > 1 ? s[1].c_str() : nullptr, m > 2 ? s[2].c_str() : nullptr);
+}
+
 void setupTime() {
-    configTzTime(cfg.tz.c_str(), cfg.ntp1.c_str(), cfg.ntp2.c_str());
+    ntpOffset = 0;
+    ntpApply();
+}
+
+void ntpWatch() {
+    static unsigned long since = 0;
+    if (timeIsValid() || WiFi.status() != WL_CONNECTED) {
+        since = 0;
+        return;
+    }
+    if (since == 0) {
+        since = millis();
+        return;
+    }
+    int n = ntpCount();
+    if (n <= 3 || millis() - since < 45000UL) return;
+    since = millis();
+    ntpOffset = (ntpOffset + 3) % n;
+    ntpApply();
+    logLine("[TIME] no time yet, trying the next NTP servers (from number " + String(ntpOffset + 1) + ")");
 }
 
 // Zustand der Punkte in der Statusleiste: "ok", "syncing" (gelb blinkend), "playing" (gruen blinkend, nur Audio), "idle" (grau, nur Audio), "bad" oder "na".
@@ -3432,6 +3479,7 @@ void loop() {
     loudWatch();
     pinWatch();
     logWatch();
+    ntpWatch();
     resumeStateWatch();
     delay(2);
 }

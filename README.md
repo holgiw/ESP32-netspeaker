@@ -65,6 +65,16 @@ Tabs: **Sprechen** (Text ansagen, Stopp, Lautstärke), **Webradio** (URL abspiel
 
 Den kostenlosen API-Schlüssel gibt es bei voicerss.org. VoiceRSS meldet Fehler (falscher Schlüssel, Tageslimit) im Log und im Tab *Sprechen*. Der Schlüssel steht nicht im Export der Einstellungen und muss auf einem neuen Gerät neu eingetragen werden (ein Import übernimmt ihn nur aus alten Exportdateien).
 
+## Screenshots
+
+| | |
+|---|---|
+| ![Sprechen mit laufendem Webradio](docs/screenshots/01-sprechen.jpg) | ![Webradio mit Stream-Info](docs/screenshots/02-webradio.jpg) |
+| ![SD-Karte](docs/screenshots/03-sd-karte.jpg) | ![MP3 im Flash](docs/screenshots/04-mp3-flash.jpg) |
+| ![Eingänge](docs/screenshots/05-eingaenge.jpg) | ![Zeit mit NTP-Servern](docs/screenshots/06-zeit.jpg) |
+
+Weitere Bilder: [Doku mit Verkabelungsplan](docs/screenshots/07-doku.jpg), [Webradio mit englischer Oberfläche](docs/screenshots/08-webradio-english.jpg). Die Bilder zeigen den Hostnamen und die IP-Adresse eines Testgeräts.
+
 ## HTTP-API
 
 ```
@@ -124,7 +134,8 @@ Basis-Topic (Standard `netspeaker/<hostname>`): `…/say` (Text oder JSON `{"tex
 - **MP3-Lautstärke angleichen:** Beim ersten Abspielen einer MP3-Datei (Gerät oder SD-Karte) misst das Gerät im Hintergrund ihre Lautheit (Bloecke zu 400 ms mit Gate, Ziel etwa -16 dBFS, Spitze unter -1 dBFS) und speichert den Ausgleich in `/loudness.bin`; die Datei selbst bleibt unverändert. Während der Messung (einige Sekunden bis eine Minute) läuft die Datei unverändert und wird dann sanft angepasst; danach gilt der Wert sofort. Ansagen und Radio bleiben unverändert. Haken im Tab *Audio* (Standard: an); der Ausgleich steht im Status als `gainDb`.
 - **Stream-Info:** Im Tab *Webradio* zeigt ein aufklappbarer Bereich *Stream-Info* unter dem Namen, was der Sender mitschickt: Name, Titel, Genre, Beschreibung, Webseite, Logo-Adresse, Bitrate und Server, dazu Codec, Abtastrate und Kanäle. Angezeigt wird alles davon, was der Sender liefert; die Werte stehen auch im Status (`genre`, `desc`, `web`, `logo`, `bitrate`, `host`).
 - **Starton:** Beim Einschalten und nach einem Neustart über die Weboberfläche spielt das Gerät einen kurzen Ton („buub“) in der eingestellten Lautstärke, direkt über den I2S-Ausgang. Nach einem Neustart per MQTT, nach eigenen Neustarts des Geräts (WLAN lange weg, Speicher knapp), nach einem Absturz und im abgesicherten Modus bleibt er aus. Haken *Kurzer Ton beim Start* im Tab *Audio* (Standard: an).
-- **Sprachen:** Die Weboberfläche ist deutsch; eine Sprachdatei (`lang/en.json` für Englisch) lässt sich im Tab *Status* hochladen und wird im Browser angewendet. Ein Knopf in der Statuszeile wechselt zwischen DE und EN. Die Übersetzung liegt im Speicher des Geräts, nicht in der Firmware. Die Datei liegt im Ordner `lang/` und als Anhang jedes Releases. Wer die `merged.bin` des Releases bei Adresse 0x0 flasht, löscht damit das Dateisystem und muss die Sprachdatei danach neu hochladen. Weitere Sprachen: `lang/README.md`.
+- **Sprachen:** Die Weboberfläche ist deutsch; eine Sprachdatei (`lang/en.json` für Englisch) lässt sich im Tab *Status* hochladen und wird im Browser angewendet. Ein Knopf in der Statuszeile wechselt zwischen DE und EN. Die Übersetzung liegt im Speicher des Geräts, nicht in der Firmware. Die Datei liegt im Ordner `lang/` und als Anhang jedes Releases; der Knopf *Von GitHub laden* im Tab *Status* holt sie direkt vom Projekt auf GitHub (das Gerät braucht dafür Internet). Wer die `merged.bin` des Releases bei Adresse 0x0 flasht, löscht damit das Dateisystem und muss die Sprachdatei danach neu hochladen. Weitere Sprachen: `lang/README.md`.
+- **NTP-Server:** Im Tab *Zeit* lassen sich bis zu 5 NTP-Server eintragen; es erscheint immer ein leeres Feld mehr, bis alle fünf belegt sind. Die Netzwerk-Bibliothek fragt höchstens drei gleichzeitig: Es gelten die ersten drei belegten, kommt innerhalb von 45 s keine Zeit an, probiert das Gerät die nächsten.
 - **MQTT-Anmeldung:** Im Tab *MQTT* lassen sich optional Benutzer und Passwort für den Broker eintragen (leer = ohne Anmeldung). Das Passwort wird nicht angezeigt, nicht exportiert und nie über die API ausgegeben; `/api/mqtt` nimmt optional `user` und `pass`.
 - **Log:** Das Schreiben des Logs in die Datei (Tab *Log*) schaltet sich nach einer einstellbaren Zeit selbst aus (Standard 60 Minuten, 0 = nie), damit der Flash geschont wird.
 - **Freie Pins:** Alle zugelassenen Pins (GPIO 1-18, 21, 33-42, 47, 48), die nicht im Tab *Audio* eingestellt sind (Verstärker, SD-Karte), keine Strapping-Pins (GPIO 3, 45, 46) sind und nicht die Status-LED tragen, bekommen einen Pull-up (High), damit offene Pins nicht schweben. Das gilt nach dem Start und nach jeder Änderung der SD-Pins.
@@ -223,6 +234,10 @@ Tabs: **Sprechen** (speak text, stop, volume), **Webradio** (play URL, save, pla
 
 The free API key is available at voicerss.org. VoiceRSS errors (wrong key, daily limit) show up in the log and in the *Sprechen* tab. The key is not part of the settings export and must be entered again on a new device (an import only takes it from old export files).
 
+### Screenshots
+
+The screenshots in the German section above (folder `docs/screenshots/`) show the web interface; [`08-webradio-english.jpg`](docs/screenshots/08-webradio-english.jpg) shows it in English after loading `lang/en.json`.
+
 ### HTTP API and MQTT
 
 See the German section above; the commands and topics are the same. Parameters can come as a form, query or flat JSON body; MQTT `say`/`play` accept plain text or JSON, plus the extra topics `url`, `file` and `station` (stored slot 1–15 or name). The calls `pins` (free pins with actions) and `lang` (language files) are new. Up to 15 web radio/URL slots are stored in the Webradio tab; the Doku tab lists all calls with copy buttons.
@@ -255,7 +270,8 @@ See the German section above; the commands and topics are the same. Parameters c
 - **Match MP3 volume:** On the first play of an MP3 file (device or SD card) the device measures its loudness in the background (400 ms blocks with a gate, target about -16 dBFS, peak below -1 dBFS) and stores the correction in `/loudness.bin`; the file itself stays unchanged. During the measurement (a few seconds up to a minute) the file plays unchanged and is then adjusted gently; afterwards the value applies at once. Announcements and radio stay unchanged. Checkbox in the *Audio* tab (default: on); the correction is in the status as `gainDb`.
 - **Stream info:** In the *Webradio* tab a collapsible *Stream-Info* area under the name shows what the station sends: name, title, genre, description, website, logo address, bitrate and server, plus codec, sample rate and channels. Everything of this that the station delivers is shown; the values are also in the status (`genre`, `desc`, `web`, `logo`, `bitrate`, `host`).
 - **Start tone:** On power-up and after a restart from the web interface the device plays a short tone ("buub") at the set volume, directly through the I2S output. After a restart via MQTT, after restarts the device triggers itself (WiFi lost for long, low memory), after a crash and in safe mode it stays off. Checkbox *Kurzer Ton beim Start* in the *Audio* tab (default: on).
-- **Languages:** The web interface is in German; a language file (`lang/en.json` for English) can be uploaded in the *Status* tab and is applied in the browser. A button in the status bar switches between DE and EN. The translation lives in the memory of the device, not in the firmware. The file is in the `lang/` folder and attached to every release. Flashing the `merged.bin` of a release at address 0x0 erases the file system, so the language file has to be uploaded again afterwards. More languages: `lang/README.md`.
+- **Languages:** The web interface is in German; a language file (`lang/en.json` for English) can be uploaded in the *Status* tab and is applied in the browser. A button in the status bar switches between DE and EN. The translation lives in the memory of the device, not in the firmware. The file is in the `lang/` folder and attached to every release; the button *Von GitHub laden* in the *Status* tab fetches it directly from the project on GitHub (the device needs internet for this). Flashing the `merged.bin` of a release at address 0x0 erases the file system, so the language file has to be uploaded again afterwards. More languages: `lang/README.md`.
+- **NTP servers:** In the *Zeit* tab up to 5 NTP servers can be entered; there is always one more empty field until all five are used. The network library asks three at most at the same time: the first three used ones apply, and if no time arrives within 45 s the device tries the next ones.
 - **MQTT login:** In the *MQTT* tab a user and password for the broker can optionally be entered (empty = no login). The password is not shown, not exported and never output by the API; `/api/mqtt` optionally takes `user` and `pass`.
 - **Log:** Writing the log to the file (*Log* tab) switches itself off after an adjustable time (default 60 minutes, 0 = never) to spare the flash.
 - **Free pins:** All allowed pins (GPIO 1-18, 21, 33-42, 47, 48) that are not configured in the *Audio* tab (amplifier, SD card), are no strapping pins (GPIO 3, 45, 46) and do not carry the status LED get a pull-up (high), so that open pins do not float. This applies after the start and after every change of the SD pins.

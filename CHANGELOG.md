@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-30 - Version 1.3.2
+
+**Deutsch**
+
+- Tab *Sprechen*: Was gerade läuft (Sender oder Datei, mit Fortschrittsbalken und Stopp-Knopf) steht jetzt oben wie in den anderen Tabs.
+- Tab *Zeit*: Bis zu 5 NTP-Server; es wird immer ein leeres Feld mit angezeigt. Das Gerät fragt die ersten drei belegten und wechselt nach 45 s ohne Zeit zu den weiteren. Export und Import enthalten `ntp1` bis `ntp5`.
+- Die Tabs *SD-Karte* und *MP3 (Flash)* zeigen den belegten Speicher einheitlich oben unter der Überschrift: „Belegt X von Y (Z %)“ mit einem Balken.
+- Sprachdateien lassen sich vom Projekt auf GitHub laden (Karte *Sprache / Language* im Tab *Status*, Knopf *Von GitHub laden*; `fetch=en` bei `/api/lang`). Die Adresse ist fest, nur der Sprachcode kommt von außen. Übersetzte HTML-Teile werden im Browser auf Hervorhebungen (`code`, `em`, `strong`, `b`, `kbd`) beschränkt.
+- Screenshots der Weboberfläche im Ordner `docs/screenshots/` und in der README. Die englische Sprachdatei übersetzt jetzt auch die Zeilen der Stream-Info (Station, Title, Description, Sample rate, Channels …).
+
+**English**
+
+- *Sprechen* tab: what is playing right now (station or file, with progress bar and stop button) is now shown at the top like in the other tabs.
+- *Zeit* tab: up to 5 NTP servers; one empty field is always shown. The device asks the first three used ones and switches to the others after 45 s without time. Export and import contain `ntp1` to `ntp5`.
+- The *SD-Karte* and *MP3 (Flash)* tabs show the used memory in the same way at the top under the heading: "Belegt X von Y (Z %)" with a bar.
+- Language files can be loaded from the project on GitHub (card *Sprache / Language* in the *Status* tab, button *Von GitHub laden*; `fetch=en` at `/api/lang`). The address is fixed, only the language code comes from outside. Translated HTML parts are limited in the browser to emphasis tags (`code`, `em`, `strong`, `b`, `kbd`).
+- Screenshots of the web interface in the folder `docs/screenshots/` and in the README. The English language file now also translates the rows of the stream info (Station, Title, Description, Sample rate, Channels …).
+
 ## 2026-10-30 - Version 1.3.1
 
 **Deutsch**

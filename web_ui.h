@@ -238,15 +238,18 @@ static const char* const FMT_LABELS[] = {"8 kHz mono (klein)", "22 kHz mono (Sta
 // Die Auswahl der Stimmen wird im Browser je nach gewaehlter Sprache gefuellt (VOICES in PAGE_JS); "Andere ..." erlaubt eigene Namen.
 // The voice choices are filled in the browser depending on the selected language (VOICES in PAGE_JS); "Andere ..." allows own names.
 
+String nowPlayingRow();
+
 String panelSpeak() {
-    String h = "<div class='card'><h3>Text ansagen</h3>";
+    String h = nowPlayingRow();
+    h += "<div class='card'><h3>Text ansagen</h3>";
     h += "<div class='row'>Text zum Ansagen " + infoTip("Text, der &uuml;ber VoiceRSS angesagt wird (h&ouml;chstens 500 Zeichen)") + "</div>";
     h += "<textarea id='sayText' maxlength='" + String(TTS_MAX_CHARS) + "' placeholder='Text zum Ansagen'></textarea>";
     h += "<div class='row'><select id='sayLang' onchange=\"fillVoiceSel('sayVoice',this.value,false)\" style='width:210px'><option value=''>Standard (" + htmlEsc(cfg.vlang) + ")</option>" + selectOptions(LANG_VALUES, LANG_LABELS, LANG_COUNT, "") + "</select> " + infoTip("Sprache der Ansage; Standard ist die Sprache aus dem Tab Audio") + "";
     h += "<select id='sayVoice' onchange='voiceChosen(this)' style='width:210px'><option value=''>Standard (VoiceRSS)</option></select> " + infoTip("Stimme f&uuml;r diese Ansage; Standard = gespeicherte Stimme bzw. Standardstimme der Sprache") + "</div>";
     h += "<div class='row'><button type='button' onclick='sayNow()' style='width:150px'>Sprechen</button><button type='button' onclick='stopNow()' style='width:150px'>Stopp</button> " + infoTip("Sprechen: sagt den Text jetzt an, ein laufendes Webradio l&auml;uft danach weiter. Stopp: beendet die Wiedergabe sofort, auch ein Webradio, ohne Fortsetzung") + "</div>";
     h += "<div class='row'><label>Lautst&auml;rke <input type='range' id='vol' min='0' max='" + String(VOLUME_MAX) + "' value='" + String(cfg.vol) + "' style='width:200px' oninput='volShow(this.value)' onchange='setVol(this.value)'> <span id='volShow' style='display:inline-block;min-width:76px'>" + String(cfg.vol) + " / " + String(VOLUME_MAX) + "</span></label> " + infoTip("Lautst&auml;rke 0 bis 100; wird sofort &uuml;bernommen und gespeichert") + "</div>";
-    h += "<div id='sayResult'></div><div class='row'><strong class='nowplaying' style='color:var(--ok)'></strong></div><div class='row'><small id='playState'></small></div></div>";
+    h += "<div id='sayResult'></div><div class='row'><small id='playState'></small></div></div>";
     return h;
 }
 
@@ -297,7 +300,7 @@ String panelRadio() {
 
 String panelSd() {
     String h = nowPlayingRow();
-    h += "<div class='card' style='max-width:900px'><h3>SD-Karte</h3><small id='sdInfo'>Lade &hellip;</small><div id='sdPath' style='margin:6px 0;color:var(--muted)'></div><div id='sdList'></div>";
+    h += "<div class='card' style='max-width:900px'><h3>SD-Karte</h3><small id='sdInfo'>Lade &hellip;</small><div id='sdMem'></div><div id='sdPath' style='margin:6px 0;color:var(--muted)'></div><div id='sdList'></div>";
     h += "<div class='row'><input type='file' id='sdUpFile' multiple accept='.mp3' style='width:55%'><button type='button' onclick='sdUploadNow()' style='width:auto;padding:8px 14px'>Hochladen</button> " + infoTip("Eine oder mehrere MP3-Dateien w&auml;hlen; sie werden nacheinander in den gezeigten Ordner der Karte hochgeladen") + "</div>";
     h += "<div class='row'><button type='button' onclick='sdMkdir()' style='width:auto;padding:8px 14px'>Neuer Ordner</button><button type='button' onclick='sdRemount()' style='width:auto;padding:8px 14px'>Neu einbinden</button> <label style='display:inline-flex;align-items:center;gap:4px'><input type='checkbox' id='sdLoop'> Endlos</label> " + infoTip("Neuer Ordner: legt einen Ordner im gezeigten Ordner an. Neu einbinden: bindet die Karte neu ein, zum Beispiel nach dem Einstecken. Endlos: nach der letzten Datei eines Ordners beginnt eine neue Runde. Zufall (Knopf am Ordner): jede Datei kommt je Sitzung einmal, die Reihenfolge ist jedes Mal eine andere und beginnt nie mit der Datei der letzten Sitzung") + "</div><div id='sdResult'></div></div>";
     return h;
@@ -312,7 +315,7 @@ String panelPins() {
 
 String panelMp3() {
     String h = nowPlayingRow();
-    h += "<div class='card'><h3>Dateien im Ger&auml;t</h3><div id='fileList'>Lade &hellip;</div><small id='fsInfo'></small><hr>";
+    h += "<div class='card'><h3>Dateien im Ger&auml;t</h3><div id='fsMem'></div><div id='fileList'>Lade &hellip;</div><hr>";
     h += "<div class='row'><input type='file' id='upFile' multiple accept='.mp3' style='width:90%'><button type='button' onclick='uploadNow()' style='width:150px'>Hochladen</button> " + infoTip("Eine oder mehrere MP3-Dateien vom Rechner w&auml;hlen; sie werden nacheinander in den Speicher des Ger&auml;ts geladen") + "</div>";
     h += "<div id='upResult'></div></div>";
     return h;
@@ -469,11 +472,17 @@ String panelTime() {
     static const char* const tzValues[] = {"CET-1CEST,M3.5.0,M10.5.0/3", "CEST-2", "CET-1", "GMT0BST,M3.5.0/1,M10.5.0", "UTC0", "EST5EDT,M3.2.0,M11.1.0", "EET-2EEST,M3.5.0/3,M10.5.0/4"};
     static const char* const tzLabels[] = {"Mitteleuropa (DST auto)", "Mitteleuropa (feste Sommerzeit)", "Mitteleuropa (feste Winterzeit)", "Gro&szlig;britannien (DST auto)", "UTC", "US Ost (DST auto)", "Osteuropa (DST auto)"};
     String h = "<div class='card'><h3>Zeit</h3><form method='POST' action='/save'><input type='hidden' name='sect' value='time'>";
-    for (int i = 1; i <= 2; i++) {
-        String n = String(i);
-        h += "<div class='row'>NTP Server" + n + " " + infoTip("Zeitserver (NTP), zum Beispiel pool.ntp.org") + " : <input type='text' id='ntpServerInput" + n + "' name='ntp" + n + "' value='" + htmlEsc(i == 1 ? cfg.ntp1 : cfg.ntp2) + "' style='width:180px'>";
-        h += "<button type='button' onclick='testNtp(" + n + ")' style='width:100px'>Test</button> " + infoTip("Fragt diesen Server ab und zeigt die empfangene UTC-Zeit") + "</div><div id='ntpTestResult" + n + "'></div>";
+    int ntpVisible = 1;
+    for (int i = 0; i < 5; i++) {
+        if (!cfg.ntp[i].isEmpty()) ntpVisible = i + 2;
     }
+    if (ntpVisible > 5) ntpVisible = 5;
+    for (int i = 1; i <= 5; i++) {
+        String n = String(i);
+        h += "<div id='ntpRow" + n + "'" + (i > ntpVisible ? " style='display:none'" : "") + "><div class='row'>NTP Server" + n + " " + infoTip("Zeitserver (NTP), zum Beispiel pool.ntp.org") + " : <input type='text' id='ntpServerInput" + n + "' name='ntp" + n + "' value='" + htmlEsc(cfg.ntp[i - 1]) + "' oninput='ntpGrow(" + n + ")' style='width:180px'>";
+        h += "<button type='button' onclick='testNtp(" + n + ")' style='width:100px'>Test</button> " + infoTip("Fragt diesen Server ab und zeigt die empfangene UTC-Zeit") + "</div><div id='ntpTestResult" + n + "'></div></div>";
+    }
+    h += "<small>Bis zu 5 Server, leere Felder werden &uuml;bersprungen. Das Ger&auml;t fragt die ersten drei; kommt innerhalb von 45 s keine Zeit an, probiert es die weiteren.</small>";
     h += "<div class='row'><select id='tz_select' style='width:300px' onchange=\"document.getElementById('tz_input').value=this.value\">";
     for (int i = 0; i < 7; i++) {
         h += "<option value='" + String(tzValues[i]) + "'" + (cfg.tz == tzValues[i] ? " selected" : "") + ">" + tzLabels[i] + " (" + tzValues[i] + ")</option>";
@@ -533,7 +542,8 @@ String panelStatus() {
     h += statusRow("MQTT Status", cfg.mqttServer.isEmpty() ? String("disabled") : (mqttClient.connected() ? String("connected") : String("disconnected")));
     h += "</table></div>";
     h += "<div class='card'><h3>Sprache / Language</h3><p>Weitere Sprachen kommen als Datei (zum Beispiel <code>en.json</code>) in den Speicher des Ger&auml;ts und werden im Browser angewendet. Mit der Schaltfl&auml;che in der Statuszeile wechselst du die Sprache.</p><div id='langList'></div>";
-    h += "<div class='row'><input type='file' id='langFile' accept='.json,application/json' style='width:60%'><button type='button' onclick='langUpload()' style='width:auto;padding:8px 14px'>Hochladen</button></div><div id='langResult'></div></div>";
+    h += "<div class='row'><input type='file' id='langFile' accept='.json,application/json' style='width:60%'><button type='button' onclick='langUpload()' style='width:auto;padding:8px 14px'>Hochladen</button></div>";
+    h += "<div class='row'><input type='text' id='langCode' value='en' maxlength='8' style='width:70px'><button type='button' onclick='langFetch()' style='width:auto;padding:8px 14px'>Von GitHub laden</button> " + infoTip("L&auml;dt die Sprachdatei (zum Beispiel en) aus dem Ordner lang des Projekts auf GitHub (holgiw/netspeaker) in das Ger&auml;t; dazu braucht das Ger&auml;t Internet. Eine vorhandene Datei gleichen Namens wird ersetzt") + "</div><div id='langResult'></div></div>";
     return h;
 }
 
@@ -650,9 +660,10 @@ curl -d "pin=6&type=file&text=gong.mp3&vol=60" http://@HOST@/api/pins
 curl -d "pin=7&type=station&text=RSA" http://@HOST@/api/pins
 curl -d "pin=5&type=" http://@HOST@/api/pins)d");
     h += docCard("Sprachen",
-        "Sprachdateien (zum Beispiel <code>en.json</code>) liegen im Speicher des Ger&auml;ts. <code>/upload?target=lang</code> (Formular, Feld <code>file</code>) l&auml;dt eine hoch, <code>GET /api/lang</code> listet die vorhandenen Sprachen, <code>POST /api/lang</code> mit <code>delete=en</code> l&ouml;scht eine und <code>/lang.json?l=en</code> liefert die Datei.",
+        "Sprachdateien (zum Beispiel <code>en.json</code>) liegen im Speicher des Ger&auml;ts. <code>/upload?target=lang</code> (Formular, Feld <code>file</code>) l&auml;dt eine hoch, <code>GET /api/lang</code> listet die vorhandenen Sprachen, <code>POST /api/lang</code> mit <code>fetch=en</code> l&auml;dt die Datei vom Projekt auf GitHub, mit <code>delete=en</code> l&ouml;scht sie, und <code>/lang.json?l=en</code> liefert die Datei.",
         R"d(curl http://@HOST@/api/lang
 curl -F "file=@en.json" "http://@HOST@/upload?target=lang"
+curl -d "fetch=en" http://@HOST@/api/lang
 curl -d "delete=en" http://@HOST@/api/lang
 curl "http://@HOST@/lang.json?l=en")d");
     h += docCard("Weitere Aufrufe",
@@ -739,13 +750,14 @@ static const char LANG_JS[] PROGMEM = R"js(
     if(v===undefined){for(var i=0;i<R.length;i++){if(R[i][0].test(kk)){v=kk.replace(R[i][0],R[i][1]);break;}}}
     return v===undefined?undefined:(UI_HOST?v.split('{host}').join(UI_HOST):v);}
   function trText(s){var k=norm(s);if(!k)return s;var v=look(k);if(v===undefined)return s;return s.match(/^\s*/)[0]+v+s.match(/\s*$/)[0];}
+  function safe(v){var tp=document.createElement('template');tp.innerHTML=v;[].forEach.call(tp.content.querySelectorAll('*'),function(e){if(!INL.test(e.nodeName.toUpperCase())){e.remove();return;}while(e.attributes.length)e.removeAttribute(e.attributes[0].name);});return tp.innerHTML;}
   function trAttrs(n){ATTR.forEach(function(a){if(n.hasAttribute&&n.hasAttribute(a)){var v=n.getAttribute(a),t=trText(v);if(t!==v)n.setAttribute(a,t);}});}
   function inlineMixed(e){var el=0,tx=0;for(var c=e.firstChild;c;c=c.nextSibling){if(c.nodeType===1){if(!INL.test(c.nodeName.toUpperCase())||c.id||c.querySelector('[id]'))return 0;el=1;}else if(c.nodeType===3){if(/[A-Za-zÄÖÜäöüß]/.test(c.nodeValue))tx=1;}else if(c.nodeType!==8)return 0;}return el&&tx;}
   function walk(n){
     if(n.nodeType===3){var p=n.parentNode;if(p&&SKIP.test(p.nodeName.toUpperCase()))return;var t=trText(n.nodeValue);if(t!==n.nodeValue)n.nodeValue=t;return;}
     if(n.nodeType!==1||SKIP.test(n.nodeName.toUpperCase()))return;
     trAttrs(n);
-    if(inlineMixed(n)){var v=look(norm(n.innerHTML));if(v!==undefined){n.innerHTML=v;return;}}
+    if(inlineMixed(n)){var v=look(norm(n.innerHTML));if(v!==undefined){n.innerHTML=safe(v);return;}}
     for(var c=n.firstChild;c;c=c.nextSibling)walk(c);
   }
   function watch(){mo.observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:ATTR});}
@@ -759,6 +771,8 @@ static const char LANG_JS[] PROGMEM = R"js(
       if(!list.length)box.textContent='Keine Sprachdatei im Ger\u00e4t';}
     if(mo&&T){mo.disconnect();if(b)walk(b);if(box)walk(box);watch();}
   }).catch(function(){});}
+  window.langFetch=function(){var c=(document.getElementById('langCode').value||'').trim().toLowerCase();if(!c){showRes('langResult',{ok:false,error:'Keine Datei gew&auml;hlt'});return;}
+    showRes('langResult',{ok:true,msg:'Lade von GitHub &hellip;'});postApi('/api/lang',{fetch:c},'langResult').then(langList);};
   window.langUpload=function(){var f=document.getElementById('langFile').files[0];if(!f){showRes('langResult',{ok:false,error:'Keine Datei gew&auml;hlt'});return;}
     var fd=new FormData();fd.append('file',f,f.name);
     fetch('/upload?target=lang',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(j){showRes('langResult',j);document.getElementById('langFile').value='';langList();}).catch(function(){showRes('langResult',{ok:false,error:'Fehler'});});};
@@ -808,11 +822,16 @@ var sdCur='/';
 function checkPins(){var s=document.querySelectorAll('select.pinsel'),seen={},dup=false;s.forEach(function(e){e.classList.remove('dup');});
   s.forEach(function(e){var v=e.value;if(seen[v]){seen[v].classList.add('dup');e.classList.add('dup');dup=true;}else seen[v]=e;});
   var w=document.getElementById('pinWarn');if(w)w.textContent=dup?'Ein Pin ist doppelt vergeben; so werden die Pins nicht gespeichert.':'';}
+function memShow(id,used,total){var e=document.getElementById(id);if(!e)return;e.textContent='';if(!(total>0))return;
+  var u=total<10485760?['KB',1024]:(total<10737418240?['MB',1048576]:['GB',1073741824]),pct=Math.round(100*used/total);
+  var s=document.createElement('small');s.textContent='Belegt '+Math.round(used/u[1])+' von '+Math.round(total/u[1])+' '+u[0]+' ('+pct+' %)';
+  var bar=document.createElement('div');bar.style.cssText='height:6px;margin:4px 0 8px;background:#3a4147;border-radius:3px;overflow:hidden';
+  var f=document.createElement('div');f.style.cssText='height:100%;background:var(--ok);width:'+Math.min(100,pct)+'%';bar.appendChild(f);e.appendChild(s);e.appendChild(bar);}
 function sdLoad(dir){var box=document.getElementById('sdList');if(!box)return;dir=dir||'/';
   fetch('/api/sd?dir='+encodeURIComponent(dir),{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
     var info=document.getElementById('sdInfo'),pth=document.getElementById('sdPath');box.textContent='';sdCur=j.dir||'/';
-    if(!j.mounted){info.textContent=j.state==='off'?'SD-Karte ist ausgeschaltet (Tab Audio)':'Keine Karte gefunden';pth.textContent='';return;}
-    info.textContent='Karte '+j.state+': '+j.used+' von '+j.size+' MB belegt';pth.textContent=j.dir;
+    if(!j.mounted){info.textContent=j.state==='off'?'SD-Karte ist ausgeschaltet (Tab Audio)':'Keine Karte gefunden';pth.textContent='';memShow('sdMem',0,0);return;}
+    info.textContent='Karte '+j.state;memShow('sdMem',j.used*1048576,j.size*1048576);pth.textContent=j.dir;
     var cur=j.dir==='/'?'':j.dir,tb=document.createElement('table');tb.style.width='100%';
     function cell(tr,t){var td=document.createElement('td');if(t!==null)td.textContent=t;tr.appendChild(td);return td;}
     function btn(td,txt,tip,fn){var b=document.createElement('button');b.type='button';b.className='copy-btn';b.style.cssText='position:static;margin:2px';b.textContent=txt;b.title=tip;b.onclick=fn;td.appendChild(b);}
@@ -854,7 +873,7 @@ function loadFiles(){fetch('/api/files',{cache:'no-store'}).then(function(r){ret
   j.files.forEach(function(f){h+='<tr><td>'+f.name+'</td><td>'+Math.round(f.size/1024)+' KB</td><td><a href="#" onclick="playFile(\''+f.name+'\');return false;" title="Abspielen">&#9654;</a> <a href="#" onclick="delFile(\''+f.name+'\');return false;" title="L\u00f6schen">&#10006;</a></td><td><button type="button" class="copy-btn" style="position:static;margin:2px" title="'+apiLink(f.name)+'" onclick="copyText(apiLink(\''+f.name+'\'),this)">URL</button><button type="button" class="copy-btn" style="position:static;margin:2px" title="curl-Aufruf kopieren" onclick="copyText(\'curl &quot;\'+apiLink(\''+f.name+'\')+\'&quot;\',this)">curl</button></td></tr>';});
   if(!j.files.length)h+='<tr><td>Keine Dateien</td></tr>';
   document.getElementById('fileList').innerHTML=h+'</table>';
-  document.getElementById('fsInfo').textContent='Belegt '+Math.round(j.used/1024)+' von '+Math.round(j.total/1024)+' KB';
+  memShow('fsMem',j.used,j.total);
   }).catch(function(){});}
 function uploadNow(){var fs=Array.prototype.slice.call(document.getElementById('upFile').files);if(!fs.length){showRes('upResult',{ok:false,error:'Keine Datei gew&auml;hlt'});return;}
   var i=0,okc=0,bad=[];
@@ -905,6 +924,7 @@ function scanWifi(){var info=document.getElementById('scanInfo');info.textConten
     for(var i=1;i<=3;i++){var s=document.getElementById('ssid_select'+i);s.innerHTML='<option value="">-</option>';
       list.forEach(function(n){var o=document.createElement('option');o.value=n;o.textContent=n;s.appendChild(o);});}
     info.textContent=list.length+' Netzwerke gefunden';}).catch(function(){info.textContent='Suche fehlgeschlagen';});}
+function ntpGrow(n){var v=document.getElementById('ntpServerInput'+n).value.trim(),r=document.getElementById('ntpRow'+(n+1));if(v&&r)r.style.display='';}
 function testNtp(n){var box=document.getElementById('ntpTestResult'+n);var v=document.getElementById('ntpServerInput'+n).value;
   box.innerHTML='';
   fetch('/api/testNtp?server='+encodeURIComponent(v)).then(function(r){return r.text();}).then(function(t){
@@ -1192,13 +1212,20 @@ void handleSave() {
         cfg.logAutoMin = constrain(webserver.arg("logmin").toInt(), 0, 1440);
         prefs.putInt("logmin", cfg.logAutoMin);
     } else if (sect == "time") {
-        cfg.ntp1 = webserver.arg("ntp1");
-        cfg.ntp2 = webserver.arg("ntp2");
+        String list[5];
+        int m = 0;
+        for (int i = 1; i <= 5; i++) {
+            String v = webserver.arg("ntp" + String(i));
+            v.trim();
+            if (!v.isEmpty()) list[m++] = v;
+        }
+        if (m == 0) list[m++] = "pool.ntp.org";
+        for (int i = 0; i < 5; i++) {
+            cfg.ntp[i] = i < m ? list[i] : String();
+            prefs.putString(("ntp" + String(i + 1)).c_str(), cfg.ntp[i]);
+        }
         cfg.tz = webserver.arg("tz");
-        if (cfg.ntp1.isEmpty()) cfg.ntp1 = "pool.ntp.org";
         if (cfg.tz.isEmpty()) cfg.tz = "UTC0";
-        prefs.putString("ntp1", cfg.ntp1);
-        prefs.putString("ntp2", cfg.ntp2);
         prefs.putString("tz", cfg.tz);
         setupTime();
     }
@@ -1216,7 +1243,8 @@ void handleExport() {
     String t = "# " PROJECT_NAME " settings export (WiFi passwords, MQTT password and API key omitted)\n";
     t += "host=" + cfg.host + "\n";
     for (int i = 0; i < 3; i++) t += "ssid" + String(i + 1) + "=" + cfg.ssid[i] + "\n";
-    t += "ntp1=" + cfg.ntp1 + "\nntp2=" + cfg.ntp2 + "\ntz=" + cfg.tz + "\n";
+    for (int i = 0; i < 5; i++) t += "ntp" + String(i + 1) + "=" + cfg.ntp[i] + "\n";
+    t += "tz=" + cfg.tz + "\n";
     t += "vlang=" + cfg.vlang + "\nvvoice=" + cfg.vvoice + "\nvfmt=" + cfg.vfmt + "\nvrate=" + String(cfg.vrate) + "\n";
     t += "vol=" + String(cfg.vol) + "\nbclk=" + String(cfg.bclk) + "\nlrc=" + String(cfg.lrc) + "\ndin=" + String(cfg.din) + "\n";
     t += "mq_srv=" + cfg.mqttServer + "\nmq_port=" + String(cfg.mqttPort) + "\nmq_user=" + cfg.mqttUser + "\nmq_base=" + cfg.mqttBase + "\n";
@@ -1275,8 +1303,10 @@ void handleImport() {
             cfg.pass[i] = (v == oldSsid[i]) ? oldPass[i] : "";
             prefs.putString(k.c_str(), v);
             prefs.putString(("pass" + String(i + 1)).c_str(), cfg.pass[i]);
-        } else if (k == "ntp1") { cfg.ntp1 = v.isEmpty() ? "pool.ntp.org" : v; prefs.putString("ntp1", cfg.ntp1);
-        } else if (k == "ntp2") { cfg.ntp2 = v; prefs.putString("ntp2", v);
+        } else if (k.length() == 4 && k.startsWith("ntp") && k[3] >= '1' && k[3] <= '5') {
+            int i = k[3] - '1';
+            cfg.ntp[i] = (i == 0 && v.isEmpty()) ? String("pool.ntp.org") : v;
+            prefs.putString(k.c_str(), cfg.ntp[i]);
         } else if (k == "tz") { cfg.tz = v.isEmpty() ? "UTC0" : v; prefs.putString("tz", cfg.tz);
         } else if (k == "vlang") { cfg.vlang = v; prefs.putString("vlang", v);
         } else if (k == "vvoice") { cfg.vvoice = v; prefs.putString("vvoice", v);
@@ -1718,10 +1748,110 @@ void handleApiPins() {
     sendJson(200, j + "]}");
 }
 
+// Sprachdatei vom Projekt auf GitHub laden (feste Adresse, nur der Sprachcode kommt von aussen) und als /lang_<code>.json ablegen.
+// Load a language file from the project on GitHub (fixed address, only the language code comes from outside) and store it as /lang_<code>.json.
+
+#define LANG_GITHUB_BASE "https://raw.githubusercontent.com/holgiw/netspeaker/main/lang/"
+
+bool langFetch(const String& code, String& err) {
+    if (WiFi.status() != WL_CONNECTED) {
+        err = "Keine WLAN-Verbindung";
+        return false;
+    }
+    if (ESP.getFreeHeap() < 70000) {
+        err = "Zu wenig freier Speicher (Webradio kurz stoppen)";
+        return false;
+    }
+    WiFiClientSecure client;
+    client.setInsecure();
+    HTTPClient http;
+    http.useHTTP10(true);
+    http.setTimeout(10000);
+    http.setConnectTimeout(10000);
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    if (!http.begin(client, String(LANG_GITHUB_BASE) + code + ".json")) {
+        err = "HTTP begin failed";
+        return false;
+    }
+    esp_task_wdt_reset();
+    int rc = http.GET();
+    esp_task_wdt_reset();
+    if (rc != HTTP_CODE_OK) {
+        err = rc == 404 ? String("Sprachdatei nicht gefunden: ") + code + ".json" : "GitHub HTTP " + String(rc);
+        http.end();
+        return false;
+    }
+    LittleFS.remove("/lang_tmp.json");
+    File f = LittleFS.open("/lang_tmp.json", FILE_WRITE);
+    if (!f) {
+        err = "Datei kann nicht angelegt werden";
+        http.end();
+        return false;
+    }
+    WiFiClient* s = http.getStreamPtr();
+    uint8_t buf[1024];
+    size_t total = 0;
+    uint8_t first = 0, last = 0;
+    unsigned long deadline = millis() + 30000UL;
+    bool ok = true;
+    while ((http.connected() || s->available()) && millis() < deadline) {
+        int n = s->available();
+        if (n <= 0) {
+            delay(5);
+            esp_task_wdt_reset();
+            continue;
+        }
+        if (n > (int)sizeof(buf)) n = sizeof(buf);
+        n = s->readBytes(buf, n);
+        if (n <= 0) break;
+        for (int i = 0; i < n; i++) {
+            if (buf[i] > ' ') {
+                if (first == 0) first = buf[i];
+                last = buf[i];
+            }
+        }
+        total += n;
+        if (total > 262144) {
+            ok = false;
+            err = "Datei zu gross";
+            break;
+        }
+        if (f.write(buf, n) != (size_t)n) {
+            ok = false;
+            err = "Speicher voll";
+            break;
+        }
+        if (audio) audio->loop();
+        esp_task_wdt_reset();
+    }
+    f.close();
+    http.end();
+    if (ok && (total < 10 || first != '{' || last != '}')) {
+        ok = false;
+        err = "Keine gueltige Sprachdatei";
+    }
+    if (!ok) {
+        LittleFS.remove("/lang_tmp.json");
+        return false;
+    }
+    String dest = "/lang_" + code + ".json";
+    LittleFS.remove(dest);
+    LittleFS.rename("/lang_tmp.json", dest);
+    logLine("[LANG] " + code + ".json loaded from GitHub (" + String((unsigned long)total) + " bytes)");
+    return true;
+}
+
 void handleApiLang() {
     if (webserver.method() == HTTP_POST) {
         String d = langCode(apiArg("delete"));
         if (!d.isEmpty() && fsReady) LittleFS.remove("/lang_" + d + ".json");
+        if (apiArg("fetch").length() > 0) {
+            String fc = langCode(apiArg("fetch"));
+            String err;
+            if (fc.isEmpty() || !fsReady) return sendErr(400, "Dateiname wie en.json (zwei bis acht Kleinbuchstaben)");
+            if (!langFetch(fc, err)) return sendErr(502, err);
+            return sendOk("Geladen");
+        }
     }
     String j = "{\"langs\":[";
     bool first = true;
