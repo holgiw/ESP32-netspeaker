@@ -1,7 +1,7 @@
 # Erzeugt die Pakete fuer das GitHub-Release, die flashESP.bat / voicesetup.ps1 beim Flashen laden:
 #   netspeaker-esp32s3.zip      Bootloader, Partitionstabelle, boot_app0.bin und App (flach im Zip)
 #   netspeaker-esp32s3.sha256   "<SHA-256>  netspeaker-esp32s3.zip"
-#   netspeaker_flash.zip        nur die Werkzeuge: flashESP.bat, voicesetup.ps1, readme.txt und esptool.exe
+#   netspeaker_flash.zip        nur die Werkzeuge: flashESP.bat, voicesetup.ps1, readme.txt und esptool.exe (dazu netspeaker_flash.sha256)
 # Quelle der Firmware ist der Ordner esp32s3 neben diesem Skript (von buildAll.bat erzeugt), esptool.exe liegt neben diesem Skript oder
 # stammt aus dem ESP32-Core der Arduino IDE.
 #   .\publish_builds.ps1                      Pakete in einen Ordner schreiben (Standard: Temp), nichts hochladen
@@ -13,7 +13,7 @@
 # Creates the packages for the GitHub release that flashESP.bat / voicesetup.ps1 download when flashing:
 #   netspeaker-esp32s3.zip      bootloader, partition table, boot_app0.bin and app (flat in the zip)
 #   netspeaker-esp32s3.sha256   "<SHA-256>  netspeaker-esp32s3.zip"
-#   netspeaker_flash.zip        the tools only: flashESP.bat, voicesetup.ps1, readme.txt and esptool.exe
+#   netspeaker_flash.zip        the tools only: flashESP.bat, voicesetup.ps1, readme.txt and esptool.exe (plus netspeaker_flash.sha256)
 # The firmware comes from the folder esp32s3 next to this script (made by buildAll.bat); esptool.exe is next to this script or comes
 # from the ESP32 core of the Arduino IDE.
 #   .\publish_builds.ps1                      write the packages to a folder (default: temp), upload nothing
@@ -62,14 +62,17 @@ if (-not (Test-Path $esptool)) {
 if (-not (Test-Path $esptool)) { throw 'esptool.exe nicht gefunden / not found' }
 $toolsZip = Join-Path $OutDir 'netspeaker_flash.zip'
 New-FlatZip $toolsZip @((Join-Path $PSScriptRoot 'flashESP.bat'), (Join-Path $PSScriptRoot 'voicesetup.ps1'), (Join-Path $PSScriptRoot 'readme.txt'), $esptool)
-Write-Host "netspeaker_flash.zip    $((Get-Item $toolsZip).Length) Bytes (esptool.exe: $esptool)"
+$toolsHash = (Get-FileHash -Algorithm SHA256 $toolsZip).Hash.ToLower()
+$toolsSha = Join-Path $OutDir 'netspeaker_flash.sha256'
+[System.IO.File]::WriteAllText($toolsSha, "$toolsHash  netspeaker_flash.zip`n", (New-Object System.Text.UTF8Encoding($false)))
+Write-Host "netspeaker_flash.zip    $((Get-Item $toolsZip).Length) Bytes, SHA-256 $toolsHash (esptool.exe: $esptool)"
 
 # 3) Hochladen / upload
 if ($Upload) {
     if (-not $Tag) { $Tag = (& gh release view --repo $repo --json tagName -q .tagName).Trim() }
     if (-not $Tag) { throw 'Kein Release gefunden / no release found' }
     Write-Host "Lade in das Release $Tag hoch / uploading to release $Tag ..."
-    & gh release upload $Tag $fwZip $shaFile $toolsZip --repo $repo --clobber
+    & gh release upload $Tag $fwZip $shaFile $toolsZip $toolsSha --repo $repo --clobber
     if ($LASTEXITCODE -ne 0) { throw 'gh release upload fehlgeschlagen / failed' }
 }
 else {

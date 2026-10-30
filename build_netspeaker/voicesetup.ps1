@@ -15,7 +15,7 @@
 #   ("WIFI:<SSID><Tab><password>", see checkSerialWifi() in netspeaker.ino); Enter = leave the WiFi unchanged.
 #   With -Port (e.g. 3 for COM3) without questions (then without WiFi), except with -AskWifi (how flashAll.ps1 calls it): then the
 #   WiFi is asked for after flashing as well.
-param([string]$Port, [switch]$AskWifi, [switch]$Download)
+param([string]$Port, [switch]$AskWifi, [switch]$Download, [switch]$FetchTools)
 
 # Chip des Projekts: Ordner, esptool-Name, Bootloader-Adresse / project chip: folder, esptool name, bootloader address
 $c = @{ Dir = 'esp32s3'; Name = 'esp32s3'; Boot = '0x0' }
@@ -227,10 +227,58 @@ function Send-Wifi([string]$ssid, [string]$pass) {
 # ---------------------------------------------------------------------------
 # Ablauf / flow
 $interactive = -not $Port
-$esptool = Find-Esptool
+$buildUrl = if ($env:NETSPEAKER_BUILD_URL) { $env:NETSPEAKER_BUILD_URL.TrimEnd('/') } else { 'https://github.com/holgiw/netspeaker/releases/latest/download' }
+
+# Fehlt esptool.exe (zum Beispiel nach "Download ZIP" des Repositorys, ohne Arduino IDE), wird es aus netspeaker_flash.zip des neuesten
+# Releases geholt (SHA-256 geprueft) und neben dieses Skript gelegt; -FetchTools erzwingt das (Test).
+# If esptool.exe is missing (for example after "Download ZIP" of the repository, without the Arduino IDE), it is fetched from
+# netspeaker_flash.zip of the newest release (SHA-256 checked) and put next to this script; -FetchTools forces it (test).
+function Get-EsptoolFromRelease {
+    $name = 'netspeaker_flash'
+    $work = Join-Path ([IO.Path]::GetTempPath()) "netspeaker-tools$([IO.Path]::DirectorySeparatorChar)$name"
+    if (Test-Path $work) { Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue }
+    New-Item -ItemType Directory -Path $work -Force | Out-Null
+    $zip = Join-Path $work "$name.zip"
+    Write-Host "esptool.exe fehlt - wird geladen (rund 14 MB) / esptool.exe is missing - downloading it (about 14 MB): $buildUrl/$name.zip"
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        $wc = New-Object System.Net.WebClient
+        $wc.Headers.Add('User-Agent', 'netspeaker-flash')
+        $wc.Proxy = [Net.WebRequest]::GetSystemWebProxy()
+        $wc.Proxy.Credentials = [Net.CredentialCache]::DefaultCredentials
+        $shaText = $wc.DownloadString("$buildUrl/$name.sha256")
+        $wc.DownloadFile("$buildUrl/$name.zip", $zip)
+    }
+    catch {
+        Write-Host "Download fehlgeschlagen / download failed: $($_.Exception.Message)"
+        return $null
+    }
+    $want = ($shaText.Trim() -split '\s+')[0].ToLower()
+    if ((Get-FileHash -Algorithm SHA256 $zip).Hash.ToLower() -ne $want) {
+        Write-Host 'Pruefsumme von netspeaker_flash.zip stimmt nicht. / Checksum of netspeaker_flash.zip does not match.'
+        return $null
+    }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $archive = [System.IO.Compression.ZipFile]::OpenRead($zip)
+    try {
+        $entry = $archive.Entries | Where-Object { $_.Name -eq 'esptool.exe' } | Select-Object -First 1
+        if (-not $entry) { return $null }
+        $target = Join-Path $PSScriptRoot 'esptool.exe'
+        try { [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $target, $true) }
+        catch {
+            $target = Join-Path $work 'esptool.exe'
+            [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $target, $true)
+        }
+        return $target
+    }
+    finally { $archive.Dispose() }
+}
+
+$esptool = if ($FetchTools) { $null } else { Find-Esptool }
+if (-not $esptool) { $esptool = Get-EsptoolFromRelease }
 if (-not $esptool) {
-    Write-Host 'esptool.exe nicht gefunden - neben dieses Skript legen (Werkzeug-ZIP) oder den ESP32-Core in der Arduino IDE installieren.'
-    Write-Host 'esptool.exe not found - put it next to this script (tools zip) or install the ESP32 core in the Arduino IDE.'
+    Write-Host 'esptool.exe nicht gefunden und nicht ladbar - neben dieses Skript legen (netspeaker_flash.zip) oder den ESP32-Core in der Arduino IDE installieren.'
+    Write-Host 'esptool.exe not found and not downloadable - put it next to this script (netspeaker_flash.zip) or install the ESP32 core in the Arduino IDE.'
     exit 1
 }
 
@@ -261,7 +309,6 @@ else {
 # Ordner esp32s3 neben dem Skript (buildAll.bat), sonst Download des Pakets vom neuesten GitHub-Release, per SHA-256 geprueft.
 # Folder esp32s3 next to the script (buildAll.bat), otherwise download of the package from the newest GitHub release, checked by SHA-256.
 $files = @('netspeaker.ino.bootloader.bin', 'netspeaker.ino.partitions.bin', 'boot_app0.bin', 'netspeaker.ino.bin')
-$buildUrl = if ($env:NETSPEAKER_BUILD_URL) { $env:NETSPEAKER_BUILD_URL.TrimEnd('/') } else { 'https://github.com/holgiw/netspeaker/releases/latest/download' }
 
 function Get-BuildDir {
     $name = 'netspeaker-esp32s3'

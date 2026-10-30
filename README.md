@@ -2,6 +2,8 @@
 
 **Deutsch** | [English](#english)
 
+> **Fertige Firmware (`.bin`):** Das ZIP, das GitHub unter *Code → Download ZIP* anbietet, enthält nur Quelltext und Werkzeuge, keine fertigen Dateien. Die liegen im [neuesten Release](https://github.com/holgiw/netspeaker/releases/latest) unter *Assets*. Zum Flashen reicht aber auch dieses ZIP: `build_netspeaker/flashESP.bat` doppelklicken, das Skript lädt Firmware und `esptool` selbst. Siehe *Fertige Firmware flashen*.
+
 Sprachausgabe und MP3-Player für den **ESP32-S3** (4 MB Flash, 2 MB PSRAM) mit einem **MAX98357A** I2S-Verstärker. Texte werden über [VoiceRSS](https://www.voicerss.org/) in Sprache umgewandelt, MP3-Dateien und Webradio-Streams werden direkt abgespielt. Bedienung über eine Weboberfläche, eine HTTP-API und MQTT.
 
 ## Hardware
@@ -48,12 +50,16 @@ Die Pins sind im Tab *Audio* änderbar (wirkt sofort). Das Verkabelungsbild ([ve
 
 ## Fertige Firmware flashen
 
-Ohne Arduino IDE und ohne das Repository klonen zu müssen:
+Ohne Arduino IDE und ohne das Repository klonen zu müssen. Es gibt zwei Wege:
+
+**A. Werkzeug-ZIP aus dem Release (klein):**
 
 1. Aus dem [neuesten Release](https://github.com/holgiw/netspeaker/releases/latest) `netspeaker_flash.zip` laden und **komplett** in einen Ordner auspacken (`esptool.exe` muss neben `flashESP.bat` liegen).
 2. ESP32-S3 per USB anschließen und `flashESP.bat` doppelklicken.
 
-Das Skript sucht den ESP, lädt `netspeaker-esp32s3.zip` vom neuesten Release (Prüfsumme SHA-256, Internet nötig), flasht ihn und fragt danach das WLAN ab (siehe unten). Die Einstellungen im Gerät bleiben erhalten, auch die Sprachdatei. Meldet der Virenscanner `esptool.exe` (Fehlalarm), richte eine Ausnahme für den Ordner ein.
+**B. ZIP des Repositorys (*Code → Download ZIP*):** auspacken und `build_netspeaker/flashESP.bat` doppelklicken. Fehlt `esptool.exe` (keine Arduino IDE), lädt das Skript es aus `netspeaker_flash.zip` des Releases (rund 14 MB, Prüfsumme geprüft) und legt es neben die Datei.
+
+In beiden Fällen sucht das Skript den ESP, lädt `netspeaker-esp32s3.zip` vom neuesten Release (Prüfsumme SHA-256, Internet nötig), flasht ihn und fragt danach das WLAN ab (siehe unten). Die Einstellungen im Gerät bleiben erhalten, auch die Sprachdatei. Meldet der Virenscanner `esptool.exe` (Fehlalarm), richte eine Ausnahme für den Ordner ein.
 
 Die Firmware liegt **nicht** im Repository: Der Ordner `build_netspeaker/` enthält nur die Flash-Werkzeuge (`flashESP.bat`, `voicesetup.ps1`, `publish_builds.ps1`, `readme.txt`); die Binärdateien kommen als Anhang der Releases (`netspeaker-esp32s3.zip`, `netspeaker-esp32s3.sha256`, `netspeaker_flash.zip` und die vollständige `netspeaker-<Version>-esp32s3-merged.bin`). Mit der `merged.bin` flasht man auch von Hand: `esptool --chip esp32s3 --port COM3 write_flash 0x0 netspeaker-<Version>-esp32s3-merged.bin` (das löscht das Dateisystem; danach die Sprachdatei neu hochladen).
 
@@ -187,6 +193,8 @@ GitHub: <https://github.com/holgiw/netspeaker>
 
 Voice output and MP3 player for the **ESP32-S3** (4 MB Flash, 2 MB PSRAM) with a **MAX98357A** I2S amplifier. Text is converted to speech by [VoiceRSS](https://www.voicerss.org/); MP3 files and web radio streams play directly. Control via a web interface, an HTTP API and MQTT.
 
+> **Finished firmware (`.bin`):** The ZIP that GitHub offers under *Code → Download ZIP* only contains source and tools, no finished files. They are in the [newest release](https://github.com/holgiw/netspeaker/releases/latest) under *Assets*. Flashing also works with this ZIP: double-click `build_netspeaker/flashESP.bat`, the script downloads the firmware and `esptool` itself. See *Flashing the finished firmware*.
+
 ### Hardware
 
 | MAX98357A | ESP32-S3 (default) |
@@ -231,12 +239,16 @@ The pins can be changed in the *Audio* tab (applies immediately). The wiring pic
 
 ### Flashing the finished firmware
 
-Without the Arduino IDE and without cloning the repository:
+Without the Arduino IDE and without cloning the repository. There are two ways:
+
+**A. Tools zip from the release (small):**
 
 1. Download `netspeaker_flash.zip` from the [newest release](https://github.com/holgiw/netspeaker/releases/latest) and unpack the **whole** zip into a folder (`esptool.exe` has to be next to `flashESP.bat`).
 2. Connect the ESP32-S3 via USB and double-click `flashESP.bat`.
 
-The script finds the ESP, downloads `netspeaker-esp32s3.zip` from the newest release (SHA-256 checked, internet needed), flashes it and then asks for the WiFi (see below). The settings in the device stay, including the language file. If the virus scanner reports `esptool.exe` (false alarm), add an exception for the folder.
+**B. ZIP of the repository (*Code → Download ZIP*):** unpack it and double-click `build_netspeaker/flashESP.bat`. If `esptool.exe` is missing (no Arduino IDE), the script downloads it from `netspeaker_flash.zip` of the release (about 14 MB, checksum checked) and puts it next to the file.
+
+In both cases the script finds the ESP, downloads `netspeaker-esp32s3.zip` from the newest release (SHA-256 checked, internet needed), flashes it and then asks for the WiFi (see below). The settings in the device stay, including the language file. If the virus scanner reports `esptool.exe` (false alarm), add an exception for the folder.
 
 The firmware is **not** in the repository: the folder `build_netspeaker/` only holds the flash tools (`flashESP.bat`, `voicesetup.ps1`, `publish_builds.ps1`, `readme.txt`); the binaries are attached to the releases (`netspeaker-esp32s3.zip`, `netspeaker-esp32s3.sha256`, `netspeaker_flash.zip` and the complete `netspeaker-<version>-esp32s3-merged.bin`). With the `merged.bin` you can also flash by hand: `esptool --chip esp32s3 --port COM3 write_flash 0x0 netspeaker-<version>-esp32s3-merged.bin` (this erases the file system; upload the language file again afterwards).
 
