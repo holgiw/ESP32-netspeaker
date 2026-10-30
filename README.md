@@ -2,7 +2,7 @@
 
 **Deutsch** | [English](#english)
 
-> **Fertige Firmware (`.bin`):** Das ZIP, das GitHub unter *Code → Download ZIP* anbietet, enthält nur Quelltext und Werkzeuge, keine fertigen Dateien. Die liegen im [neuesten Release](https://github.com/holgiw/netspeaker/releases/latest) unter *Assets*. Zum Flashen reicht aber auch dieses ZIP: `build_netspeaker/flashESP.bat` doppelklicken, das Skript lädt Firmware und `esptool` selbst. Siehe *Fertige Firmware flashen*.
+> **Fertige Firmware (`.bin`):** Das ZIP unter *Code → Download ZIP* enthält die Firmware des jeweiligen Stands in `build_netspeaker/esp32s3/` und das Flash-Werkzeug. Doppelklick auf `build_netspeaker/flashESP.bat` genügt; fehlt `esptool`, lädt das Skript es selbst. Die komplette `merged.bin` und die Werkzeug-ZIP mit `esptool.exe` liegen im [neuesten Release](https://github.com/holgiw/netspeaker/releases/latest) unter *Assets*. Siehe *Fertige Firmware flashen*.
 
 Sprachausgabe und MP3-Player für den **ESP32-S3** (4 MB Flash, 2 MB PSRAM) mit einem **MAX98357A** I2S-Verstärker. Texte werden über [VoiceRSS](https://www.voicerss.org/) in Sprache umgewandelt, MP3-Dateien und Webradio-Streams werden direkt abgespielt. Bedienung über eine Weboberfläche, eine HTTP-API und MQTT.
 
@@ -193,7 +193,7 @@ GitHub: <https://github.com/holgiw/netspeaker>
 
 Voice output and MP3 player for the **ESP32-S3** (4 MB Flash, 2 MB PSRAM) with a **MAX98357A** I2S amplifier. Text is converted to speech by [VoiceRSS](https://www.voicerss.org/); MP3 files and web radio streams play directly. Control via a web interface, an HTTP API and MQTT.
 
-> **Finished firmware (`.bin`):** The ZIP that GitHub offers under *Code → Download ZIP* only contains source and tools, no finished files. They are in the [newest release](https://github.com/holgiw/netspeaker/releases/latest) under *Assets*. Flashing also works with this ZIP: double-click `build_netspeaker/flashESP.bat`, the script downloads the firmware and `esptool` itself. See *Flashing the finished firmware*.
+> **Finished firmware (`.bin`):** The ZIP under *Code → Download ZIP* contains the firmware of that state in `build_netspeaker/esp32s3/` and the flash tool. Double-clicking `build_netspeaker/flashESP.bat` is enough; if `esptool` is missing, the script downloads it. The complete `merged.bin` and the tools ZIP with `esptool.exe` are in the [newest release](https://github.com/holgiw/netspeaker/releases/latest) under *Assets*. See *Flashing the finished firmware*.
 
 ### Hardware
 

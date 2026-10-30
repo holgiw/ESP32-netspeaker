@@ -1,4 +1,4 @@
-build_netspeaker/esp32s3/
+build_netspeaker/esp32s3/*.merged.bin
 build_netspeaker/esptool.exe
 build_netspeaker/*.zip
 build_netspeaker/*.sha256
