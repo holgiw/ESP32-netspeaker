@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-30 - Version 1.3.3
+
+**Deutsch**
+
+- `flashAll.bat` fragt nach dem Flashen eines Geräts am USB auch das WLAN ab (Netze zur Auswahl, WLAN des PCs mit gespeichertem Passwort zum Übernehmen), wie bisher nur `flashESP.bat`; mit `-Yes` entfällt die Frage. Die README beschreibt die WLAN-Einrichtung beim Flashen. Die Firmware ist unverändert.
+
+**English**
+
+- `flashAll.bat` now also asks for the WiFi after flashing a device on USB (networks to choose from, the WiFi of the PC with its stored password to take over), as only `flashESP.bat` did before; with `-Yes` the question is skipped. The README describes setting up the WiFi while flashing. The firmware is unchanged.
+
 ## 2026-10-30 - Version 1.3.2
 
 **Deutsch**

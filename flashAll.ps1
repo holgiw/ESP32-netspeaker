@@ -1,7 +1,8 @@
 # Prueft alle NetSpeaker-Geraete im Netz (checkDevices.ps1) und bringt veraltete auf den Stand der Builds in
 # build_netspeaker:
 #  - per WLAN (ArduinoOTA, Port 3232), ohne USB; Geraete mit aelterer Firmware ohne /api/version ("?") werden ebenfalls angeboten
-#  - Geraete am USB werden nach Rueckfrage mit voicesetup.ps1 geflasht (Einstellungen bleiben)
+#  - Geraete am USB werden nach Rueckfrage mit voicesetup.ps1 geflasht (Einstellungen bleiben); danach wird das WLAN abgefragt
+#    (Netze zur Auswahl, WLAN des PCs mit gespeichertem Passwort zum Uebernehmen; mit -Yes entfaellt die Abfrage)
 # Vor jedem Flash wird gefragt (Enter = Ja). Ein Geraet am USB kann seine Firmware-Version nicht melden, deshalb wird dort
 # immer gefragt. Gebaut wird mit buildAll.bat.
 #   .\flashAll.ps1               pruefen, dann fragen und flashen
@@ -12,7 +13,8 @@
 # Checks all NetSpeaker devices on the network (checkDevices.ps1) and brings outdated ones to the state of the builds
 # in build_netspeaker:
 #  - over WiFi (ArduinoOTA, port 3232), no USB needed; devices with older firmware without /api/version ("?") are offered too
-#  - devices on USB are flashed after a question with voicesetup.ps1 (settings stay)
+#  - devices on USB are flashed after a question with voicesetup.ps1 (settings stay); afterwards the WiFi is asked for
+#    (networks to choose from, the WiFi of the PC with its stored password to take over; with -Yes the question is skipped)
 # Before every flash it asks (Enter = yes). A device on USB cannot report its firmware version, so it is always asked
 # for. Build with buildAll.bat.
 #   .\flashAll.ps1               check, then ask and flash
@@ -82,7 +84,9 @@ if ($boards.Count -eq 0) { Write-Host 'Kein Geraet am USB. / No device on USB.' 
 foreach ($b in $boards) {
     if ($CheckOnly) { Write-Host "COM$($b.Port): ESP32"; continue }
     if (-not (Ask "COM$($b.Port) (ESP32-S3) mit dem Build aus build_netspeaker flashen / flash with the build from build_netspeaker?")) { continue }
-    & powershell -NoProfile -ExecutionPolicy Bypass -File "$root\voicesetup.ps1" -Port $b.Port
+    $wifiArg = @()
+    if (-not $Yes) { $wifiArg = @('-AskWifi') }
+    & powershell -NoProfile -ExecutionPolicy Bypass -File "$root\voicesetup.ps1" -Port $b.Port @wifiArg
     if ($LASTEXITCODE -ne 0) { Write-Host "  Flashen fehlgeschlagen / flashing failed (COM$($b.Port))"; $failed++ }
 }
 

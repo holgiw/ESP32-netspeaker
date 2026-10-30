@@ -53,7 +53,9 @@ Mit der Arduino IDE (oder `buildAll.bat`):
 - Board: **ESP32S3 Dev Module** mit 4 MB Flash, Partitionsschema **No OTA (2MB APP/2MB SPIFFS)**, PSRAM (QSPI) und USB CDC On Boot aktivieren. Die Firmware ist etwa 1,9 MB groß und passt nicht in zwei OTA-Slots; es gibt daher kein OTA, Updates nur per USB. Das Dateisystem hat etwa 1,9 MB für MP3-Dateien.
 - Bibliotheken: **ESP32-audioI2S** von schreibfaul1 (Version 4.0.0) und **PubSubClient**.
 
-`buildAll.bat` baut mit `arduino-cli` und legt die Dateien in `build_netspeaker\esp32s3` ab. `flashESP.bat` flasht per USB und fragt das WLAN ab, `flashAll.bat` prüft die Geräte im Netz (OTA-Updates gibt es nicht, nur USB).
+`buildAll.bat` baut mit `arduino-cli` und legt die Dateien in `build_netspeaker\esp32s3` ab. `flashESP.bat` flasht ein Gerät per USB, `flashAll.bat` prüft die Geräte im Netz und flasht angeschlossene Geräte per USB (OTA-Updates gibt es nicht).
+
+**WLAN beim Flashen einrichten:** Beide Skripte fragen nach dem Flashen das WLAN ab (bei `flashAll.bat -Yes` entfällt die Frage). Sie zeigen die sichtbaren 2,4-GHz-Netze nach Signalstärke; ist der PC mit einem davon verbunden, genügt ein Tastendruck, um Namen und das im PC gespeicherte Passwort zu übernehmen. Sonst gibst du die Nummer oder den Namen ein und das Passwort zweimal verdeckt (8 bis 63 Zeichen, bei einem offenen Netz leer). Mit der Eingabetaste bleibt das WLAN unverändert. Die Daten gehen über das USB-Kabel an das Gerät; Zugangspunkt und Browser sind nicht nötig, und die übrigen Einstellungen bleiben erhalten. Kommt keine Bestätigung vom Gerät, richtest du das WLAN wie unter *Erster Start* im Browser ein.
 
 ## Erster Start
 
@@ -222,7 +224,9 @@ With the Arduino IDE (or `buildAll.bat`):
 - Board: **ESP32S3 Dev Module** with 4 MB flash, partition scheme **No OTA (2MB APP/2MB SPIFFS)**, enable PSRAM (QSPI) and USB CDC On Boot. The firmware is about 1.9 MB and does not fit two OTA slots; there is therefore no OTA, updates only via USB. The file system has about 1.9 MB for MP3 files.
 - Libraries: **ESP32-audioI2S** by schreibfaul1 (version 4.0.0) and **PubSubClient**.
 
-`buildAll.bat` builds with `arduino-cli` and puts the files in `build_netspeaker\esp32s3`. `flashESP.bat` flashes via USB and asks for the WiFi, `flashAll.bat` checks the devices on the network (no OTA updates, USB only).
+`buildAll.bat` builds with `arduino-cli` and puts the files in `build_netspeaker\esp32s3`. `flashESP.bat` flashes one device via USB, `flashAll.bat` checks the devices on the network and flashes connected devices via USB (no OTA updates).
+
+**Setting up the WiFi while flashing:** Both scripts ask for the WiFi after flashing (with `flashAll.bat -Yes` the question is skipped). They show the visible 2.4 GHz networks by signal strength; if the PC is connected to one of them, one key press takes over its name and the password stored in the PC. Otherwise you enter the number or the name and the password twice, hidden (8 to 63 characters, empty for an open network). Enter leaves the WiFi unchanged. The data goes to the device over the USB cable; the access point and the browser are not needed, and the other settings stay. If the device sends no confirmation, set up the WiFi in the browser as described under *First start*.
 
 ### First start
 

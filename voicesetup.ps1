@@ -3,15 +3,17 @@
 #   build_netspeaker\esp32s3 (von buildAll.bat erzeugt). Bootloader, Partitionen und App werden
 #   einzeln geschrieben, die Einstellungen (NVS) bleiben erhalten. Danach fragt das Skript das WLAN ab und sendet es per USB
 #   ("WIFI:<SSID><Tab><Passwort>", siehe checkSerialWifi() in netspeaker.ino); Enter = WLAN nicht aendern.
-#   Mit -Port (z. B. 3 fuer COM3) ohne Rueckfragen (dann ohne WLAN).
+#   Mit -Port (z. B. 3 fuer COM3) ohne Rueckfragen (dann ohne WLAN), ausser mit -AskWifi (so ruft flashAll.ps1 es auf): dann wird
+#   nach dem Flashen auch das WLAN abgefragt.
 #
 # Flashes the voice output (ESP32-S3) via USB, called from flashESP.bat.
 #   Without -Port (double-click on flashESP.bat): finds the ESP on USB and flashes the files
 #   from build_netspeaker\esp32s3 (made by buildAll.bat). Bootloader, partitions and app are written
 #   separately, the settings (NVS) stay. Afterwards the script asks for the WiFi and sends it via USB
 #   ("WIFI:<SSID><Tab><password>", see checkSerialWifi() in netspeaker.ino); Enter = leave the WiFi unchanged.
-#   With -Port (e.g. 3 for COM3) without questions (then without WiFi).
-param([string]$Port)
+#   With -Port (e.g. 3 for COM3) without questions (then without WiFi), except with -AskWifi (how flashAll.ps1 calls it): then the
+#   WiFi is asked for after flashing as well.
+param([string]$Port, [switch]$AskWifi)
 
 # Chip des Projekts: Ordner, esptool-Name, Bootloader-Adresse / project chip: folder, esptool name, bootloader address
 $c = @{ Dir = 'esp32s3'; Name = 'esp32s3'; Boot = '0x0' }
@@ -260,8 +262,8 @@ if ($missing) {
     exit 1
 }
 
-# 3) WLAN abfragen (nur im Doppelklick-Betrieb) / ask for the WiFi (double-click mode only)
-if ($interactive) { Read-Wifi }
+# 3) WLAN abfragen (im Doppelklick-Betrieb oder mit -AskWifi) / ask for the WiFi (in double-click mode or with -AskWifi)
+if ($interactive -or $AskWifi) { Read-Wifi }
 
 # 4) Flashen / flash
 function Invoke-Flash([int]$comNum, [string]$before) {
