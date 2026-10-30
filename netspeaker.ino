@@ -1833,7 +1833,21 @@ void mixStop() {
 // Startet den Mischer fuer eine MP3-Datei; false, wenn Speicher oder Dekoder fehlen (dann gilt der normale Weg ueber Unterbrechen).
 // Starts the mixer for an MP3 file; false if memory or decoder is missing (the normal way via interrupting then applies).
 
+// Blendet eine laufende Mischspur kurz aus (100 ms), bevor sie von einer wichtigeren ersetzt wird.
+// Fades a running mix layer out briefly (100 ms) before a more important one replaces it.
+
+void mixQuickFade() {
+    if (!mixInUse || !mixActive) return;
+    int32_t g0 = mixGainQ15;
+    for (int i = 9; i >= 0; i--) {
+        mixGainQ15 = (int32_t)((int64_t)g0 * i / 10);
+        delay(10);
+        esp_task_wdt_reset();
+    }
+}
+
 bool mixStart(const String& path, int vol, bool sd = false) {
+    mixQuickFade();
     mixHalt();
     if (!audio) return false;
     mixRing = (int16_t*)heap_caps_malloc(MIX_RING_FRAMES * 2 * sizeof(int16_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -1969,6 +1983,7 @@ bool speakMixed(const Pending& p) {
         announceFail("No WiFi connection");
         return true;
     }
+    mixQuickFade();
     mixHalt();
     lastError = "";
 
@@ -2147,20 +2162,30 @@ bool announceBusy() {
 // Ist p eine MP3-Datei aus dem Flash, waehrend gerade eine MP3-Datei von der SD-Karte spielt? Dann wird sie sofort ueber die Karte gemischt.
 // Is p an MP3 file from the flash while an MP3 file from the SD card is playing? Then it is mixed over the card file right away.
 
-bool flashOverSd(const Pending& p) {
-    if (p.type != PEND_FILE || p.text.startsWith("sd:") || nowKind != "file" || !nowFile.startsWith("sd:") || !mixPossible()) return false;
+bool flashMp3(const Pending& p) {
+    if (p.type != PEND_FILE || p.text.startsWith("sd:")) return false;
     String lower = p.text;
     lower.toLowerCase();
     if (!lower.endsWith(".mp3")) return false;
-
-    // Nur eine Datei, die im Flash liegt; ein Name, der erst auf der SD-Karte gefunden wird, wartet wie jede Datei der Karte.
-    // Only a file that is in the flash; a name that is only found on the SD card waits like any file of the card.
-
     String n = p.text;
     n.trim();
     if (n.startsWith("/")) n.remove(0, 1);
     if (n.startsWith("mp3/")) n.remove(0, 4);
     return fsReady && !n.isEmpty() && n.indexOf("..") < 0 && LittleFS.exists(String(MP3_DIR) + "/" + n);
+}
+
+// Rangfolge von hoch nach niedrig: 1. MP3 aus dem Flash, 2. Sprechen, 3. MP3 von der SD-Karte, 4. Webradio.
+// 1 und 2 spielen nacheinander und senken 3 und 4 ab. Laeuft eine SD-Datei als Mischspur ueber dem Radio, ersetzt eine Flash-MP3 oder ein Text diese Spur.
+// Priority from high to low: 1. MP3 from the flash, 2. speech, 3. MP3 from the SD card, 4. web radio.
+// 1 and 2 play one after the other and lower 3 and 4. If an SD file runs as a mix layer over the radio, a flash MP3 or a text replaces that layer.
+
+bool preempts(const Pending& p) {
+    if (!mixInUse || !mixOnSd || playState != PS_PLAYING || !mixPossible()) return false;
+    return p.type == PEND_SAY || flashMp3(p);
+}
+
+bool flashOverSd(const Pending& p) {
+    return nowKind == "file" && nowFile.startsWith("sd:") && mixPossible() && flashMp3(p);
 }
 
 // Holt den naechsten Eintrag aus der Warteschlange, sobald die vorige Ansage oder Datei zu Ende ist.
@@ -2179,9 +2204,16 @@ void processQueue() {
     // If only an MP3 file is playing (no announcement, no mixer), the first announcement of the queue jumps ahead and is mixed quietly over it;
     // so does a flash MP3 file ahead of a running file of the SD card.
 
+    for (int i = 0; i < annCount; i++) {
+        if (preempts(annQueue[i]) && annTake(i, next)) {
+            pending = next;
+            return;
+        }
+    }
+
     if (!voiceBusy && !mixInUse && nowKind == "file" && mixPossible()) {
         for (int i = 0; i < annCount; i++) {
-            if ((annQueue[i].type == PEND_SAY || flashOverSd(annQueue[i])) && annTake(i, next)) {
+            if (((annQueue[i].type == PEND_SAY && nowFile.startsWith("sd:")) || flashOverSd(annQueue[i])) && annTake(i, next)) {
                 pending = next;
                 return;
             }
@@ -2222,6 +2254,7 @@ void processPending() {
         mixable = lowerName.endsWith(".mp3");
     }
     if (flashOverSd(p)) mixable = true;
+
     if (mixInUse && !(mixable && mixPossible())) {
         mixHalt();
         mixDucked = false;
@@ -3565,6 +3598,13 @@ void setup() {
     if (!wifiHasCredentials() || !connectWifi()) startAccessPoint();
     gotIpFlag = false;
 
+    // Der erste Namensabruf nach dem Verbinden leert den DNS-Cache des Stacks; liefe da schon eine Zeitserver-Abfrage, stuerzt das Geraet ab
+    // (assert in sys_untimeout). Deshalb jetzt einmal abrufen, bevor die Zeitabfrage startet.
+    // The first name lookup after connecting clears the DNS cache of the stack; if a time server lookup were already running the device
+    // would crash (assert in sys_untimeout). So do one lookup now, before the time query starts.
+
+    IPAddress warmUp;
+    if (WiFi.status() == WL_CONNECTED) WiFi.hostByName("localhost", warmUp);
     setupTime();
     setupWeb();
     sdMount();

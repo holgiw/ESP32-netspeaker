@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-10-30 - Version 1.3.8
+
+**Deutsch**
+
+- Rangfolge der Wiedergabe von hoch nach niedrig: 1. MP3 aus dem Flash, 2. Sprechen, 3. MP3 von der SD-Karte, 4. Webradio. Flash-MP3 und Sprechen spielen nacheinander in der Reihenfolge des Aufrufs und senken SD-Datei und Radio ab; ein Text springt nicht mehr vor eine Flash-MP3, die allein läuft. Läuft eine SD-Datei als Mischspur über dem Radio, ersetzt eine Flash-MP3 oder ein Text diese Spur (kurz ausgeblendet), das Radio bleibt abgesenkt und kehrt danach zurück.
+- Absturz behoben: Der erste Namensabruf nach dem Start (zum Beispiel beim ersten Senderstart) konnte das Gerät mit einem Fehler in `sys_untimeout` neu starten, wenn gerade die Zeitabfrage lief. Jetzt wird vor der Zeitabfrage einmal abgerufen.
+
+**English**
+
+- Playback priority from high to low: 1. MP3 from the flash, 2. speech, 3. MP3 from the SD card, 4. web radio. Flash MP3 and speech play one after the other in the order of the calls and lower the SD file and the radio; a text no longer jumps ahead of a flash MP3 that plays alone. If an SD file runs as a mix layer over the radio, a flash MP3 or a text replaces that layer (faded out briefly), the radio stays lowered and returns afterwards.
+- Crash fixed: the first name lookup after the start (for example the first station start) could restart the device with an error in `sys_untimeout` if the time query was running at that moment. Now one lookup is done before the time query.
+
 ## 2026-10-30 - Version 1.3.7
 
 **Deutsch**
