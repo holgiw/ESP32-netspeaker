@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-10-29 - Version 1.3.0
+
+**Deutsch**
+
+- Die Weboberfläche lässt sich in weiteren Sprachen anzeigen. Eine Sprachdatei (`lang/en.json` für Englisch) wird im Tab *Status* in der Karte *Sprache / Language* hochgeladen, liegt im Speicher des Geräts und wird im Browser angewendet; in der Statuszeile wechselt ein Knopf (EN/DE) die Sprache. Die Firmware wird dafür nur um wenige KB größer, die Übersetzung selbst braucht keinen Platz in der App-Partition. Anleitung und Prüfwerkzeug für fehlende Übersetzungen: `lang/README.md`.
+- Nicht eingestellte Pins (alle zugelassenen außer Verstärker, SD-Karte, Strapping-Pins und Status-LED) bekommen einen Pull-up (High), damit offene Pins nicht schweben.
+- Neuer Tab *Eingänge*: Je freiem Pin lässt sich eine Aktion festlegen; bei einer MP3-Datei bietet eine Auswahl die Dateien im Flash und auf der SD-Karte an. Bekommt der Pin Kontakt nach GND (zum Beispiel durch eine Taste), spielt das Gerät eine Ansage (VoiceRSS) oder eine MP3-Datei, einen Ordner der SD-Karte oder eine URL. REST: `/api/pins`.
+- Der Fortschrittsbalken unter dem Namen wird bei Webradio ausgeblendet, weil ein Stream keine Länge hat.
+- Im Tab *Sprechen* steht neben dem Lautstärkeregler der Wert (zum Beispiel 60 / 100); er folgt dem Regler und der tatsächlichen Lautstärke.
+- Tab *Status*: Die SD-Karte zeigt jetzt Zustand, Größe, belegt (mit Prozent), frei, ob sie eingeschaltet ist und die vier Pins (CS, SCK, MOSI, MISO).
+
+**English**
+
+- The web interface can be shown in further languages. A language file (`lang/en.json` for English) is uploaded in the *Status* tab, in the card *Sprache / Language*, is stored in the memory of the device and applied in the browser; a button (EN/DE) in the status bar switches the language. The firmware only grows by a few KB, the translation itself needs no space in the app partition. Instructions and a tool for finding missing translations: `lang/README.md`.
+- Pins that are not configured (all allowed ones except amplifier, SD card, strapping pins and status LED) get a pull-up (high) so that open pins do not float.
+- New tab *Eingänge*: an action can be set per free pin; for an MP3 file a list offers the files in flash and on the SD card. When the pin gets contact to GND (for example through a button), the device plays an announcement (VoiceRSS) or an MP3 file, a folder of the SD card or a URL. REST: `/api/pins`.
+- The progress bar under the name is hidden for web radio, because a stream has no length.
+- In the *Sprechen* tab the value is shown next to the volume slider (for example 60 / 100); it follows the slider and the actual volume.
+- *Status* tab: the SD card now shows state, size, used (with percent), free, whether it is enabled and the four pins (CS, SCK, MOSI, MISO).
+
 ## 2026-10-29 - Version 1.2.1
 
 **Deutsch**

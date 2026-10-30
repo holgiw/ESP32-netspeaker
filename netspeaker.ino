@@ -373,6 +373,87 @@ bool pinAllowed(int pin) {
     return (pin >= 1 && pin <= 18) || pin == 21 || (pin >= 38 && pin <= 42) || pin == 47 || pin == 48;
 }
 
+// Alle zugelassenen Pins, die nicht eingestellt sind (Verstaerker, SD-Karte), keine Strapping-Pins sind und nicht die Status-LED tragen,
+// bekommen einen Pull-up (High), damit offene Pins nicht schweben.
+// All allowed pins that are not configured (amplifier, SD card), are no strapping pins and do not carry the status LED get a pull-up (high)
+// so that open pins do not float.
+
+bool pinIdle(int pin) {
+    if (!pinAllowed(pin) || pin == 0 || pin == 3 || pin == 45 || pin == 46) return false;
+    int used[] = {cfg.din, cfg.bclk, cfg.lrc, cfg.sdCs, cfg.sdSck, cfg.sdMosi, cfg.sdMiso, -1, -1};
+    int n = 7;
+#if defined(RGB_BUILTIN)
+    int led = RGB_BUILTIN;
+    if (led >= SOC_GPIO_PIN_COUNT) led -= SOC_GPIO_PIN_COUNT;
+    used[n++] = led;
+#endif
+#if defined(LED_BUILTIN)
+    used[n++] = LED_BUILTIN;
+#endif
+    for (int i = 0; i < n; i++) {
+        if (used[i] == pin) return false;
+    }
+    return true;
+}
+
+void idlePins() {
+    for (int pin = 1; pin <= 48; pin++) {
+        if (pinIdle(pin)) pinMode(pin, INPUT_PULLUP);
+    }
+}
+
+// Eingaenge: Ein freier Pin (Pull-up) loest eine Aktion aus, sobald er Kontakt nach GND bekommt (zum Beispiel durch eine Taste).
+// Die Aktion ist eine Ansage (VoiceRSS) oder eine MP3-Datei bzw. URL; sie kommt wie ein Aufruf per REST in die Warteschlange.
+// Inputs: A free pin (pull-up) triggers an action as soon as it gets contact to GND (for example through a button).
+// The action is an announcement (VoiceRSS) or an MP3 file or URL; it enters the queue like a call via REST.
+
+String pinType[49];
+String pinText[49];
+int pinVol[49];
+
+void loadPinActions() {
+    for (int pin = 1; pin <= 48; pin++) {
+        if (!pinAllowed(pin)) continue;
+        pinType[pin] = prefs.getString(("pt" + String(pin)).c_str(), "");
+        pinText[pin] = prefs.getString(("px" + String(pin)).c_str(), "");
+        pinVol[pin] = prefs.getInt(("pv" + String(pin)).c_str(), -1);
+    }
+}
+
+String commandSay(const String& textIn, const String& lang, const String& voice, int rate, int vol);
+String commandPlayFile(const String& nameIn, int vol, bool shuffle, bool loop);
+String commandPlayUrl(const String& urlIn, int vol);
+
+void pinWatch() {
+    static unsigned long lastScan = 0, lowSince[49], lastFire = 0;
+    static bool armed[49];
+    if (millis() - lastScan < 10) return;
+    lastScan = millis();
+    for (int pin = 1; pin <= 48; pin++) {
+        if (pinType[pin].isEmpty() || !pinIdle(pin)) continue;
+        if (digitalRead(pin) != LOW) {
+            lowSince[pin] = 0;
+            armed[pin] = true;
+            continue;
+        }
+        if (!armed[pin]) continue;
+        if (lowSince[pin] == 0) {
+            lowSince[pin] = millis();
+            continue;
+        }
+        if (millis() - lowSince[pin] < 40) continue;
+        armed[pin] = false;
+        if (millis() - lastFire < 300) continue;
+        lastFire = millis();
+        String err;
+        const String& x = pinText[pin];
+        if (pinType[pin] == "say") err = commandSay(x, "", "", 99, pinVol[pin]);
+        else if (x.startsWith("http://") || x.startsWith("https://")) err = commandPlayUrl(x, pinVol[pin]);
+        else err = commandPlayFile(x, pinVol[pin], false, false);
+        logLine("[PIN] GPIO " + String(pin) + " to GND -> " + pinType[pin] + " \"" + x + "\"" + (err.length() > 0 ? ": " + err : String()));
+    }
+}
+
 String mqttBaseTopic() {
     if (cfg.mqttBase.length() > 0) return cfg.mqttBase;
     return String(PROJECT_NAME) + "/" + cfg.host;
@@ -776,6 +857,7 @@ bool sdMount() {
         }
     }
     if (sdMutex) xSemaphoreGive(sdMutex);
+    idlePins();
     return sdReady;
 }
 
@@ -3239,6 +3321,7 @@ void setup() {
     fsReady = LittleFS.begin(true);
     if (fsReady) LittleFS.mkdir(MP3_DIR);
     loadSettings();
+    loadPinActions();
     logLine("[BOOT] " PROJECT_TITLE " " + String(FIRMWARE_MARKER + FIRMWARE_MARKER_PREFIX_LEN));
     bootCrashes = prefs.getInt("crashes", 0);
     if (isCrashReset()) {
@@ -3307,6 +3390,7 @@ void loop() {
     mixWatch();
     fileFadeWatch();
     loudWatch();
+    pinWatch();
     resumeStateWatch();
     delay(2);
 }

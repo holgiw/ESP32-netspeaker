@@ -92,10 +92,10 @@ pre.code{text-align:left;white-space:pre-wrap;word-break:break-all;font-family:v
 
 #include "wiring_svg.h"
 
-static const char TAB_KEYS[][12] = {"sprechen", "radio", "sd", "mp3", "audio", "mqtt", "wlan", "zeit", "status", "log", "doku"};
-static const char* const TAB_LABELS[] = {"Sprechen", "Webradio", "SD-Karte", "MP3 (Flash)", "Audio", "MQTT", "WLAN", "Zeit", "Status", "Log", "Doku"};
-static const char* const TAB_TIPS[] = {"Text ansagen, stoppen, Lautst&auml;rke", "Webradio-URL abspielen und bis zu 15 Sender speichern", "Dateien der SD-Karte abspielen, hochladen und verwalten", "MP3-Dateien im Ger&auml;t hochladen und abspielen", "Anschl&uuml;sse (Pins von Verst&auml;rker und SD-Karte), Lautst&auml;rke, &Uuml;berblenden, Start und Sprachausgabe (VoiceRSS)", "MQTT-Broker und Basis-Topic", "Hostname und WLAN-Zugangsdaten", "Zeitserver und Zeitzone", "Zustand des Ger&auml;ts", "Ereignisprotokoll", "Alle REST- und MQTT-Aufrufe zum Kopieren"};
-static const int TAB_COUNT = 11;
+static const char TAB_KEYS[][12] = {"sprechen", "radio", "sd", "mp3", "pins", "audio", "mqtt", "wlan", "zeit", "status", "log", "doku"};
+static const char* const TAB_LABELS[] = {"Sprechen", "Webradio", "SD-Karte", "MP3 (Flash)", "Eing&auml;nge", "Audio", "MQTT", "WLAN", "Zeit", "Status", "Log", "Doku"};
+static const char* const TAB_TIPS[] = {"Text ansagen, stoppen, Lautst&auml;rke", "Webradio-URL abspielen und bis zu 15 Sender speichern", "Dateien der SD-Karte abspielen, hochladen und verwalten", "MP3-Dateien im Ger&auml;t hochladen und abspielen", "Freie Pins mit Pull-up: bei Kontakt nach GND eine Ansage oder MP3-Datei abspielen", "Anschl&uuml;sse (Pins von Verst&auml;rker und SD-Karte), Lautst&auml;rke, &Uuml;berblenden, Start und Sprachausgabe (VoiceRSS)", "MQTT-Broker und Basis-Topic", "Hostname und WLAN-Zugangsdaten", "Zeitserver und Zeitzone", "Zustand des Ger&auml;ts", "Ereignisprotokoll", "Alle REST- und MQTT-Aufrufe zum Kopieren"};
+static const int TAB_COUNT = 12;
 
 // ⓘ-Hinweis mit Erklaerung als Tooltip (title) - der Punkt am Satzende kommt hier dazu; im Text keine einfachen Anfuehrungszeichen.
 // ⓘ note with an explanation as tooltip (title) - the full stop at the end is added here; no single quotes in the text.
@@ -173,6 +173,7 @@ String topbarHtml() {
     h += statusDotHtml("time", "Zeit", timeDotState(), false, true);
     h += "</div><div id='topbar-datetime' class='datetime'>" + formatNow() + "</div>";
     h += "<span id='topbar-offline-hint' class='offline-hint'>&#9888; Verbindung verloren</span>";
+    h += "<a class='refresh-btn' id='langBtn' href='#' style='display:none' title='Sprache / Language'></a>";
     h += "<a class='refresh-btn' href='/export' title='Einstellungen als Datei exportieren'>&#11123;</a>";
     h += "<label class='refresh-btn' title='Einstellungen importieren'>&#11121;<input type='file' accept='.txt,text/plain' style='display:none' onchange='importSettings(this)'></label>";
     h += "<button type='button' class='reset-btn' onclick=\"if(confirm('ESP32 jetzt neu starten?')){fetch('/restart',{method:'POST'});setTimeout(function(){location.reload();},5000);}\" title='Neu starten'>&#9211;</button>";
@@ -244,7 +245,7 @@ String panelSpeak() {
     h += "<div class='row'><select id='sayLang' onchange=\"fillVoiceSel('sayVoice',this.value,false)\" style='width:210px'><option value=''>Standard (" + htmlEsc(cfg.vlang) + ")</option>" + selectOptions(LANG_VALUES, LANG_LABELS, LANG_COUNT, "") + "</select> " + infoTip("Sprache der Ansage; Standard ist die Sprache aus dem Tab Audio") + "";
     h += "<select id='sayVoice' onchange='voiceChosen(this)' style='width:210px'><option value=''>Standard (VoiceRSS)</option></select> " + infoTip("Stimme f&uuml;r diese Ansage; Standard = gespeicherte Stimme bzw. Standardstimme der Sprache") + "</div>";
     h += "<div class='row'><button type='button' onclick='sayNow()' style='width:150px'>Sprechen</button><button type='button' onclick='stopNow()' style='width:150px'>Stopp</button> " + infoTip("Sprechen: sagt den Text jetzt an, ein laufendes Webradio l&auml;uft danach weiter. Stopp: beendet die Wiedergabe sofort, auch ein Webradio, ohne Fortsetzung") + "</div>";
-    h += "<div class='row'><label>Lautst&auml;rke <input type='range' id='vol' min='0' max='" + String(VOLUME_MAX) + "' value='" + String(cfg.vol) + "' style='width:200px' onchange='setVol(this.value)'></label> " + infoTip("Lautst&auml;rke 0 bis 100; wird sofort &uuml;bernommen und gespeichert") + "</div>";
+    h += "<div class='row'><label>Lautst&auml;rke <input type='range' id='vol' min='0' max='" + String(VOLUME_MAX) + "' value='" + String(cfg.vol) + "' style='width:200px' oninput='volShow(this.value)' onchange='setVol(this.value)'> <span id='volShow' style='display:inline-block;min-width:76px'>" + String(cfg.vol) + " / " + String(VOLUME_MAX) + "</span></label> " + infoTip("Lautst&auml;rke 0 bis 100; wird sofort &uuml;bernommen und gespeichert") + "</div>";
     h += "<div id='sayResult'></div><div class='row'><strong class='nowplaying' style='color:var(--ok)'></strong></div><div class='row'><small id='playState'></small></div></div>";
     return h;
 }
@@ -299,6 +300,13 @@ String panelSd() {
     h += "<div class='card' style='max-width:900px'><h3>SD-Karte</h3><small id='sdInfo'>Lade &hellip;</small><div id='sdPath' style='margin:6px 0;color:var(--muted)'></div><div id='sdList'></div>";
     h += "<div class='row'><input type='file' id='sdUpFile' multiple accept='.mp3' style='width:55%'><button type='button' onclick='sdUploadNow()' style='width:auto;padding:8px 14px'>Hochladen</button> " + infoTip("Eine oder mehrere MP3-Dateien w&auml;hlen; sie werden nacheinander in den gezeigten Ordner der Karte hochgeladen") + "</div>";
     h += "<div class='row'><button type='button' onclick='sdMkdir()' style='width:auto;padding:8px 14px'>Neuer Ordner</button><button type='button' onclick='sdRemount()' style='width:auto;padding:8px 14px'>Neu einbinden</button> <label style='display:inline-flex;align-items:center;gap:4px'><input type='checkbox' id='sdLoop'> Endlos</label> " + infoTip("Neuer Ordner: legt einen Ordner im gezeigten Ordner an. Neu einbinden: bindet die Karte neu ein, zum Beispiel nach dem Einstecken. Endlos: nach der letzten Datei eines Ordners beginnt eine neue Runde. Zufall (Knopf am Ordner): jede Datei kommt je Sitzung einmal, die Reihenfolge ist jedes Mal eine andere und beginnt nie mit der Datei der letzten Sitzung") + "</div><div id='sdResult'></div></div>";
+    return h;
+}
+
+String panelPins() {
+    String h = "<div class='card' style='max-width:900px'><h3>Eing&auml;nge (Pull-up)</h3>";
+    h += "<p>Alle freien Pins liegen mit Pull-up auf High. Bekommt ein Pin Kontakt nach GND (zum Beispiel durch eine Taste), spielt das Ger&auml;t die gew&auml;hlte Ansage oder MP3-Datei. Nicht angezeigt werden die Pins von Verst&auml;rker und SD-Karte, die Strapping-Pins und die Status-LED. " + infoTip("Aktion: Ansage = Text, der &uuml;ber VoiceRSS gesprochen wird. MP3-Datei = Dateiname aus dem Tab MP3 (Flash), sd:/Pfad.mp3 oder sd:/Ordner/ von der SD-Karte oder eine URL (http:// oder https://). Die Lautst&auml;rke ist optional (0-100, leer = allgemeine). Der Pin muss etwa 40 ms auf GND bleiben; ausgel&ouml;st wird einmal je Tastendruck") + "</p>";
+    h += "<table id='pinTable' style='width:100%'></table><div id='pinResult'></div></div>";
     return h;
 }
 
@@ -494,7 +502,20 @@ String panelStatus() {
     h += statusRow("PSRAM", String(ESP.getPsramSize()) + " bytes (free " + String(ESP.getFreePsram()) + ")");
     h += statusRow("Flash Size", String(ESP.getFlashChipSize()) + " bytes");
     h += statusRow("LittleFS", fsReady ? String(LittleFS.usedBytes()) + " / " + String(LittleFS.totalBytes()) + " bytes" : String("not mounted"));
-    h += statusRow("SD Card", sdReady ? sdState + ", " + String((unsigned long)(SD.usedBytes() / 1048576ULL)) + " / " + String((unsigned long)(SD.totalBytes() / 1048576ULL)) + " MB" : sdState);
+    h += statusRow("SD Card", sdState);
+    if (sdReady) {
+        unsigned long sdTotal = (unsigned long)(SD.totalBytes() / 1048576ULL);
+        unsigned long sdUsed = (unsigned long)(SD.usedBytes() / 1048576ULL);
+        unsigned long sdFree = sdTotal > sdUsed ? sdTotal - sdUsed : 0;
+        h += statusRow("SD Size", String(sdTotal) + " MB (card " + String((unsigned long)(SD.cardSize() / 1048576ULL)) + " MB)");
+        h += statusRow("SD Used", String(sdUsed) + " MB" + (sdTotal > 0 ? " (" + String(sdUsed * 100UL / sdTotal) + " %)" : String()));
+        h += statusRow("SD Free", String(sdFree) + " MB");
+    }
+    h += statusRow("SD Enabled", cfg.sdOn ? String("yes") : String("no"));
+    h += statusRow("SD CS GPIO", String(cfg.sdCs));
+    h += statusRow("SD SCK GPIO", String(cfg.sdSck));
+    h += statusRow("SD MOSI GPIO", String(cfg.sdMosi));
+    h += statusRow("SD MISO GPIO", String(cfg.sdMiso));
     h += statusRow("WiFi SSID", WiFi.status() == WL_CONNECTED ? WiFi.SSID() : String("not connected"));
     h += statusRow("WiFi RSSI", WiFi.status() == WL_CONNECTED ? String(WiFi.RSSI()) + " dBm" : String("-"));
     h += statusRow("IP Address", WiFi.localIP().toString());
@@ -507,6 +528,8 @@ String panelStatus() {
     h += statusRow("VoiceRSS Key", cfg.vkey.length() > 0 ? String("set") : String("not set"));
     h += statusRow("MQTT Status", cfg.mqttServer.isEmpty() ? String("disabled") : (mqttClient.connected() ? String("connected") : String("disconnected")));
     h += "</table></div>";
+    h += "<div class='card'><h3>Sprache / Language</h3><p>Weitere Sprachen kommen als Datei (zum Beispiel <code>en.json</code>) in den Speicher des Ger&auml;ts und werden im Browser angewendet. Mit der Schaltfl&auml;che in der Statuszeile wechselst du die Sprache.</p><div id='langList'></div>";
+    h += "<div class='row'><input type='file' id='langFile' accept='.json,application/json' style='width:60%'><button type='button' onclick='langUpload()' style='width:auto;padding:8px 14px'>Hochladen</button></div><div id='langResult'></div></div>";
     return h;
 }
 
@@ -638,6 +661,93 @@ curl -X POST http://@HOST@/restart)d");
     h += docCard("Kontakt", "E-Mail: <a href='mailto:carleaner@gmx.de'>carleaner@gmx.de</a><br>GitHub: <a href='https://github.com/holgiw/netspeaker' target='_blank' rel='noopener'>github.com/holgiw/netspeaker</a>", "");
     return h;
 }
+static const char PINS_JS[] PROGMEM = R"js(
+(function(){
+  var picks=[],fl=[],sdl=[];
+  function el(n,c){var e=document.createElement(n);if(c)e.className=c;return e;}
+  function lvl(j){var s=document.getElementById('pinlvl'+j.p);if(!s)return;s.textContent=j.l?'High':'Low (GND)';s.style.color=j.l?'var(--muted)':'var(--ok)';s.style.fontWeight=j.l?'normal':'bold';}
+  function fillPick(p){
+    p.textContent='';var o=el('option');o.value='';o.textContent='Datei w\u00e4hlen \u2026';p.appendChild(o);
+    if(fl.length){var g=el('optgroup');g.label='Flash';fl.forEach(function(f){var x=el('option');x.value=f;x.textContent=f;g.appendChild(x);});p.appendChild(g);}
+    if(sdl.length){var g2=el('optgroup');g2.label='SD-Karte';sdl.forEach(function(s){var x=el('option');x.value=s[0];x.textContent=s[1];g2.appendChild(x);});p.appendChild(g2);}
+  }
+  function lists(cb){
+    Promise.all([
+      fetch('/api/files',{cache:'no-store'}).then(function(r){return r.json();}).catch(function(){return {};}),
+      fetch('/api/sd?dir=/',{cache:'no-store'}).then(function(r){return r.json();}).catch(function(){return {};})
+    ]).then(function(a){
+      fl=(a[0].files||[]).map(function(f){return f.name;});
+      sdl=[];var s=a[1];
+      if(s&&s.mounted){sdl.push(['sd:/','\uD83D\uDCC1 / (Hauptverzeichnis)']);(s.entries||[]).forEach(function(e){sdl.push(e.d?['sd:/'+e.n+'/','\uD83D\uDCC1 '+e.n]:['sd:/'+e.n,e.n]);});}
+      picks.forEach(fillPick);if(cb)cb();
+    });
+  }
+  function build(list){
+    var tb=document.getElementById('pinTable');if(!tb)return;tb.textContent='';picks=[];
+    var h=el('tr');['GPIO','Zustand','Aktion','Text oder Datei','Lautst\u00e4rke',''].forEach(function(t){var c=el('th');c.textContent=t;h.appendChild(c);});tb.appendChild(h);
+    list.forEach(function(j){
+      var tr=el('tr'),c1=el('td'),c2=el('td'),c3=el('td'),c4=el('td'),c5=el('td'),c6=el('td');
+      c1.textContent='GPIO '+j.p;
+      var st=el('span');st.id='pinlvl'+j.p;c2.appendChild(st);
+      var sel=el('select');sel.style.cssText='width:auto;margin:2px';[['','Keine Aktion'],['say','Ansage (VoiceRSS)'],['file','MP3-Datei / URL']].forEach(function(o){var op=el('option');op.value=o[0];op.textContent=o[1];sel.appendChild(op);});sel.value=j.t||'';c3.appendChild(sel);
+      var tx=el('input');tx.type='text';tx.maxLength=300;tx.value=j.x||'';tx.placeholder='z. B. Die T\u00fcr ist offen / gong.mp3';tx.style.cssText='width:95%;margin:2px';c4.appendChild(tx);
+      var pk=el('select');pk.style.cssText='width:95%;margin:2px';fillPick(pk);picks.push(pk);c4.appendChild(pk);
+      pk.onchange=function(){if(pk.value){tx.value=pk.value;pk.value='';}};
+      function vis(){pk.style.display=sel.value==='file'?'':'none';}
+      sel.onchange=vis;vis();
+      var vo=el('input');vo.type='number';vo.min=0;vo.max=100;vo.value=j.v>=0?j.v:'';vo.placeholder='Std';vo.style.cssText='width:64px;margin:2px';c5.appendChild(vo);
+      var bt=el('button');bt.type='button';bt.className='copy-btn';bt.style.cssText='position:static;margin:2px';bt.textContent='Speichern';
+      bt.onclick=function(){postApi('/api/pins',{pin:j.p,type:sel.value,text:tx.value,vol:vo.value},'pinResult');};c6.appendChild(bt);
+      [c1,c2,c3,c4,c5,c6].forEach(function(c){tr.appendChild(c);});tb.appendChild(tr);lvl(j);
+    });
+    if(!list.length){var r=el('tr'),c=el('td');c.textContent='Keine freien Pins';r.appendChild(c);tb.appendChild(r);}
+  }
+  function load(first){fetch('/api/pins',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){if(first)build(j.pins||[]);else(j.pins||[]).forEach(lvl);}).catch(function(){});}
+  lists(function(){load(true);});
+  var tab=document.getElementById('tab-pins');if(tab)tab.addEventListener('change',function(){if(tab.checked)lists();});
+  setInterval(function(){var t=document.getElementById('tab-pins');if(document.hidden||!t||!t.checked)return;load(false);},1000);
+})();
+)js";
+static const char LANG_JS[] PROGMEM = R"js(
+(function(){
+  var code='';try{code=localStorage.getItem('uilang')||'';}catch(e){}
+  var T=null,R=[],mo=null,SKIP=/^(SCRIPT|STYLE|CODE|PRE|TEXTAREA|SVG)$/,INL=/^(CODE|EM|STRONG|B|KBD)$/,ATTR=['title','placeholder','aria-label','label'];
+  function norm(s){return s.replace(/\s+/g,' ').trim();}
+  function look(k){var kk=UI_HOST?k.split(UI_HOST).join('{host}'):k,v=T[kk];
+    if(v===undefined){for(var i=0;i<R.length;i++){if(R[i][0].test(kk)){v=kk.replace(R[i][0],R[i][1]);break;}}}
+    return v===undefined?undefined:(UI_HOST?v.split('{host}').join(UI_HOST):v);}
+  function trText(s){var k=norm(s);if(!k)return s;var v=look(k);if(v===undefined)return s;return s.match(/^\s*/)[0]+v+s.match(/\s*$/)[0];}
+  function trAttrs(n){ATTR.forEach(function(a){if(n.hasAttribute&&n.hasAttribute(a)){var v=n.getAttribute(a),t=trText(v);if(t!==v)n.setAttribute(a,t);}});}
+  function inlineMixed(e){var el=0,tx=0;for(var c=e.firstChild;c;c=c.nextSibling){if(c.nodeType===1){if(!INL.test(c.nodeName.toUpperCase())||c.id||c.querySelector('[id]'))return 0;el=1;}else if(c.nodeType===3){if(/[A-Za-zÄÖÜäöüß]/.test(c.nodeValue))tx=1;}else if(c.nodeType!==8)return 0;}return el&&tx;}
+  function walk(n){
+    if(n.nodeType===3){var p=n.parentNode;if(p&&SKIP.test(p.nodeName.toUpperCase()))return;var t=trText(n.nodeValue);if(t!==n.nodeValue)n.nodeValue=t;return;}
+    if(n.nodeType!==1||SKIP.test(n.nodeName.toUpperCase()))return;
+    trAttrs(n);
+    if(inlineMixed(n)){var v=look(norm(n.innerHTML));if(v!==undefined){n.innerHTML=v;return;}}
+    for(var c=n.firstChild;c;c=c.nextSibling)walk(c);
+  }
+  function watch(){mo.observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:ATTR});}
+  function onMut(ms){mo.disconnect();ms.forEach(function(m){if(m.type==='childList')m.addedNodes.forEach(walk);else if(m.type==='characterData')walk(m.target);else trAttrs(m.target);});watch();}
+  function dialogs(){['confirm','prompt','alert'].forEach(function(n){var o=window[n];window[n]=function(m,d){return o.call(window,typeof m==='string'?trText(m):m,d);};});}
+  function langList(){fetch('/api/lang',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    var list=j.langs||[],b=document.getElementById('langBtn'),box=document.getElementById('langList');
+    if(b){if(list.length||code){b.style.display='';b.textContent=code?'DE':list[0].toUpperCase();b.onclick=function(){try{if(code)localStorage.removeItem('uilang');else localStorage.setItem('uilang',list[0]);}catch(e){}location.reload();return false;};}else b.style.display='none';}
+    if(box){box.textContent='';list.forEach(function(c){var d=document.createElement('div');d.className='row';var s=document.createElement('span');s.textContent=c+'.json';d.appendChild(s);
+      var u=document.createElement('button');u.type='button';u.className='copy-btn';u.style.cssText='position:static;margin:2px';u.textContent='\u2716';u.title='Sprache l\u00f6schen';u.onclick=function(){if(confirm(c+'.json l\u00f6schen?'))postApi('/api/lang',{'delete':c},'langResult').then(langList);};d.appendChild(u);box.appendChild(d);});
+      if(!list.length)box.textContent='Keine Sprachdatei im Ger\u00e4t';}
+    if(mo&&T){mo.disconnect();if(b)walk(b);if(box)walk(box);watch();}
+  }).catch(function(){});}
+  window.langUpload=function(){var f=document.getElementById('langFile').files[0];if(!f){showRes('langResult',{ok:false,error:'Keine Datei gew&auml;hlt'});return;}
+    var fd=new FormData();fd.append('file',f,f.name);
+    fetch('/upload?target=lang',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(j){showRes('langResult',j);document.getElementById('langFile').value='';langList();}).catch(function(){showRes('langResult',{ok:false,error:'Fehler'});});};
+  if(code){
+    fetch('/lang.json?l='+encodeURIComponent(code),{cache:'no-cache'}).then(function(r){return r.json();}).then(function(j){
+      T=j.t||{};R=(j.r||[]).map(function(x){return [new RegExp(x[0]),x[1]];});
+      dialogs();mo=new MutationObserver(onMut);walk(document.body);document.title=trText(document.title);document.documentElement.lang=code;watch();langList();
+    }).catch(function(){langList();});
+  }else langList();
+})();
+)js";
 static const char PAGE_JS[] PROGMEM = R"js(
 function showRes(id,r){var el=document.getElementById(id);if(!el)return;
   el.className=r.ok?'res-ok':'res-bad';el.innerHTML=(r.ok?'&#10004; ':'&#10008; ')+(r.ok?(r.msg||'OK'):(r.error||'Fehler'));}
@@ -669,7 +779,8 @@ function voiceChosen(s){if(s.value!=='__custom__')return;
   var n=(prompt('Name der Stimme (wie bei VoiceRSS):')||'').replace(/[^A-Za-z0-9_-]/g,'');
   if(!n){s.value='';return;}
   var o=document.createElement('option');o.value=n;o.textContent=n;s.insertBefore(o,s.querySelector('option[value="__custom__"]'));s.value=n;}function stopNow(){postApi('/api/stop',{},'sayResult');}
-function setVol(v){postApi('/api/volume',{v:v},'sayResult');}
+function volShow(v){var e=document.getElementById('volShow'),s=document.getElementById('vol');if(e&&s)e.textContent=v+' / '+s.max;}
+function setVol(v){volShow(v);postApi('/api/volume',{v:v},'sayResult');}
 function playUrlNow(){postApi('/api/play',{url:document.getElementById('playUrl').value},'radioResult');}
 var sdCur='/';
 function checkPins(){var s=document.querySelectorAll('select.pinsel'),seen={},dup=false;s.forEach(function(e){e.classList.remove('dup');});
@@ -740,6 +851,7 @@ function barTick(){var pm=nbs.on?Math.min(1000,nbs.pm+nbs.rate*(Date.now()-nbs.t
 setInterval(barTick,250);
 function pollPlay(){if(document.hidden)return;fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
   var el=document.getElementById('playState');if(el)el.textContent='Zustand: '+j.state+(j.error?' ('+j.error+')':'');
+  var vs=document.getElementById('vol');if(vs&&document.activeElement!==vs&&j.volume!==undefined&&+vs.value!==j.volume){vs.value=j.volume;volShow(j.volume);}
   {var t='';
     if(j.source==='radio'){t='\u266a Webradio: '+(j.name||j.url)+(j.title?' \u2013 '+j.title:'');}
     else if(j.source==='file'){t='\u266a Datei: '+j.name;}
@@ -747,7 +859,8 @@ function pollPlay(){if(document.hidden)return;fetch('/api/status',{cache:'no-sto
     document.querySelectorAll('.nowplaying').forEach(function(np){np.textContent=t;np.title=j.url||'';
       var row=np.parentNode,bar=row.nextSibling&&row.nextSibling.className==='nowbar'?row.nextSibling:null;
       if(!bar){bar=document.createElement('div');bar.className='nowbar';bar.style.cssText='height:6px;margin:2px auto 8px;max-width:100%;background:#3a4147;border-radius:3px;overflow:hidden';bar.innerHTML='<div style="height:100%;width:0;background:var(--ok)"></div>';row.parentNode.insertBefore(bar,row.nextSibling);}
-      var card=row.parentNode.querySelector('.card');if(card&&card.offsetWidth)bar.style.width=card.offsetWidth+'px';});
+      var card=row.parentNode.querySelector('.card');if(card&&card.offsetWidth)bar.style.width=card.offsetWidth+'px';
+      bar.style.display=j.source==='radio'?'none':'';});
     var on=j.source==='file'&&j.pm!==undefined;
     nbs={on:on,jump:!on||nbs.name!==j.name||j.pm<nbs.pm-50,name:j.name,pm:on?j.pm:0,rate:on?(+j.rate||0):0,dur:on?(+j.dur||0):0,t0:Date.now()};
     barTick();
@@ -843,6 +956,7 @@ void handleRoot() {
     sendChunk("<div class='tabpanel panel-radio'>" + panelRadio() + "</div>");
     sendChunk("<div class='tabpanel panel-sd'>" + panelSd() + "</div>");
     sendChunk("<div class='tabpanel panel-mp3'>" + panelMp3() + "</div>");
+    sendChunk("<div class='tabpanel panel-pins'>" + panelPins() + "</div>");
     sendChunk("<div class='tabpanel panel-audio'>" + panelAudio() + "</div>");
     sendChunk("<div class='tabpanel panel-mqtt'>" + panelMqtt() + "</div>");
     sendChunk("<div class='tabpanel panel-wlan'>" + panelWlan() + "</div>");
@@ -852,8 +966,11 @@ void handleRoot() {
     sendChunk("<div class='tabpanel panel-doku'>" + panelDoc() + "</div></div>");
     sendChunk("<script>");
     sendChunk("var DEF_LANG='" + jsonEscape(cfg.vlang) + "';");
+    sendChunk("var UI_HOST='" + jsonEscape(cfg.host) + "';");
     sendChunk(FPSTR(TOPBAR_JS));
     sendChunk(FPSTR(PAGE_JS));
+    sendChunk(FPSTR(PINS_JS));
+    sendChunk(FPSTR(LANG_JS));
     sendChunk("</script></body></html>");
     webserver.sendContent("");
 }
@@ -1511,13 +1628,102 @@ void handleApiDelete() {
 File uploadFile;
 String uploadError;
 bool uploadOnSd = false;
+bool uploadOnLang = false;
+
+// Sprachdateien: /lang_<code>.json im Speicher des Geraets; der Code sind zwei bis acht Kleinbuchstaben (zum Beispiel en).
+// Language files: /lang_<code>.json in the device storage; the code is two to eight lowercase letters (for example en).
+
+String langCode(String s) {
+    s.toLowerCase();
+    if (s.endsWith(".json")) s.remove(s.length() - 5);
+    if (s.length() < 2 || s.length() > 8) return "";
+    for (size_t i = 0; i < s.length(); i++) {
+        if (s[i] < 'a' || s[i] > 'z') return "";
+    }
+    return s;
+}
+
+void handleLangJson() {
+    String c = langCode(webserver.arg("l"));
+    String path = "/lang_" + c + ".json";
+    if (c.isEmpty() || !fsReady || !LittleFS.exists(path)) return sendErr(404, "Sprache nicht gefunden");
+    File f = LittleFS.open(path, FILE_READ);
+    webserver.sendHeader("Cache-Control", "no-cache");
+    webserver.streamFile(f, "application/json");
+    f.close();
+}
+
+void handleApiPins() {
+    String pinArg = apiArg("pin");
+    if (pinArg.length() > 0) {
+        int pin = pinArg.toInt();
+        if (pin < 1 || pin > 48 || !pinIdle(pin)) return sendErr(400, "Pin nicht verf\xC3\xBCgbar");
+        String type = apiArg("type");
+        if (type != "say" && type != "file") type = "";
+        String text = apiArg("text");
+        text.trim();
+        if (text.length() > 300) return sendErr(400, "Text zu lang (max. 300 Zeichen)");
+        if (text.isEmpty()) type = "";
+        int vol = apiArg("vol").length() > 0 ? constrain(apiArg("vol").toInt(), 0, VOLUME_MAX) : -1;
+        pinType[pin] = type;
+        pinText[pin] = text;
+        pinVol[pin] = vol;
+        prefs.putString(("pt" + String(pin)).c_str(), type);
+        prefs.putString(("px" + String(pin)).c_str(), text);
+        prefs.putInt(("pv" + String(pin)).c_str(), vol);
+        logLine("[PIN] GPIO " + String(pin) + " set: " + (type.isEmpty() ? String("no action") : type + " \"" + text + "\""));
+        return sendOk("Gespeichert");
+    }
+    String j = "{\"pins\":[";
+    bool first = true;
+    for (int pin = 1; pin <= 48; pin++) {
+        if (!pinIdle(pin)) continue;
+        if (!first) j += ",";
+        first = false;
+        j += "{\"p\":" + String(pin) + ",\"l\":" + String(digitalRead(pin) == LOW ? 0 : 1) + ",\"t\":\"" + pinType[pin] + "\",\"x\":\"" + jsonEscape(pinText[pin]) + "\",\"v\":" + String(pinVol[pin]) + "}";
+    }
+    sendJson(200, j + "]}");
+}
+
+void handleApiLang() {
+    if (webserver.method() == HTTP_POST) {
+        String d = langCode(apiArg("delete"));
+        if (!d.isEmpty() && fsReady) LittleFS.remove("/lang_" + d + ".json");
+    }
+    String j = "{\"langs\":[";
+    bool first = true;
+    if (fsReady) {
+        File dir = LittleFS.open("/");
+        File f = dir ? dir.openNextFile() : File();
+        while (f) {
+            String n = String(f.name());
+            n = n.substring(n.lastIndexOf('/') + 1);
+            if (!f.isDirectory() && n.startsWith("lang_") && n.endsWith(".json")) {
+                if (!first) j += ",";
+                first = false;
+                j += "\"" + n.substring(5, n.length() - 5) + "\"";
+            }
+            f = dir.openNextFile();
+        }
+    }
+    sendJson(200, j + "]}");
+}
 
 void handleUploadData() {
     HTTPUpload& up = webserver.upload();
     if (up.status == UPLOAD_FILE_START) {
         uploadError = "";
         uploadOnSd = webserver.arg("target") == "sd";
-        if (uploadOnSd) {
+        uploadOnLang = webserver.arg("target") == "lang";
+        if (uploadOnLang) {
+            String c = langCode(up.filename);
+            if (c.isEmpty()) {
+                uploadError = "Dateiname wie en.json (zwei bis acht Kleinbuchstaben)";
+            } else {
+                uploadFile = LittleFS.open("/lang_" + c + ".json", FILE_WRITE);
+                if (!uploadFile) uploadError = "Datei kann nicht angelegt werden";
+            }
+        } else if (uploadOnSd) {
             String dir = webserver.arg("dir");
             if (dir.isEmpty()) dir = "/";
             String name = sdCleanName(up.filename, true);
@@ -1785,6 +1991,9 @@ void setupWeb() {
     webserver.on("/api/topbarStatus", HTTP_GET, handleTopbarStatus);
     webserver.on("/api/version", HTTP_GET, handleVersion);
     webserver.on("/upload", HTTP_POST, handleUploadDone, handleUploadData);
+    webserver.on("/lang.json", HTTP_GET, handleLangJson);
+    webserver.on("/api/lang", handleApiLang);
+    webserver.on("/api/pins", handleApiPins);
     webserver.onNotFound([]() { webserver.send(404, "text/plain", "Not found"); });
     webserver.begin();
     logLine("[WEB] server started");
