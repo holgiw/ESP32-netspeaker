@@ -52,6 +52,7 @@ struct Settings {
     String mqttUser;
     String mqttPass;
     String mqttBase;
+    String mqttGroup[5];
     int vrate;
     int vol;
     int bclk;
@@ -469,6 +470,17 @@ String mqttBaseTopic() {
     return String(PROJECT_NAME) + "/" + cfg.host;
 }
 
+// Gruppen-Topic i (0-4) ohne abschliessendes "/" oder "#"; leer, wenn nicht gesetzt, ungueltig (+, #) oder gleich dem Basis-Topic.
+// Group topic i (0-4) without a trailing "/" or "#"; empty if unset, invalid (+, #) or equal to the base topic.
+
+String mqttGroupTopic(int i) {
+    String g = cfg.mqttGroup[i];
+    g.trim();
+    while (g.endsWith("#") || g.endsWith("/")) g.remove(g.length() - 1);
+    if (g.indexOf('+') >= 0 || g.indexOf('#') >= 0 || g == mqttBaseTopic()) return String();
+    return g;
+}
+
 // ---------------------------------------------------------------------------
 // Einstellungen laden und speichern / load and save settings
 
@@ -527,6 +539,8 @@ void loadSettings() {
     cfg.mqttPass = prefs.getString("mq_pw", "");
     cfg.mqttPort = prefs.getInt("mq_port", 1883);
     cfg.mqttBase = prefs.getString("mq_base", "");
+    cfg.mqttGroup[0] = prefs.getString("mq_g1", String(PROJECT_NAME) + "/all");
+    for (int i = 1; i < 5; i++) cfg.mqttGroup[i] = prefs.getString(("mq_g" + String(i + 1)).c_str(), "");
     cfg.logEnabled = prefs.getBool("log", false);
     cfg.logAutoMin = constrain(prefs.getInt("logmin", 60), 0, 1440);
     cfg.fadeMs = constrain(prefs.getInt("fade", FADE_DEFAULT_MS), 0, FADE_MAX_MS);
@@ -2889,6 +2903,19 @@ void onMqttMessage(char* topic, uint8_t* payload, unsigned int length) {
     bool isJson = body.startsWith("{");
     String base = mqttBaseTopic();
     String err;
+
+    // Befehle an ein Gruppen-Topic gelten wie Befehle an das eigene Basis-Topic.
+    // Commands sent to a group topic count like commands sent to the own base topic.
+
+    if (!t.startsWith(base + "/")) {
+        for (int i = 0; i < 5; i++) {
+            String g = mqttGroupTopic(i);
+            if (g.length() > 0 && t.startsWith(g + "/")) {
+                t = base + t.substring(g.length());
+                break;
+            }
+        }
+    }
     if (t == base + "/say") {
         if (isJson) err = commandSay(jsonGet(body, "text"), jsonGet(body, "lang"), jsonGet(body, "voice"), numberOr(jsonGet(body, "rate"), 99), numberOr(jsonGet(body, "vol"), -1));
         else err = commandSay(body, "", "", 99, -1);
@@ -2992,6 +3019,17 @@ void mqttConnect() {
         mqttClient.subscribe((base + "/stop").c_str());
         mqttClient.subscribe((base + "/volume").c_str());
         mqttClient.subscribe((base + "/restart").c_str());
+        for (int i = 0; i < 5; i++) {
+            String g = mqttGroupTopic(i);
+            bool again = false;
+            for (int j = 0; j < i; j++) {
+                if (g == mqttGroupTopic(j)) again = true;
+            }
+            if (g.length() > 0 && !again) {
+                mqttClient.subscribe((g + "/#").c_str());
+                logLine("[MQTT] Group topic " + g + "/#");
+            }
+        }
         mqttSubscribedAt = millis();
         logLine("[MQTT] Connected to " + cfg.mqttServer + ":" + String(cfg.mqttPort) + ", base " + base);
         publishStatus(true);

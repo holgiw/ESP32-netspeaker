@@ -414,6 +414,15 @@ String panelMqtt() {
     h += "<span style='display:inline-flex;align-items:center;gap:6px'><label for='mq_user' style='white-space:nowrap'>Benutzer " + infoTip("Benutzername f&uuml;r den MQTT-Broker (optional); leer = ohne Anmeldung") + "</label><input id='mq_user' name='mq_user' autocomplete='off' placeholder='optional' value='" + htmlEsc(cfg.mqttUser) + "' style='width:min(100%,200px);margin:4px 0'></span>";
     h += "<span style='display:inline-flex;align-items:center;gap:6px'><label for='mq_pass' style='white-space:nowrap'>Passwort " + infoTip("Passwort f&uuml;r den MQTT-Broker (optional); es wird nicht angezeigt. Leer lassen, um das gespeicherte zu behalten; ohne Benutzer wird es gel&ouml;scht") + "</label><input id='mq_pass' name='mq_pass' type='password' autocomplete='new-password' placeholder='" + String(cfg.mqttPass.length() > 0 ? "gespeichert (leer lassen = behalten)" : "optional") + "' value='' style='width:min(100%,260px);margin:4px 0'></span></div>";
     h += "<div class='row' style='justify-content:flex-start'><span style='display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap'><label for='mq_base' style='white-space:nowrap'>Basis-Topic " + infoTip("Basis-Topic; darunter liegen say, play, url, file, station, stop, volume, restart, status") + "</label><input id='mq_base' name='mq_base' placeholder='" + htmlEsc(String(PROJECT_NAME) + "/" + cfg.host) + "' value='" + htmlEsc(cfg.mqttBase) + "' style='width:min(100%,420px);margin:4px 0'></span></div>";
+    int grpVisible = 1;
+    for (int i = 0; i < 5; i++) {
+        if (!cfg.mqttGroup[i].isEmpty()) grpVisible = i + 2;
+    }
+    if (grpVisible > 5) grpVisible = 5;
+    for (int i = 1; i <= 5; i++) {
+        String n = String(i);
+        h += "<div id='grpRow" + n + "' class='row' style='justify-content:flex-start;" + String(i > grpVisible ? "display:none" : "") + "'><span style='display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap'><label for='mq_g" + n + "' style='white-space:nowrap'>Gruppen-Topic " + n + " " + infoTip("Zus&auml;tzliches Abo, um mehrere Ger&auml;te mit einem Befehl anzusprechen: Das Ger&auml;t nimmt unter diesem Topic dieselben Befehle an wie unter dem Basis-Topic (say, play, url, file, station, list, stop, volume, restart), zum Beispiel netspeaker/all/stop. Bis zu 5, leere Felder werden &uuml;bersprungen") + "</label><input id='mq_g" + n + "' name='mq_g" + n + "' placeholder='z. B. netspeaker/all' value='" + htmlEsc(cfg.mqttGroup[i - 1]) + "' oninput='grpGrow(" + n + ")' style='width:min(100%,420px);margin:4px 0'></span></div>";
+    }
     h += "<p><small style='font-size:.9rem'>Leer = <code>netspeaker/&lt;Hostname&gt;</code>. Bereits gespeicherte Topics folgen einem neuen Hostnamen nicht automatisch. Status: <strong>" + String(mqttClient.connected() ? "verbunden" : (cfg.mqttServer.isEmpty() ? "aus" : "nicht verbunden")) + "</strong>.</small></p>";
     h += "<button type='submit' style='width:auto;padding:10px 28px'>Speichern</button></form>";
     h += "<h3 style='margin-top:1.4rem'>Topics</h3><p>Befehle sendest du an die Topics mit <span class='kind cmd'>senden</span>, Meldungen liest du von denen mit <span class='kind msg'>lesen</span> (die meisten sind <em>retained</em>, du bekommst den letzten Stand sofort beim Abonnieren). Als Nutzlast geht Text oder JSON.</p>";
@@ -543,7 +552,7 @@ String panelStatus() {
     h += "</table></div>";
     h += "<div class='card'><h3>Sprache / Language</h3><p>Weitere Sprachen kommen als Datei (zum Beispiel <code>en.json</code>) in den Speicher des Ger&auml;ts und werden im Browser angewendet. Mit der Schaltfl&auml;che in der Statuszeile wechselst du die Sprache.</p><div id='langList'></div>";
     h += "<div class='row'><input type='file' id='langFile' accept='.json,application/json' style='width:60%'><button type='button' onclick='langUpload()' style='width:auto;padding:8px 14px'>Hochladen</button></div>";
-    h += "<div class='row'><input type='text' id='langCode' value='en' maxlength='8' style='width:70px'><button type='button' onclick='langFetch()' style='width:auto;padding:8px 14px'>Von GitHub laden</button> " + infoTip("L&auml;dt die Sprachdatei (zum Beispiel en) aus dem Ordner lang des Projekts auf GitHub (holgiw/netspeaker) in das Ger&auml;t; dazu braucht das Ger&auml;t Internet. Eine vorhandene Datei gleichen Namens wird ersetzt") + "</div><div id='langResult'></div></div>";
+    h += "<div class='row'><input type='text' id='langCode' value='en.json' maxlength='24' style='width:130px'><button type='button' onclick='langFetch()' style='width:auto;padding:8px 14px'>Von GitHub laden</button> " + infoTip("L&auml;dt die Sprachdatei (zum Beispiel en.json) aus dem Ordner lang des Projekts auf GitHub (holgiw/netspeaker) in das Ger&auml;t; dazu braucht das Ger&auml;t Internet. Eine vorhandene Datei gleichen Namens wird ersetzt") + "</div><div id='langResult'></div></div>";
     return h;
 }
 
@@ -673,7 +682,7 @@ curl -o netspeaker-settings.txt http://@HOST@/export
 curl -X POST http://@HOST@/restart)d");
     h += docCard("MQTT",
         "Basis-Topic <code>" + htmlEsc(base) + "</code> (im Tab MQTT &auml;nderbar). Nutzlast als Text oder als JSON. <code>/say</code>: Text oder <code>{\"text\":\"...\",\"lang\":\"..\",\"voice\":\"..\",\"rate\":0,\"vol\":60}</code>. <code>/play</code>: URL oder Dateiname, auch <code>{\"url\":\"...\"}</code> oder <code>{\"file\":\"...\"}</code>. <code>/url</code> nur URL, <code>/file</code> nur Dateiname, <code>/station</code> Platz 1-15 oder Name (auch JSON <code>{\"n\":3}</code> oder <code>{\"name\":\"..\"}</code>). <code>/stop</code> ohne Nutzlast. <code>/volume</code> 0-100. <code>/restart</code> ohne Nutzlast startet das Ger&auml;t neu (nicht retained senden; eine Nachricht in den ersten 3 s nach dem Verbinden wird ignoriert). "
-        "Zur&uuml;ck kommen <code>/status</code> (idle, loading, playing, error: ...), <code>/now</code> (was gerade l&auml;uft, zum Beispiel &quot;Sendername - Titel&quot;) und <code>/availability</code> (online, offline). <code>/volume/state</code> (gerade wirkende Lautst&auml;rke) und <code>/volume/general</code> (allgemeine) werden bei jeder &Auml;nderung gesendet. <code>/stations</code> enth&auml;lt die Senderliste (retained, wird nach jeder &Auml;nderung neu gesendet); ein Aufruf von <code>/list</code> sendet sie erneut; ein ung&uuml;ltiger Befehl erscheint in <code>/status</code> als Fehler.",
+        "Zur&uuml;ck kommen <code>/status</code> (idle, loading, playing, error: ...), <code>/now</code> (was gerade l&auml;uft, zum Beispiel &quot;Sendername - Titel&quot;) und <code>/availability</code> (online, offline). <code>/volume/state</code> (gerade wirkende Lautst&auml;rke) und <code>/volume/general</code> (allgemeine) werden bei jeder &Auml;nderung gesendet. <code>/stations</code> enth&auml;lt die Senderliste (retained, wird nach jeder &Auml;nderung neu gesendet); ein Aufruf von <code>/list</code> sendet sie erneut; ein ung&uuml;ltiger Befehl erscheint in <code>/status</code> als Fehler. Zus&auml;tzliche Gruppen-Topics (bis zu 5, im Tab MQTT) nehmen dieselben Befehle an, zum Beispiel <code>netspeaker/all/stop</code> f&uuml;r alle Ger&auml;te; Standard ist <code>netspeaker/all</code>.",
         "mosquitto_pub -h <broker> -t " + base + "/say -m \"Hallo Welt\"\n"
         "mosquitto_pub -h <broker> -t " + base + "/say -m '{\"text\":\"Hallo\",\"lang\":\"en-gb\",\"vol\":10}'\n"
         "mosquitto_pub -h <broker> -t " + base + "/play -m \"http://stream.example.com/radio.mp3\"\n"
@@ -771,7 +780,7 @@ static const char LANG_JS[] PROGMEM = R"js(
       if(!list.length)box.textContent='Keine Sprachdatei im Ger\u00e4t';}
     if(mo&&T){mo.disconnect();if(b)walk(b);if(box)walk(box);watch();}
   }).catch(function(){});}
-  window.langFetch=function(){var c=(document.getElementById('langCode').value||'').trim().toLowerCase();if(!c){showRes('langResult',{ok:false,error:'Keine Datei gew&auml;hlt'});return;}
+  window.langFetch=function(){var c=(document.getElementById('langCode').value||'').trim().toLowerCase().replace(/\.json$/,'');if(!c){showRes('langResult',{ok:false,error:'Keine Datei gew&auml;hlt'});return;}
     showRes('langResult',{ok:true,msg:'Lade von GitHub &hellip;'});postApi('/api/lang',{fetch:c},'langResult').then(langList);};
   window.langUpload=function(){var f=document.getElementById('langFile').files[0];if(!f){showRes('langResult',{ok:false,error:'Keine Datei gew&auml;hlt'});return;}
     var fd=new FormData();fd.append('file',f,f.name);
@@ -924,6 +933,7 @@ function scanWifi(){var info=document.getElementById('scanInfo');info.textConten
     for(var i=1;i<=3;i++){var s=document.getElementById('ssid_select'+i);s.innerHTML='<option value="">-</option>';
       list.forEach(function(n){var o=document.createElement('option');o.value=n;o.textContent=n;s.appendChild(o);});}
     info.textContent=list.length+' Netzwerke gefunden';}).catch(function(){info.textContent='Suche fehlgeschlagen';});}
+function grpGrow(n){var v=document.getElementById('mq_g'+n).value.trim(),r=document.getElementById('grpRow'+(n+1));if(v&&r)r.style.display='';}
 function ntpGrow(n){var v=document.getElementById('ntpServerInput'+n).value.trim(),r=document.getElementById('ntpRow'+(n+1));if(v&&r)r.style.display='';}
 function testNtp(n){var box=document.getElementById('ntpTestResult'+n);var v=document.getElementById('ntpServerInput'+n).value;
   box.innerHTML='';
@@ -1177,6 +1187,17 @@ void handleSave() {
         prefs.putString("mq_srv", cfg.mqttServer);
         prefs.putInt("mq_port", cfg.mqttPort);
         prefs.putString("mq_base", cfg.mqttBase);
+        String groups[5];
+        int gm = 0;
+        for (int i = 1; i <= 5; i++) {
+            String v = webserver.arg("mq_g" + String(i));
+            v.trim();
+            if (!v.isEmpty()) groups[gm++] = v;
+        }
+        for (int i = 0; i < 5; i++) {
+            cfg.mqttGroup[i] = i < gm ? groups[i] : String();
+            prefs.putString(("mq_g" + String(i + 1)).c_str(), cfg.mqttGroup[i]);
+        }
         cfg.mqttUser = webserver.arg("mq_user");
         cfg.mqttUser.trim();
         if (webserver.arg("mq_pass").length() > 0) cfg.mqttPass = webserver.arg("mq_pass");
@@ -1248,6 +1269,7 @@ void handleExport() {
     t += "vlang=" + cfg.vlang + "\nvvoice=" + cfg.vvoice + "\nvfmt=" + cfg.vfmt + "\nvrate=" + String(cfg.vrate) + "\n";
     t += "vol=" + String(cfg.vol) + "\nbclk=" + String(cfg.bclk) + "\nlrc=" + String(cfg.lrc) + "\ndin=" + String(cfg.din) + "\n";
     t += "mq_srv=" + cfg.mqttServer + "\nmq_port=" + String(cfg.mqttPort) + "\nmq_user=" + cfg.mqttUser + "\nmq_base=" + cfg.mqttBase + "\n";
+    for (int i = 0; i < 5; i++) t += "mq_g" + String(i + 1) + "=" + cfg.mqttGroup[i] + "\n";
     t += "fade=" + String(cfg.fadeMs) + "\nswfade=" + String(cfg.switchFadeMs) + "\nautostart=" + String(cfg.autoStart ? 1 : 0) + "\nbtone=" + String(cfg.bootTone ? 1 : 0) + "\nresume=" + String(cfg.resumeLast ? 1 : 0) + "\nsdon=" + String(cfg.sdOn ? 1 : 0) + "\nsdcs=" + String(cfg.sdCs) + "\nsdsck=" + String(cfg.sdSck) + "\nsdmosi=" + String(cfg.sdMosi) + "\nsdmiso=" + String(cfg.sdMiso) + "\nvolmax=" + String(VOLUME_MAX) + "\nvramp=" + String(cfg.volRampMs) + "\nmix=" + String(cfg.mixAnn ? 1 : 0) + "\nloud=" + String(cfg.loudNorm ? 1 : 0) + "\nduck=" + String(cfg.duckPct) + "\ntmatch=" + cfg.titleMatch + "\ntvol=" + String(cfg.titleVol) + "\ntmax=" + String(cfg.titleMaxS) + "\n";
     t += "log=" + String(cfg.logEnabled ? 1 : 0) + "\nlogmin=" + String(cfg.logAutoMin) + "\n";
     for (int i = 0; i < RADIO_SLOTS; i++) t += "rn" + String(i + 1) + "=" + cfg.radioName[i] + "\nru" + String(i + 1) + "=" + cfg.radioUrl[i] + "\nrv" + String(i + 1) + "=" + (cfg.radioVol[i] >= 0 ? String(cfg.radioVol[i]) : String()) + "\n";
@@ -1325,6 +1347,7 @@ void handleImport() {
         } else if (k == "mq_srv") { cfg.mqttServer = v; prefs.putString("mq_srv", v);
         } else if (k == "mq_port") { int p = v.toInt(); cfg.mqttPort = (p >= 1 && p <= 65535) ? p : 1883; prefs.putInt("mq_port", cfg.mqttPort);
         } else if (k == "mq_base") { cfg.mqttBase = v; prefs.putString("mq_base", v);
+        } else if (k.length() == 5 && k.startsWith("mq_g") && k[4] >= '1' && k[4] <= '5') { cfg.mqttGroup[k[4] - '1'] = v; prefs.putString(k.c_str(), v);
         } else if (k == "sdon") { cfg.sdOn = v.toInt() != 0; prefs.putBool("sdon", cfg.sdOn);
         } else if (k == "sdcs" || k == "sdsck" || k == "sdmosi" || k == "sdmiso") {
             int pin = v.toInt();
