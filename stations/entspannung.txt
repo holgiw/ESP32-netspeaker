@@ -1,0 +1,25 @@
+# netspeaker stations
+rn1=Absolut Relax
+ru1=https://edge19.live-sm.absolutradio.de/absolut-relax/stream/aacp
+rv1=
+rn2=Klassik Radio Movie
+ru2=https://live.streams.klassikradio.de/klassikradio-movie
+rv2=
+rn3=Radio Paradise
+ru3=https://stream.radioparadise.com/mp3-128
+rv3=
+rn4=SWR2
+ru4=https://liveradio.swr.de/sw282p3/swr2/play.mp3
+rv4=
+rn5=NDR Kultur
+ru5=http://icecast.ndr.de/ndr/ndrkultur/live/aac/192/stream.aac
+rv5=
+rn6=Radio Swiss Classic
+ru6=http://stream.srg-ssr.ch/m/rsc_de/mp3_128
+rv6=
+rn7=Radio Swiss Pop
+ru7=http://stream.srg-ssr.ch/m/rsp/mp3_128
+rv7=
+rn8=Schwarzwaldradio
+ru8=https://frontend.streamonkey.net/fho-schwarzwaldradiolive/stream/aacp
+rv8=

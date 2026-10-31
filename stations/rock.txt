@@ -1,0 +1,22 @@
+# netspeaker stations
+rn1=Rock Antenne
+ru1=https://stream.rockantenne.de/rockantenne/stream/mp3
+rv1=
+rn2=Rock Antenne Heavy Metal
+ru2=https://stream.rockantenne.de/heavy-metal/stream/aacp
+rv2=
+rn3=Antenne Bayern Classic
+ru3=http://stream.antenne.de/classic-rock-live.aac
+rv3=
+rn4=Antenne Bayern 80er
+ru4=http://stream.antenne.de/80er-kulthits.aac
+rv4=
+rn5=Radio Bob
+ru5=https://streams.radiobob.de/bob-live/mp3-192/mediaplayer
+rv5=
+rn6=90s90s Hits
+ru6=http://streams.90s90s.de/pop/aac-64/streams.90s90s.de/
+rv6=
+rn7=N-JOY
+ru7=https://icecast.ndr.de/ndr/njoy/live/mp3/128/stream.mp3
+rv7=
