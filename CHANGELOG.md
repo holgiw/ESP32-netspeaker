@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-31 - Version 1.4.1
+
+**Deutsch**
+
+- Fertige Senderlisten im Ordner `stations/`: `mp3-auswahl` (die bisherigen 30 Sender), `aac-auswahl` (15 AAC/HE-AAC-Sender), `rock` und `entspannung`. Im Tab *Webradio* lädt *Liste von GitHub laden* eine davon (REST `POST /api/stationlist` mit `list=`); das ersetzt die gespeicherte Liste.
+
+**English**
+
+- Ready-made station lists in the folder `stations/`: `mp3-auswahl` (the former 30 stations), `aac-auswahl` (15 AAC/HE-AAC stations), `rock` and `entspannung`. In the *Webradio* tab *Liste von GitHub laden* (load list from GitHub) loads one of them (REST `POST /api/stationlist` with `list=`); this replaces the stored list.
+
 ## 2026-10-31 - Version 1.4.0
 
 **Deutsch**

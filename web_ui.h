@@ -304,7 +304,8 @@ String panelRadio() {
     h += "<small>Das Feld rechts neben der URL ist die Lautst&auml;rke des Senders (0-100, leer = allgemeine Lautst&auml;rke). Speichern, bevor du &#9654; dr&uuml;ckst. &#9650;&#9660; verschieben den Sender und speichern sofort. Der URL-Knopf kopiert den REST-Aufruf <code>/api/station?n=Platz</code>; auch der Name geht (<code>?name=...</code>).</small>";
     h += "<button type='submit'>Speichern</button><div id='stResult'></div></form>";
     h += "<div class='row'><button type='button' onclick=\"location.href='/stations.txt'\" style='width:auto;padding:8px 14px'>Liste speichern</button> " + infoTip("Speichert die Senderliste (Name, URL, Lautst&auml;rke) als Textdatei auf deinem Rechner") + " ";
-    h += "<button type='button' onclick=\"document.getElementById('stFile').click()\" style='width:auto;padding:8px 14px'>Liste laden</button><input type='file' id='stFile' accept='.txt' style='display:none' onchange='loadStations(this)'> " + infoTip("Ersetzt die gespeicherte Senderliste durch eine zuvor gespeicherte Datei") + "</div></div>";
+    h += "<button type='button' onclick=\"document.getElementById('stFile').click()\" style='width:auto;padding:8px 14px'>Liste laden</button><input type='file' id='stFile' accept='.txt' style='display:none' onchange='loadStations(this)'> " + infoTip("Ersetzt die gespeicherte Senderliste durch eine zuvor gespeicherte Datei") + "</div>";
+    h += "<div class='row'><input type='text' id='stList' value='aac-auswahl' maxlength='32' style='width:170px'><button type='button' onclick='listFetch()' style='width:auto;padding:8px 14px'>Liste von GitHub laden</button> " + infoTip("L&auml;dt eine fertige Senderliste aus dem Ordner stations des Projekts auf GitHub (zum Beispiel aac-auswahl, mp3-auswahl, rock, entspannung) und ersetzt die gespeicherte Liste; das Ger&auml;t braucht dazu Internet") + "</div><div id='stListResult'></div></div>";
     return h;
 }
 
@@ -643,7 +644,7 @@ curl -d "path=/Musik/lied.mp3" http://@HOST@/api/sddelete
 curl -o lied.mp3 "http://@HOST@/api/sdfile?path=/Musik/lied.mp3"
 curl -X POST http://@HOST@/api/sdmount)d");
     h += docCard("Gespeicherte Webradios / URLs",
-        "Im Tab Webradio lassen sich 30 Pl&auml;tze mit Name, URL und eigener Lautst&auml;rke speichern (leer = allgemeine Lautst&auml;rke; ein <code>vol</code> im Aufruf hat Vorrang). <code>n</code> ist die Platznummer (1-30), alternativ <code>name</code> (Gro&szlig;-/Kleinschreibung egal). <code>/api/stations</code> liefert die belegten Pl&auml;tze (JSON mit n, name, url, vol), <code>/api/stationdelete</code> l&ouml;scht einen Platz (Name und URL), die folgenden Pl&auml;tze r&uuml;cken nach oben. <code>/stations.txt</code> l&auml;dt die Liste als Textdatei, <code>POST /importstations</code> ersetzt sie durch eine solche Datei (im Tab Webradio: Liste speichern / Liste laden).",
+        "Im Tab Webradio lassen sich 30 Pl&auml;tze mit Name, URL und eigener Lautst&auml;rke speichern (leer = allgemeine Lautst&auml;rke; ein <code>vol</code> im Aufruf hat Vorrang). <code>n</code> ist die Platznummer (1-30), alternativ <code>name</code> (Gro&szlig;-/Kleinschreibung egal). <code>/api/stations</code> liefert die belegten Pl&auml;tze (JSON mit n, name, url, vol), <code>/api/stationdelete</code> l&ouml;scht einen Platz (Name und URL), die folgenden Pl&auml;tze r&uuml;cken nach oben. <code>/stations.txt</code> l&auml;dt die Liste als Textdatei, <code>POST /importstations</code> ersetzt sie durch eine solche Datei (im Tab Webradio: Liste speichern / Liste laden). <code>POST /api/stationlist</code> mit <code>list=aac-auswahl</code> l&auml;dt eine fertige Liste von GitHub.",
         R"d(curl -d "n=3" http://@HOST@/api/station
 curl "http://@HOST@/api/station?name=Radio%20Eins&vol=10"
 curl http://@HOST@/api/stations
@@ -815,6 +816,7 @@ function postApi(path,params,resId){
   return fetch(path,{method:'POST',body:new URLSearchParams(params)}).then(function(r){return r.json();}).then(function(j){showRes(resId,j);return j;})
     .catch(function(){showRes(resId,{ok:false,error:'Keine Antwort vom Ger&auml;t'});});
 }
+function listFetch(){var n=(document.getElementById('stList').value||'').trim();if(!n)return;if(!confirm('Die gespeicherte Senderliste wird durch die Liste von GitHub ersetzt. Fortfahren?'))return;showRes('stListResult',{ok:true,msg:'Lade von GitHub &hellip;'});postApi('/api/stationlist',{list:n},'stListResult').then(function(j){if(j&&j.ok)setTimeout(function(){location.reload();},1200);});}
 function sayNow(){postApi('/api/say',{text:document.getElementById('sayText').value,lang:document.getElementById('sayLang').value,voice:document.getElementById('sayVoice').value},'sayResult');}
 function clearLog(){if(!confirm('Log l\u00f6schen?'))return;postApi('/api/log',{clear:'1'},'logResult').then(function(){var p=document.getElementById('logContent');if(p)p.textContent='';});}
 function copyText(t,btn){
@@ -1509,12 +1511,10 @@ void handleStationsExport() {
     webserver.send(200, "text/plain; charset=utf-8", t);
 }
 
-void handleStationsImport() {
-    String body = webserver.arg("plain");
+String stationsApply(String body) {
     if (body.startsWith("\xEF\xBB\xBF")) body.remove(0, 3);
     if (!body.startsWith("# " PROJECT_NAME " stations")) {
-        webserver.send(200, "text/plain", "FAIL|Das ist keine Senderliste dieses Ger\xC3\xA4ts.");
-        return;
+        return String("FAIL|Das ist keine Senderliste dieses Ger\xC3\xA4ts.");
     }
 
     // Erst in Hilfsfelder lesen: eine Datei ohne gueltigen Sender laesst die gespeicherte Liste unberuehrt.
@@ -1546,8 +1546,7 @@ void handleStationsImport() {
         if (!urls[i].isEmpty()) count++;
     }
     if (count == 0) {
-        webserver.send(200, "text/plain", "FAIL|Die Datei enth\xC3\xA4lt keinen g\xC3\xBCltigen Sender (URL mit http:// oder https://).");
-        return;
+        return String("FAIL|Die Datei enth\xC3\xA4lt keinen g\xC3\xBCltigen Sender (URL mit http:// oder https://).");
     }
     for (int i = 0; i < RADIO_SLOTS; i++) {
         bool used = !urls[i].isEmpty();
@@ -1557,7 +1556,11 @@ void handleStationsImport() {
     }
     compactStations();
     logLine("[WEB] station list loaded: " + String(count) + " stations");
-    webserver.send(200, "text/plain", "OK|" + String(count) + " Sender geladen.");
+    return "OK|" + String(count) + " Sender geladen.";
+}
+
+void handleStationsImport() {
+    webserver.send(200, "text/plain", stationsApply(webserver.arg("plain")));
 }
 
 void handleApiStations() {
@@ -1955,6 +1958,78 @@ bool langFetch(const String& code, String& err) {
     return true;
 }
 
+#define STATIONS_GITHUB_BASE "https://raw.githubusercontent.com/holgiw/ESP32-netspeaker/main/stations/"
+
+// Fertige Senderliste (Textdatei im Ordner stations des Projekts) von GitHub holen; nur der Listenname kommt von aussen.
+// Fetch a ready-made station list (text file in the folder stations of the project) from GitHub; only the list name comes from outside.
+
+bool stationListFetch(const String& name, String& body, String& err) {
+    if (WiFi.status() != WL_CONNECTED) {
+        err = "Keine WLAN-Verbindung";
+        return false;
+    }
+    if (ESP.getFreeHeap() < 70000) {
+        err = "Zu wenig freier Speicher (Webradio kurz stoppen)";
+        return false;
+    }
+    WiFiClientSecure client;
+    client.setInsecure();
+    HTTPClient http;
+    http.useHTTP10(true);
+    http.setTimeout(10000);
+    http.setConnectTimeout(10000);
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+    int rc = -1;
+
+    // Der erste Verbindungsversuch scheitert gelegentlich (rc -1); ein zweiter nach kurzer Pause klappt dann.
+    // The first connection attempt occasionally fails (rc -1); a second one after a short pause then works.
+
+    for (int attempt = 0; attempt < 2 && rc < 0; attempt++) {
+        if (attempt > 0) {
+            http.end();
+            delay(800);
+        }
+        if (!http.begin(client, String(STATIONS_GITHUB_BASE) + name + ".txt")) {
+            err = "HTTP begin failed";
+            return false;
+        }
+        esp_task_wdt_reset();
+        rc = http.GET();
+        esp_task_wdt_reset();
+    }
+    if (rc != HTTP_CODE_OK) {
+        err = rc == 404 ? String("Senderliste nicht gefunden: ") + name : "GitHub HTTP " + String(rc);
+        http.end();
+        return false;
+    }
+    if (http.getSize() > 20000) {
+        err = "Datei zu gross";
+        http.end();
+        return false;
+    }
+    body = http.getString();
+    http.end();
+    return true;
+}
+
+void handleApiStationList() {
+    String name = apiArg("list");
+    name.trim();
+    name.toLowerCase();
+    if (name.endsWith(".txt")) name.remove(name.length() - 4);
+    bool okName = name.length() >= 1 && name.length() <= 32;
+    for (size_t i = 0; i < name.length() && okName; i++) {
+        char c = name[i];
+        okName = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-';
+    }
+    if (!okName) return sendErr(400, "Name der Liste: Kleinbuchstaben, Ziffern und Bindestrich, zum Beispiel aac-auswahl");
+    String body, err;
+    if (!stationListFetch(name, body, err)) return sendErr(502, err);
+    String res = stationsApply(body);
+    if (res.startsWith("OK|")) return sendOk(res.substring(3));
+    sendErr(422, res.substring(5));
+}
+
 void handleApiLang() {
     if (webserver.method() == HTTP_POST) {
         String d = langCode(apiArg("delete"));
@@ -2268,6 +2343,7 @@ void setupWeb() {
     webserver.on("/import", HTTP_POST, handleImport);
     webserver.on("/stations.txt", HTTP_GET, handleStationsExport);
     webserver.on("/importstations", HTTP_POST, handleStationsImport);
+    webserver.on("/api/stationlist", handleApiStationList);
     webserver.on("/restart", HTTP_POST, handleRestart);
     webserver.on("/log", HTTP_GET, handleLog);
     webserver.on("/favicon.ico", HTTP_GET, handleFavicon);
