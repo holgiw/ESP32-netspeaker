@@ -748,12 +748,13 @@ void Audio::destroy_decoder() {
     }
 }
 // —————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
-// Projektkopie: FLAC, AAC, WAV und Opus sind ausgebaut (kleinere Firmware).
-// Project copy: FLAC, AAC, WAV and Opus are removed (smaller firmware).
+// Projektkopie: FLAC, WAV und Opus sind ausgebaut (kleinere Firmware); AAC (auch HE-AAC) ist wieder an.
+// Project copy: FLAC, WAV and Opus are removed (smaller firmware); AAC (also HE-AAC) is back on.
 
 std::unique_ptr<Decoder> Audio::createDecoder(const std::string& type) {
     destroy_decoder();
     if (type == "MP3") return std::make_unique<MP3Decoder>(*this);
+    if (type == "AAC") return std::make_unique<AACDecoder>(*this);
     if (type == "VORBIS") return std::make_unique<VorbisDecoder>(*this);
     return nullptr;
 }

@@ -1,0 +1,15 @@
+// openHAB: NetSpeaker per MQTT (Binding "MQTT" und ein Broker-Thing "mosquitto" vorausgesetzt).
+// Basis-Topic anpassen: Standard ist netspeaker/<Hostname>, hier netspeaker/netspeaker-az.
+// openHAB: NetSpeaker via MQTT (needs the MQTT binding and a broker thing "mosquitto").
+// Adjust the base topic: default is netspeaker/<hostname>, here netspeaker/netspeaker-az.
+
+Thing mqtt:topic:netspeaker "NetSpeaker" (mqtt:broker:mosquitto) {
+    Channels:
+        Type string : status    "Status"        [ stateTopic="netspeaker/netspeaker-az/status" ]
+        Type string : now       "Läuft gerade"  [ stateTopic="netspeaker/netspeaker-az/now" ]
+        Type dimmer : volume    "Lautstärke"    [ stateTopic="netspeaker/netspeaker-az/volume/general", commandTopic="netspeaker/netspeaker-az/volume", min=0, max=100 ]
+        Type string : say       "Ansage"        [ commandTopic="netspeaker/netspeaker-az/say" ]
+        Type string : file      "MP3-Datei"     [ commandTopic="netspeaker/netspeaker-az/file" ]
+        Type string : station   "Sender"        [ commandTopic="netspeaker/netspeaker-az/station" ]
+        Type string : stop      "Stopp"         [ commandTopic="netspeaker/netspeaker-az/stop" ]
+}

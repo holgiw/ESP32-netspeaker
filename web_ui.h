@@ -424,6 +424,7 @@ String panelMqtt() {
     h += "<span style='display:inline-flex;align-items:center;gap:6px'><label for='mq_user' style='white-space:nowrap'>Benutzer " + infoTip("Benutzername f&uuml;r den MQTT-Broker (optional); leer = ohne Anmeldung") + "</label><input id='mq_user' name='mq_user' autocomplete='off' placeholder='optional' value='" + htmlEsc(cfg.mqttUser) + "' style='width:min(100%,200px);margin:4px 0'></span>";
     h += "<span style='display:inline-flex;align-items:center;gap:6px'><label for='mq_pass' style='white-space:nowrap'>Passwort " + infoTip("Passwort f&uuml;r den MQTT-Broker (optional); es wird nicht angezeigt. Leer lassen, um das gespeicherte zu behalten; ohne Benutzer wird es gel&ouml;scht") + "</label><input id='mq_pass' name='mq_pass' type='password' autocomplete='new-password' placeholder='" + String(cfg.mqttPass.length() > 0 ? "gespeichert (leer lassen = behalten)" : "optional") + "' value='' style='width:min(100%,260px);margin:4px 0'></span></div>";
     h += "<div class='row' style='justify-content:flex-start'><span style='display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap'><label for='mq_base' style='white-space:nowrap'>Basis-Topic " + infoTip("Basis-Topic; darunter liegen say, play, url, file, station, stop, volume, restart, status") + "</label><input id='mq_base' name='mq_base' placeholder='" + htmlEsc(String(PROJECT_NAME) + "/" + cfg.host) + "' value='" + htmlEsc(cfg.mqttBase) + "' style='width:min(100%,420px);margin:4px 0'></span></div>";
+    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' name='mq_ha' value='1'" + String(cfg.haDisc ? " checked" : "") + " style='width:auto;margin:0;'>Home Assistant Discovery</label> " + infoTip("Meldet das Ger&auml;t bei Home Assistant an (MQTT Discovery): Status, Titel, Lautst&auml;rke, Ansage, Stopp und Senderauswahl erscheinen dort von selbst. Nur n&ouml;tig, wenn du Home Assistant benutzt") + "</div>";
     int grpVisible = 1;
     for (int i = 0; i < 5; i++) {
         if (!cfg.mqttGroup[i].isEmpty()) grpVisible = i + 2;
@@ -670,9 +671,10 @@ curl -d "enable=1" http://@HOST@/api/log
 curl -d "clear=1" http://@HOST@/api/log
 curl http://@HOST@/log)d");
     h += docCard("MQTT-Broker per API setzen",
-        "Setzt nur Broker und Port (optional auch <code>user</code> und <code>pass</code>), alles andere bleibt unver&auml;ndert. GET liefert Broker, Port, <code>user</code> und <code>connected</code>; das Passwort wird nie ausgegeben. Mit <code>group1</code> bis <code>group5</code> lassen sich die Gruppen-Topics setzen (leer = entfernt); GET liefert sie als <code>groups</code>.",
+        "Setzt nur Broker und Port (optional auch <code>user</code> und <code>pass</code>), alles andere bleibt unver&auml;ndert. GET liefert Broker, Port, <code>user</code> und <code>connected</code>; das Passwort wird nie ausgegeben. Mit <code>group1</code> bis <code>group5</code> lassen sich die Gruppen-Topics setzen (leer = entfernt); GET liefert sie als <code>groups</code>. <code>ha=1</code> schaltet die Home-Assistant-Discovery ein, <code>ha=0</code> aus.",
         R"d(curl -d "broker=192.168.0.70&port=1883" http://@HOST@/api/mqtt
 curl -d "group1=netspeaker/all&group2=netspeaker/haus" http://@HOST@/api/mqtt
+curl -d "ha=1" http://@HOST@/api/mqtt
 curl http://@HOST@/api/mqtt)d");
     h += docCard("Eing&auml;nge (Pins)",
         "<code>GET /api/pins</code> liefert die freien Pins: <code>p</code> (Nummer), <code>l</code> (Zustand, 1 = High, 0 = Low), <code>t</code> (Aktion), <code>x</code> (Text) und <code>v</code> (Lautst&auml;rke, -1 = allgemeine). <code>POST /api/pins</code> mit <code>pin</code>, <code>type</code> (<code>say</code>, <code>file</code>, <code>station</code> oder leer = keine Aktion), <code>text</code> (Ansage, Dateiname, <code>sd:</code>-Pfad, URL oder Sender) und optional <code>vol</code> (0-100) speichert die Aktion eines Pins. Sie l&ouml;st aus, sobald der Pin etwa 40 ms Kontakt nach GND hat.",
@@ -1211,6 +1213,10 @@ void handleSave() {
             cfg.mqttGroup[i] = i < gm ? groups[i] : String();
             prefs.putString(("mq_g" + String(i + 1)).c_str(), cfg.mqttGroup[i]);
         }
+        bool haNew = webserver.hasArg("mq_ha");
+        if (cfg.haDisc && !haNew) haRemovePending = true;
+        cfg.haDisc = haNew;
+        prefs.putBool("mq_ha", haNew);
         cfg.mqttUser = webserver.arg("mq_user");
         cfg.mqttUser.trim();
         if (webserver.arg("mq_pass").length() > 0) cfg.mqttPass = webserver.arg("mq_pass");
@@ -1283,6 +1289,7 @@ void handleExport() {
     t += "vol=" + String(cfg.vol) + "\nbclk=" + String(cfg.bclk) + "\nlrc=" + String(cfg.lrc) + "\ndin=" + String(cfg.din) + "\n";
     t += "mq_srv=" + cfg.mqttServer + "\nmq_port=" + String(cfg.mqttPort) + "\nmq_user=" + cfg.mqttUser + "\nmq_base=" + cfg.mqttBase + "\n";
     for (int i = 0; i < 5; i++) t += "mq_g" + String(i + 1) + "=" + cfg.mqttGroup[i] + "\n";
+    t += "mq_ha=" + String(cfg.haDisc ? 1 : 0) + "\n";
     t += "fade=" + String(cfg.fadeMs) + "\nswfade=" + String(cfg.switchFadeMs) + "\nautostart=" + String(cfg.autoStart ? 1 : 0) + "\nbtone=" + String(cfg.bootTone ? 1 : 0) + "\nresume=" + String(cfg.resumeLast ? 1 : 0) + "\nsdon=" + String(cfg.sdOn ? 1 : 0) + "\nsdcs=" + String(cfg.sdCs) + "\nsdsck=" + String(cfg.sdSck) + "\nsdmosi=" + String(cfg.sdMosi) + "\nsdmiso=" + String(cfg.sdMiso) + "\nvolmax=" + String(VOLUME_MAX) + "\nvramp=" + String(cfg.volRampMs) + "\nmix=" + String(cfg.mixAnn ? 1 : 0) + "\nloud=" + String(cfg.loudNorm ? 1 : 0) + "\nduck=" + String(cfg.duckPct) + "\ntmatch=" + cfg.titleMatch + "\ntvol=" + String(cfg.titleVol) + "\ntmax=" + String(cfg.titleMaxS) + "\n";
     t += "log=" + String(cfg.logEnabled ? 1 : 0) + "\nlogmin=" + String(cfg.logAutoMin) + "\n";
     for (int i = 0; i < RADIO_SLOTS; i++) t += "rn" + String(i + 1) + "=" + cfg.radioName[i] + "\nru" + String(i + 1) + "=" + cfg.radioUrl[i] + "\nrv" + String(i + 1) + "=" + (cfg.radioVol[i] >= 0 ? String(cfg.radioVol[i]) : String()) + "\n";
@@ -1360,6 +1367,7 @@ void handleImport() {
         } else if (k == "mq_srv") { cfg.mqttServer = v; prefs.putString("mq_srv", v);
         } else if (k == "mq_port") { int p = v.toInt(); cfg.mqttPort = (p >= 1 && p <= 65535) ? p : 1883; prefs.putInt("mq_port", cfg.mqttPort);
         } else if (k == "mq_base") { cfg.mqttBase = v; prefs.putString("mq_base", v);
+        } else if (k == "mq_ha") { bool on = v.toInt() != 0; if (cfg.haDisc && !on) haRemovePending = true; cfg.haDisc = on; prefs.putBool("mq_ha", on);
         } else if (k.length() == 5 && k.startsWith("mq_g") && k[4] >= '1' && k[4] <= '5') { cfg.mqttGroup[k[4] - '1'] = v; prefs.putString(k.c_str(), v);
         } else if (k == "sdon") { cfg.sdOn = v.toInt() != 0; prefs.putBool("sdon", cfg.sdOn);
         } else if (k == "sdcs" || k == "sdsck" || k == "sdmosi" || k == "sdmiso") {
@@ -2146,7 +2154,7 @@ void handleTestNtp() {
 String brokerJson() {
     String groups;
     for (int i = 0; i < 5; i++) groups += String(i > 0 ? "," : "") + "\"" + jsonEscape(cfg.mqttGroup[i]) + "\"";
-    return "{\"broker\":\"" + jsonEscape(cfg.mqttServer) + "\",\"port\":" + String(cfg.mqttPort) + ",\"user\":\"" + jsonEscape(cfg.mqttUser) + "\",\"groups\":[" + groups + "],\"connected\":" + (mqttClient.connected() ? "true" : "false") + "}";
+    return "{\"broker\":\"" + jsonEscape(cfg.mqttServer) + "\",\"port\":" + String(cfg.mqttPort) + ",\"user\":\"" + jsonEscape(cfg.mqttUser) + "\",\"groups\":[" + groups + "],\"ha\":" + (cfg.haDisc ? "true" : "false") + ",\"connected\":" + (mqttClient.connected() ? "true" : "false") + "}";
 }
 
 void handleApiMqtt() {
@@ -2185,6 +2193,12 @@ void handleApiMqtt() {
             g.trim();
             cfg.mqttGroup[i - 1] = g;
             prefs.putString(("mq_g" + String(i)).c_str(), g);
+        }
+        if (webserver.hasArg("ha")) {
+            bool on = flagOn(webserver.arg("ha"));
+            if (cfg.haDisc && !on) haRemovePending = true;
+            cfg.haDisc = on;
+            prefs.putBool("mq_ha", on);
         }
         mqttReconnectNow();
         logLine("[MQTT] Broker set via API: " + cfg.mqttServer + ":" + String(cfg.mqttPort));

@@ -1,0 +1,13 @@
+// openHAB Items zum Thing mqtt:topic:netspeaker (siehe netspeaker.things).
+// openHAB items for the thing mqtt:topic:netspeaker (see netspeaker.things).
+
+String NetSpeaker_Status  "Status [%s]"        { channel="mqtt:topic:netspeaker:status" }
+String NetSpeaker_Now     "Läuft gerade [%s]"  { channel="mqtt:topic:netspeaker:now" }
+Dimmer NetSpeaker_Volume  "Lautstärke [%d %%]" { channel="mqtt:topic:netspeaker:volume" }
+String NetSpeaker_Say     "Ansage"             { channel="mqtt:topic:netspeaker:say" }
+String NetSpeaker_File    "MP3-Datei"          { channel="mqtt:topic:netspeaker:file" }
+String NetSpeaker_Station "Sender"             { channel="mqtt:topic:netspeaker:station" }
+String NetSpeaker_Stop    "Stopp"              { channel="mqtt:topic:netspeaker:stop" }
+
+// Beispiel einer Regel: sendCommand(NetSpeaker_Say, "Es klingelt an der Tür")
+// Example of a rule: sendCommand(NetSpeaker_Say, "Someone is at the door")

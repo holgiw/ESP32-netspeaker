@@ -61,10 +61,10 @@ set "DIR="
 set "PROP="
 if /i "%CHIP%"=="s3" (
     set "DIR=esp32s3"
-    set "FQBN=esp32:esp32:esp32s3:FlashSize=4M,PartitionScheme=no_ota,PSRAM=enabled,CDCOnBoot=cdc,DebugLevel=none"
-    rem Groessenpruefung fuer die App-Partition (0x200000) per Property setzen
-    rem Set the size check for the app partition (0x200000) via property
-    set "PROP=--build-property upload.maximum_size=2097152"
+    set "FQBN=esp32:esp32:esp32s3:FlashSize=4M,PartitionScheme=huge_app,PSRAM=enabled,CDCOnBoot=cdc,DebugLevel=none"
+    rem Groessenpruefung fuer die App-Partition (0x300000) per Property setzen
+    rem Set the size check for the app partition (0x300000) via property
+    set "PROP=--build-property upload.maximum_size=3145728"
 )
 if not defined FQBN (
     echo Unbekannter Chip / unknown chip: %CHIP% ^(s3^)

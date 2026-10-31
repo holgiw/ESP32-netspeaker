@@ -53,6 +53,7 @@ struct Settings {
     String mqttPass;
     String mqttBase;
     String mqttGroup[5];
+    bool haDisc;
     int vrate;
     int vol;
     int bclk;
@@ -571,6 +572,7 @@ void loadSettings() {
     cfg.mqttBase = prefs.getString("mq_base", "");
     cfg.mqttGroup[0] = prefs.getString("mq_g1", String(PROJECT_NAME) + "/all");
     for (int i = 1; i < 5; i++) cfg.mqttGroup[i] = prefs.getString(("mq_g" + String(i + 1)).c_str(), "");
+    cfg.haDisc = prefs.getBool("mq_ha", false);
     cfg.logEnabled = prefs.getBool("log", false);
     cfg.logAutoMin = constrain(prefs.getInt("logmin", 60), 0, 1440);
     cfg.fadeMs = constrain(prefs.getInt("fade", FADE_DEFAULT_MS), 0, FADE_MAX_MS);
@@ -3090,12 +3092,78 @@ void rejectCommand(const String& why) {
     publishStatus(true);
 }
 
+// Home Assistant: MQTT-Discovery. Das Geraet legt seine Entitaeten (Status, Titel, Lautstaerke, Ansage, Stopp, Sender) selbst an.
+// Home Assistant: MQTT discovery. The device creates its entities (status, title, volume, announcement, stop, station) by itself.
+
+bool haRemovePending = false;
+
+struct HaEnt {
+    const char* comp;
+    const char* key;
+    const char* name;
+    const char* extra;
+};
+
+static const HaEnt HA_ENTS[] = {
+    {"sensor", "status", "Status", "\"stat_t\":\"~/status\",\"icon\":\"mdi:speaker\""},
+    {"sensor", "now", "L\xC3\xA4uft gerade", "\"stat_t\":\"~/now\",\"icon\":\"mdi:music-note\""},
+    {"number", "volume", "Lautst\xC3\xA4rke", "\"cmd_t\":\"~/volume\",\"stat_t\":\"~/volume/general\",\"min\":0,\"max\":100,\"step\":1,\"mode\":\"slider\",\"icon\":\"mdi:volume-high\""},
+    {"text", "say", "Ansage", "\"cmd_t\":\"~/say\",\"min\":0,\"max\":500,\"icon\":\"mdi:account-voice\""},
+    {"button", "stop", "Stopp", "\"cmd_t\":\"~/stop\",\"icon\":\"mdi:stop\""},
+};
+
+static String haTopic(const char* comp, const char* key) {
+    return String("homeassistant/") + comp + "/" + cfg.host + "_" + key + "/config";
+}
+
+static String haHead(const char* key, const char* name) {
+    return "{\"~\":\"" + mqttBaseTopic() + "\",\"name\":\"" + name + "\",\"uniq_id\":\"" + cfg.host + "_" + key + "\",\"avty_t\":\"~/availability\",\"dev\":{\"ids\":[\"netspeaker_" +
+           cfg.host + "\"],\"name\":\"" + jsonEscape(cfg.host) + "\",\"mf\":\"NetSpeaker\",\"mdl\":\"ESP32-S3\",\"cu\":\"http://" + WiFi.localIP().toString() + "/\"},";
+}
+
+// Senderauswahl: die Namen der gespeicherten Sender als Optionen; nach jeder Aenderung der Liste neu.
+// Station selection: the names of the stored stations as options; again after every change of the list.
+
+void haSelect() {
+    if (!mqttClient.connected()) return;
+    String topic = haTopic("select", "station");
+    String opts;
+    for (int i = 0; i < RADIO_SLOTS; i++) {
+        if (cfg.radioUrl[i].isEmpty() || cfg.radioName[i].isEmpty() || opts.indexOf("\"" + jsonEscape(cfg.radioName[i]) + "\"") >= 0) continue;
+        opts += String(opts.isEmpty() ? "" : ",") + "\"" + jsonEscape(cfg.radioName[i]) + "\"";
+    }
+    if (opts.isEmpty()) {
+        mqttClient.publish(topic.c_str(), (const uint8_t*)"", 0, true);
+        return;
+    }
+    String j = haHead("station", "Sender") + "\"cmd_t\":\"~/station\",\"optimistic\":true,\"icon\":\"mdi:radio\",\"options\":[" + opts + "]}";
+    mqttClient.publish(topic.c_str(), j.c_str(), true);
+}
+
+void haPublish() {
+    if (!mqttClient.connected()) return;
+    for (const HaEnt& e : HA_ENTS) {
+        String j = haHead(e.key, e.name) + e.extra + "}";
+        mqttClient.publish(haTopic(e.comp, e.key).c_str(), j.c_str(), true);
+    }
+    haSelect();
+    logLine("[MQTT] Home Assistant discovery published");
+}
+
+void haRemove() {
+    if (!mqttClient.connected()) return;
+    for (const HaEnt& e : HA_ENTS) mqttClient.publish(haTopic(e.comp, e.key).c_str(), (const uint8_t*)"", 0, true);
+    mqttClient.publish(haTopic("select", "station").c_str(), (const uint8_t*)"", 0, true);
+    logLine("[MQTT] Home Assistant discovery removed");
+}
+
 // Veroeffentlicht die Senderliste (retained) unter <Basis>/stations; auch nach jeder Aenderung der Liste.
 // Publishes the station list (retained) under <base>/stations; also after every change of the list.
 
 void publishStations() {
     if (!mqttClient.connected()) return;
     if (!mqttClient.publish((mqttBaseTopic() + "/stations").c_str(), stationsJson().c_str(), true)) logLine("[MQTT] station list not published (too large for the buffer?)");
+    if (cfg.haDisc) haSelect();
 }
 
 // Meldet die Lautstaerken per MQTT (retained): <Basis>/volume/state = gerade wirkende, <Basis>/volume/general = allgemeine.
@@ -3254,6 +3322,11 @@ void mqttConnect() {
         publishStatus(true);
         publishStations();
         publishVolumes(true);
+        if (cfg.haDisc) haPublish();
+        else if (haRemovePending) {
+            haRemove();
+            haRemovePending = false;
+        }
     } else {
         mqttFailed("connect failed, rc=" + String(mqttClient.state()));
     }
@@ -3331,6 +3404,38 @@ void setupTime() {
     ntpApply();
 }
 
+// Ein NTP-Abruf ohne den SNTP-Dienst des Stacks: fragt den Server per UDP und stellt die Uhr. Faengt Faelle ab, in denen der SNTP-Dienst
+// keine Zeit liefert, der Server aber erreichbar ist.
+// An NTP query without the SNTP service of the stack: asks the server via UDP and sets the clock. Catches cases in which the SNTP service
+// delivers no time although the server is reachable.
+
+static bool ntpQuery(const String& server) {
+    IPAddress ip;
+    if (!WiFi.hostByName(server.c_str(), ip)) return false;
+    WiFiUDP udp;
+    uint8_t pkt[48] = {0};
+    pkt[0] = 0x1B;
+    udp.begin(12300 + (millis() % 1000));
+    udp.beginPacket(ip, 123);
+    udp.write(pkt, 48);
+    udp.endPacket();
+    unsigned long start = millis();
+    while (millis() - start < 1500) {
+        if (udp.parsePacket() >= 48) {
+            udp.read(pkt, 48);
+            udp.stop();
+            uint32_t secs = ((uint32_t)pkt[40] << 24) | ((uint32_t)pkt[41] << 16) | ((uint32_t)pkt[42] << 8) | pkt[43];
+            if (secs < 2208988800UL) return false;
+            struct timeval tv = {(time_t)(secs - 2208988800UL), 0};
+            settimeofday(&tv, nullptr);
+            return true;
+        }
+        delay(10);
+    }
+    udp.stop();
+    return false;
+}
+
 void ntpWatch() {
     static unsigned long since = 0;
     if (timeIsValid() || WiFi.status() != WL_CONNECTED) {
@@ -3342,6 +3447,23 @@ void ntpWatch() {
         return;
     }
     int n = ntpCount();
+
+    // Kommt nach 25 s keine Zeit, wird alle 15 s ein Server direkt abgefragt.
+    // If no time arrives after 25 s, a server is queried directly every 15 s.
+
+    static unsigned long lastDirect = 0;
+    static int directIdx = 0;
+    if (millis() - since > 25000UL && millis() - lastDirect > 15000UL) {
+        lastDirect = millis();
+        int pick = directIdx++ % (n > 0 ? n : 1);
+        String srv = n > 0 ? String() : String("pool.ntp.org");
+        for (int i = 0, k = 0; i < 5 && n > 0; i++) {
+            if (cfg.ntp[i].isEmpty()) continue;
+            if (k++ == pick) srv = cfg.ntp[i];
+        }
+        if (ntpQuery(srv)) logLine("[TIME] clock set by a direct NTP query (" + srv + ")");
+        return;
+    }
     if (n <= 3 || millis() - since < 45000UL) return;
     since = millis();
     ntpOffset = (ntpOffset + 3) % n;

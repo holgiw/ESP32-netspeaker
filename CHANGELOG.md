@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-31 - Version 1.4.0
+
+**Deutsch**
+
+- **Achtung beim Update per USB:** Die App-Partition ist von 2 auf 3 MB gewachsen (Schema *Huge APP*), das Dateisystem von 1,9 auf 0,9 MB geschrumpft. Beim ersten Flashen werden **MP3-Dateien im Flash und die Sprachdatei `en.json` gelöscht**; danach neu hochladen (MQTT-, WLAN- und andere Einstellungen bleiben). Die SD-Karte ist nicht betroffen.
+- AAC ist wieder da, auch HE-AAC/AAC+ (SBR und PS): Webradios in AAC spielen jetzt, zum Beispiel die lokalen Nostalgie-Sender und bigFM.
+- Home Assistant: Im Tab *MQTT* schaltet *Home Assistant Discovery* (REST `ha=1`) die automatische Anmeldung per MQTT-Discovery ein. Status, Titel, Lautstärke, Ansage, Stopp und Senderauswahl erscheinen als Entitäten des Geräts.
+- Beispiele für Node-RED (`docs/integration/node-red-flow.json`) und openHAB (`docs/integration/openhab/`).
+- Uhrzeit: Liefert der SNTP-Dienst des Stacks 25 s nach dem Verbinden keine Zeit (in einem Netz kam sie gar nicht), fragt das Gerät alle 15 s einen der eingetragenen NTP-Server direkt per UDP ab und stellt die Uhr selbst.
+
+**English**
+
+- **Attention when updating via USB:** the app partition grew from 2 to 3 MB (scheme *Huge APP*), the file system shrank from 1.9 to 0.9 MB. On the first flash the **MP3 files in the flash and the language file `en.json` are deleted**; upload them again afterwards (MQTT, WiFi and other settings stay). The SD card is not affected.
+- AAC is back, including HE-AAC/AAC+ (SBR and PS): web radios in AAC now play, for example the local Nostalgie stations and bigFM.
+- Home Assistant: in the *MQTT* tab *Home Assistant Discovery* (REST `ha=1`) switches on the automatic registration via MQTT discovery. Status, title, volume, announcement, stop and station selection appear as entities of the device.
+- Examples for Node-RED (`docs/integration/node-red-flow.json`) and openHAB (`docs/integration/openhab/`).
+- Clock: if the SNTP service of the stack delivers no time 25 s after connecting (in one network it never came), the device queries one of the entered NTP servers directly via UDP every 15 s and sets the clock itself.
+
 ## 2026-10-30 - Version 1.3.9
 
 **Deutsch**
