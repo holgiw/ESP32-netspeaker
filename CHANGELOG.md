@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-10-31 - Version 1.4.2
+
+**Deutsch**
+
+- Beim Laden einer Senderliste (Datei oder GitHub) bleibt der Sender RSA immer auf Platz 1; steht er in der Liste woanders, rückt er nach vorn, fehlt er, wird er vorn eingefügt. Die Listen in `stations/` beginnen mit RSA.
+- Tab *Webradio*: Die Listenknöpfe stehen jetzt in einem eigenen Abschnitt *Senderlisten* mit den Zeilen *Eigene Liste* (speichern, laden) und *Fertige Liste* (Auswahl und *Von GitHub laden*).
+- AAC-Sender stockten etwas: Die Firmware wird jetzt auf Geschwindigkeit statt auf Größe übersetzt (`-O2`), und die Hauptschleife ruft die Audio-Bibliothek zweimal je Durchlauf auf, damit der Ausgabepuffer nach einem Webzugriff (40 bis 60 ms) gleich wieder gefüllt wird. `/api/status` meldet dazu `audioLoopMs`, `loopMs`, `bufKb` und `bufMinKb` (längste Zeit von `audio->loop()` und der Schleife in den letzten 5 s, Füllstand des Eingangspuffers).
+
+**English**
+
+- When a station list (file or GitHub) is loaded, the station RSA always stays at slot 1; if it is elsewhere in the list it moves to the front, if it is missing it is inserted at the front. The lists in `stations/` start with RSA.
+- *Webradio* tab: the list buttons are now in their own section *Senderlisten* (station lists) with the rows *Eigene Liste* (own list: save, load) and *Fertige Liste* (ready-made list: selection and *Von GitHub laden*).
+- AAC stations stuttered a little: the firmware is now compiled for speed instead of size (`-O2`), and the main loop calls the audio library twice per pass so that the output buffer is refilled right after a web request (40 to 60 ms). `/api/status` now reports `audioLoopMs`, `loopMs`, `bufKb` and `bufMinKb` (longest time of `audio->loop()` and of the loop in the last 5 s, fill level of the input buffer).
+
 ## 2026-10-31 - Version 1.4.1
 
 **Deutsch**

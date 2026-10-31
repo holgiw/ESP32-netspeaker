@@ -64,7 +64,7 @@ if /i "%CHIP%"=="s3" (
     set "FQBN=esp32:esp32:esp32s3:FlashSize=4M,PartitionScheme=huge_app,PSRAM=enabled,CDCOnBoot=cdc,DebugLevel=none"
     rem Groessenpruefung fuer die App-Partition (0x300000) per Property setzen
     rem Set the size check for the app partition (0x300000) via property
-    set "PROP=--build-property upload.maximum_size=3145728"
+    set "PROP=--build-property upload.maximum_size=3145728 --build-property compiler.optimization_flags=-O2 --build-property compiler.optimization_flags.release=-O2"
 )
 if not defined FQBN (
     echo Unbekannter Chip / unknown chip: %CHIP% ^(s3^)

@@ -303,9 +303,10 @@ String panelRadio() {
     }
     h += "<small>Das Feld rechts neben der URL ist die Lautst&auml;rke des Senders (0-100, leer = allgemeine Lautst&auml;rke). Speichern, bevor du &#9654; dr&uuml;ckst. &#9650;&#9660; verschieben den Sender und speichern sofort. Der URL-Knopf kopiert den REST-Aufruf <code>/api/station?n=Platz</code>; auch der Name geht (<code>?name=...</code>).</small>";
     h += "<button type='submit'>Speichern</button><div id='stResult'></div></form>";
-    h += "<div class='row'><button type='button' onclick=\"location.href='/stations.txt'\" style='width:auto;padding:8px 14px'>Liste speichern</button> " + infoTip("Speichert die Senderliste (Name, URL, Lautst&auml;rke) als Textdatei auf deinem Rechner") + " ";
+    h += "<div style='margin-top:18px;padding-top:12px;border-top:1px solid var(--panel-border)'><h3 style='margin:0 0 6px'>Senderlisten</h3><small>Beim Laden einer Liste bleibt RSA immer Platz 1.</small>";
+    h += "<div class='row' style='justify-content:flex-start;gap:8px'><span style='min-width:110px;text-align:left'>Eigene Liste</span><button type='button' onclick=\"location.href='/stations.txt'\" style='width:auto;padding:8px 14px'>Liste speichern</button> " + infoTip("Speichert die Senderliste (Name, URL, Lautst&auml;rke) als Textdatei auf deinem Rechner") + " ";
     h += "<button type='button' onclick=\"document.getElementById('stFile').click()\" style='width:auto;padding:8px 14px'>Liste laden</button><input type='file' id='stFile' accept='.txt' style='display:none' onchange='loadStations(this)'> " + infoTip("Ersetzt die gespeicherte Senderliste durch eine zuvor gespeicherte Datei") + "</div>";
-    h += "<div class='row'><input type='text' id='stList' value='aac-auswahl' maxlength='32' style='width:170px'><button type='button' onclick='listFetch()' style='width:auto;padding:8px 14px'>Liste von GitHub laden</button> " + infoTip("L&auml;dt eine fertige Senderliste aus dem Ordner stations des Projekts auf GitHub (zum Beispiel aac-auswahl, mp3-auswahl, rock, entspannung) und ersetzt die gespeicherte Liste; das Ger&auml;t braucht dazu Internet") + "</div><div id='stListResult'></div></div>";
+    h += "<div class='row' style='justify-content:flex-start;gap:8px'><span style='min-width:110px;text-align:left'>Fertige Liste</span><select id='stList' style='width:auto'><option>aac-auswahl</option><option>mp3-auswahl</option><option>rock</option><option>entspannung</option></select><button type='button' onclick='listFetch()' style='width:auto;padding:8px 14px'>Von GitHub laden</button> " + infoTip("L&auml;dt eine fertige Senderliste aus dem Ordner stations des Projekts auf GitHub und ersetzt die gespeicherte Liste; das Ger&auml;t braucht dazu Internet") + "</div><div id='stListResult'></div></div></div>";
     return h;
 }
 
@@ -1548,11 +1549,39 @@ String stationsApply(String body) {
     if (count == 0) {
         return String("FAIL|Die Datei enth\xC3\xA4lt keinen g\xC3\xBCltigen Sender (URL mit http:// oder https://).");
     }
+    // RSA steht immer auf Platz 1: ist der Sender in der Liste, rueckt er nach vorn, fehlt er, wird er vorn eingefuegt (Name und Lautstaerke wie bisher im Geraet).
+    // RSA is always at slot 1: if the station is in the list it moves to the front, if it is missing it is inserted at the front (name and volume as so far in the device).
+
+    String on[RADIO_SLOTS], ou[RADIO_SLOTS];
+    int ov[RADIO_SLOTS];
+    int k = 1;
+    ou[0] = RSA_URL;
+    on[0] = "RSA";
+    ov[0] = -1;
     for (int i = 0; i < RADIO_SLOTS; i++) {
-        bool used = !urls[i].isEmpty();
-        cfg.radioName[i] = used ? names[i] : String();
-        cfg.radioUrl[i] = used ? urls[i] : String();
-        cfg.radioVol[i] = used ? vols[i] : -1;
+        if (cfg.radioUrl[i] == RSA_URL) {
+            on[0] = cfg.radioName[i];
+            ov[0] = cfg.radioVol[i];
+        }
+    }
+    for (int i = 0; i < RADIO_SLOTS; i++) {
+        if (urls[i].isEmpty()) continue;
+        if (urls[i] == RSA_URL) {
+            on[0] = names[i];
+            ov[0] = vols[i];
+        } else if (k < RADIO_SLOTS) {
+            on[k] = names[i];
+            ou[k] = urls[i];
+            ov[k] = vols[i];
+            k++;
+        }
+    }
+    count = k;
+    for (int i = 0; i < RADIO_SLOTS; i++) {
+        bool used = i < k;
+        cfg.radioName[i] = used ? on[i] : String();
+        cfg.radioUrl[i] = used ? ou[i] : String();
+        cfg.radioVol[i] = used ? ov[i] : -1;
     }
     compactStations();
     logLine("[WEB] station list loaded: " + String(count) + " stations");
@@ -1612,6 +1641,7 @@ void handleApiStatus() {
         uint32_t fpos = audio->getAudioFilePosition();
         j += ",\"pm\":" + String((uint32_t)((uint64_t)(fpos > fsz ? fsz : fpos) * 1000ULL / fsz)) + ",\"rate\":" + String((double)audio->getBitRate() / 8.0 * 1000.0 / (double)fsz, 3);
     }
+    j += ",\"audioLoopMs\":" + String(diagAudioMs) + ",\"loopMs\":" + String(diagLoopMs) + ",\"bufKb\":" + String(diagBufKb) + ",\"bufMinKb\":" + String(diagBufMinKb);
     j += ",\"uptime\":" + String(millis() / 1000) + ",\"resetReason\":\"" + resetReasonName() + "\",\"wifiReconnects\":" + String(wifiReconnects) + ",\"mqttReconnects\":" + String(mqttReconnects) + ",\"minFreeHeap\":" + String(ESP.getMinFreeHeap()) + ",\"safeMode\":" + (safeMode ? "true" : "false");
     j += ",\"heap\":" + String(ESP.getFreeHeap()) + ",\"fsUsed\":" + String(fsReady ? LittleFS.usedBytes() : 0);
     j += ",\"fsTotal\":" + String(fsReady ? LittleFS.totalBytes() : 0) + "}";
