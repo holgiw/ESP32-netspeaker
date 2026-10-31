@@ -87,6 +87,14 @@ struct Settings {
 };
 
 Settings cfg;
+
+// Laengste Zeit (Millisekunden) von audio->loop() und von einem ganzen Durchlauf der Hauptschleife in den letzten 5 s; steht in /api/status.
+// Longest time (milliseconds) of audio->loop() and of a whole pass of the main loop in the last 5 s; shown in /api/status.
+
+volatile uint32_t diagAudioMs = 0;
+volatile uint32_t diagLoopMs = 0;
+volatile uint32_t diagBufMinKb = 0;
+volatile uint32_t diagBufKb = 0;
 Preferences prefs;
 
 // ---------------------------------------------------------------------------
@@ -3844,7 +3852,23 @@ void setup() {
 
 void loop() {
     esp_task_wdt_reset();
-    if (audio) audio->loop();
+    static uint32_t winStart = 0, aMax = 0, lMax = 0, bMin = 0xFFFFFFFF;
+    uint32_t t0 = micros();
+
+    // Zweimal pro Durchlauf: Bearbeitet ein Webzugriff die Schleife 40 bis 60 ms, fuellt der zweite Aufruf den Ausgabepuffer danach wieder auf.
+    // Twice per pass: if a web request holds the loop for 40 to 60 ms, the second call refills the output buffer afterwards.
+
+    if (audio) {
+        audio->loop();
+        audio->loop();
+    }
+    uint32_t t1 = micros();
+    if (t1 - t0 > aMax) aMax = t1 - t0;
+    if (audio) {
+        uint32_t bf = audio->inBufferFilled();
+        diagBufKb = bf / 1024;
+        if (bf < bMin) bMin = bf;
+    }
     audioEventPump();
     titleWatch();
     fadeInStep();
@@ -3867,5 +3891,16 @@ void loop() {
     logWatch();
     ntpWatch();
     resumeStateWatch();
+    uint32_t t2 = micros();
+    if (t2 - t0 > lMax) lMax = t2 - t0;
+    if (millis() - winStart > 5000) {
+        winStart = millis();
+        diagAudioMs = aMax / 1000;
+        diagLoopMs = lMax / 1000;
+        diagBufMinKb = (bMin == 0xFFFFFFFF ? 0 : bMin) / 1024;
+        aMax = 0;
+        lMax = 0;
+        bMin = 0xFFFFFFFF;
+    }
     delay(2);
 }

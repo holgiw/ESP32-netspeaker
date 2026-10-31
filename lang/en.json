@@ -342,7 +342,12 @@
 "Liste von GitHub laden":"Load list from GitHub",
 "Lädt eine fertige Senderliste aus dem Ordner stations des Projekts auf GitHub (zum Beispiel aac-auswahl, mp3-auswahl, rock, entspannung) und ersetzt die gespeicherte Liste; das Gerät braucht dazu Internet.":"Loads a ready-made station list from the folder stations of the project on GitHub (for example aac-auswahl, mp3-auswahl, rock, entspannung) and replaces the stored list; the device needs internet for this.",
 "Die gespeicherte Senderliste wird durch die Liste von GitHub ersetzt. Fortfahren?":"The stored station list is replaced by the list from GitHub. Continue?",
-"Name der Liste: Kleinbuchstaben, Ziffern und Bindestrich, zum Beispiel aac-auswahl":"Name of the list: lowercase letters, digits and hyphen, for example aac-auswahl"
+"Name der Liste: Kleinbuchstaben, Ziffern und Bindestrich, zum Beispiel aac-auswahl":"Name of the list: lowercase letters, digits and hyphen, for example aac-auswahl",
+"Senderlisten":"Station lists",
+"Beim Laden einer Liste bleibt RSA immer Platz 1.":"When a list is loaded, RSA always stays at slot 1.",
+"Eigene Liste":"Own list",
+"Fertige Liste":"Ready-made list",
+"Lädt eine fertige Senderliste aus dem Ordner stations des Projekts auf GitHub und ersetzt die gespeicherte Liste; das Gerät braucht dazu Internet.":"Loads a ready-made station list from the folder stations of the project on GitHub and replaces the stored list; the device needs internet for this."
 },
 "r":[
 ["^Standard \\((.*)\\)$", "Default ($1)"],

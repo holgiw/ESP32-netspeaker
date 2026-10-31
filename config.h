@@ -150,4 +150,9 @@
 
 #define RADIO_SLOTS 30
 #define RADIO_NAME_MAX 24
+
+// Dieser Sender steht nach dem Laden einer Senderliste immer auf Platz 1.
+// This station is always at slot 1 after a station list is loaded.
+
+#define RSA_URL "https://rsa.streamabc.net/regc-rsalive-mp3-192-5989815"
 #define RADIO_URL_MAX 200
