@@ -1,0 +1,76 @@
+# netspeaker stations
+rn1=RSA
+ru1=https://rsa.streamabc.net/regc-rsalive-mp3-192-5989815
+rv1=
+rn2=Heart 80s
+ru2=https://media-ssl.musicradio.com/Heart80sMP3
+rv2=
+rn3=CAPITAL
+ru3=https://media-ssl.musicradio.com/CapitalUK
+rv3=
+rn4=Classic FM UK
+ru4=http://ice-the.musicradio.com/ClassicFMMP3
+rv4=
+rn5=Heart London 106.2
+ru5=http://ice-sov.musicradio.com/HeartLondonMP3
+rv5=
+rn6=Gold
+ru6=https://media-ssl.musicradio.com/GoldMP3
+rv6=
+rn7=Heart 90s
+ru7=https://media-ssl.musicradio.com/Heart90sMP3
+rv7=
+rn8=Capital FM London
+ru8=http://media-ice.musicradio.com/CapitalMP3
+rv8=
+rn9=Smooth Radio
+ru9=http://media-the.musicradio.com/SmoothEastMids
+rv9=
+rn10=Radio Caroline
+ru10=http://78.129.202.200:8040/;
+rv10=
+rn11=Smooth Chill
+ru11=https://media-ssl.musicradio.com/ChillMP3
+rv11=
+rn12=Chillout Ibiza FM
+ru12=https://edge3.peta.live365.net/b05055_128mp3
+rv12=
+rn13=Classic FM Calm
+ru13=https://media-ice.musicradio.com/ClassicFMCalmMP3
+rv13=
+rn14=KISSTORY: Non-Stop Old
+ru14=https://live-bauerkiss.sharp-stream.com/kisstory.aac?direct=true&aw_0_1st.playerid=BMUK_Airable&aw_0_1st.skey=6778249992
+rv14=
+rn15=Classic FM HD
+ru15=https://ice-sov.musicradio.com/ClassicFMHD?hdauth=:2000000000:a290d4b39a16153061d4c743008b9fe8d424a7e5ec6469d40acf51fdcd336e80
+rv15=
+rn16=Heart Dance
+ru16=https://media-ssl.musicradio.com/HeartDanceMP3
+rv16=
+rn17=PLANET ROCK: Where Rock
+ru17=https://stream-mz.hellorayo.co.uk/planetrock.aac?direct=true&aw_0_1st.playerid=BMUK_Airable&aw_0_1st.skey=6778249992
+rv17=
+rn18=Magic Radio UK
+ru18=https://stream-mz.hellorayo.co.uk/magicnational.mp3?direct=true&aw_0_1st.playerid=BMUK_TuneIn&aw_0_1st.skey=7374499933&stationCode=mag
+rv18=
+rn19=KISS
+ru19=https://live-bauerkiss.sharp-stream.com/kissnational.aac?direct=true&aw_0_1st.skey=1602676850&rp_source=1&=&&___cb=60456375243858
+rv19=
+rn20=Classic FM
+ru20=http://media-ice.musicradio.com/ClassicFMMP3
+rv20=
+rn21=CAPITAL DANCE: The UK's
+ru21=https://media-ssl.musicradio.com/CapitalDance
+rv21=
+rn22=NTS Radio 1
+ru22=http://stream-relay-geo.ntslive.net/stream
+rv22=
+rn23=Virgin Radio UK
+ru23=https://radio.virginradio.co.uk/stream
+rv23=
+rn24=Classic FM Movies
+ru24=https://media-ice.musicradio.com/ClassicFMMoviesMP3
+rv24=
+rn25=Radio X
+ru25=http://media-the.musicradio.com/RadioXUK
+rv25=

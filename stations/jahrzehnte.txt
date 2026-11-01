@@ -1,0 +1,76 @@
+# netspeaker stations
+rn1=RSA
+ru1=https://rsa.streamabc.net/regc-rsalive-mp3-192-5989815
+rv1=
+rn2=80s80s Radio
+ru2=http://regiocast.streamabc.net/regc-80s80smweb2517500-mp3-192-1672667?sABC=6nr0o818%230%236q8s7o7o3p7411o9n0871834qs5r90so%23&aw_0_1st.playerid=&amsparams=playerid:;skey:1793112088
+rv2=
+rn3=OLDIE ANTENNE
+ru3=https://s1-webradio.oldie-antenne.de/oldie-antenne?aw_0_1st.playerid=OldieAntenneWebPlayer
+rv3=
+rn4=90s90s Hits
+ru4=http://streams.90s90s.de/pop/mp3-192/streams.90s90s.de/
+rv4=
+rn5=Classic Rock
+ru5=https://0n-classicrock.radionetz.de/0n-classicrock.mp3
+rv5=
+rn6=80s80s
+ru6=http://streams.80s80s.de/web/mp3-192/streams.80s80s.de/
+rv6=
+rn7=80s80s Italo Disco
+ru7=http://regiocast.streamabc.net/regc-80s80sitalohits4327678-mp3-192-4934150?sABC=654902n3%230%232qqpnss01895rqr0s8oq129o03s183o0%23fgernzf.80f80f.qr&aw_0_1st.playerid=streams.80s80s.de&amsparams=playerid:streams.80s80s.de;skey:1699283619
+rv7=
+rn8=70s
+ru8=https://0n-70s.radionetz.de/0n-70s.mp3
+rv8=
+rn9=Sunshine Live - Die 90er
+ru9=http://stream.sunshine-live.de/90er/mp3-192/stream.sunshine-live.de
+rv9=
+rn10=90s90s Techno HQ
+ru10=http://streams.90s90s.de/techno/mp3-192/radiode/
+rv10=
+rn11=80s
+ru11=https://0n-80s.radionetz.de/0n-80s.mp3
+rv11=
+rn12=60s
+ru12=https://0n-60s.radionetz.de/0n-60s.mp3
+rv12=
+rn13=90s90s Grunge
+ru13=http://streams.90s90s.de/grunge/mp3-192/
+rv13=
+rn14=90s90s Dance HQ
+ru14=http://streams.90s90s.de/eurodance/mp3-192/radiode/
+rv14=
+rn15=80s80s Maxis
+ru15=http://regiocast.streamabc.net/regc-80s80smaxis2114493-mp3-192-5359027?sABC=65491rrn%230%232qqpnss01895rqr0s8oq129o03s183o0%23&aw_0_1st.playerid=&amsparams=playerid:;skey:1699290858
+rv15=
+rn16=90s
+ru16=https://0n-90s.radionetz.de/0n-90s.mp3
+rv16=
+rn17=SCHLAGER OLDIES
+ru17=https://schlager-oldies-high.rautemusik.fm/?ref=radiobrowser
+rv17=
+rn18=90s90s Eurodance
+ru18=https://streams.90s90s.de/eurodance/mp3-192/streams.90s90s.de/
+rv18=
+rn19=80s80s Rock
+ru19=https://regiocast.streamabc.net/regc-80s80srock2191507-mp3-192-4255750?sABC=648p713n%231%23r0s395556op64ro793171r5427p80197%23ubzrcntr&context=fHA6LTE=&aw_0_1st.skey=1686925626&cb=914075802&listenerid=e0f395556bc64eb793171e5427c80197&aw_0_1st.playerid=homepage&amsparams=playerid:homepage;skey:1686925626
+rv19=
+rn20=Antenne Bayern - 90er
+ru20=http://mp3channels.webradio.antenne.de/90er-hits
+rv20=
+rn21=Laut.FM 1000 Oldies
+ru21=http://1000oldies.stream.laut.fm/1000oldies?t302=2018-01-16_15-40-29&uuid=37780fea-d865-4439-9a4a-66f3ec1715a0
+rv21=
+rn22=80s80s In The Mix
+ru22=http://regiocast.streamabc.net/regc-80s80smix8012507-mp3-192-3015055?sABC=6nr12383%230%236q8s7o7o3p7411o9n0871834qs5r90so%23fgernzf.80f80f.qr&aw_0_1st.playerid=streams.80s80s.de&amsparams=playerid:streams.80s80s.de;skey:1793139587
+rv22=
+rn23=80s80s Michael Jackson
+ru23=http://streams.80s80s.de/mj/mp3-192/streams.80s80s.de/
+rv23=
+rn24=70's 80's 90's Riw
+ru24=https://stream.laut.fm/70s-80s-90s-riw-vintage-channel
+rv24=
+rn25=Oldies
+ru25=https://1a-oldies.radionetz.de/1a-oldies.mp3
+rv25=

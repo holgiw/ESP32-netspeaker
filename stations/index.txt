@@ -1,0 +1,18 @@
+aac-auswahl|Sender als AAC/HE-AAC|Stations as AAC/HE-AAC
+mp3-auswahl|Beliebte deutsche Sender als MP3|Popular German stations as MP3
+rock|Rock, Metal, Punk und Klassiker|Rock, metal, punk and classics
+entspannung|Ruhe, Klassik, Jazz und Chillout|Calm, classical, jazz and chillout
+schlager|Deutscher Schlager und Volksmusik|German Schlager and folk music
+country|Country, Bluegrass und Western|Country, bluegrass and western
+folk|Folk, Irish, Celtic und Akustik|Folk, Irish, Celtic and acoustic
+jazz|Jazz, Smooth Jazz, Blues und Lounge|Jazz, smooth jazz, blues and lounge
+klassik|Klassik, Oper und Barock|Classical, opera and baroque
+pop-charts|Pop, Charts und Hitradios aus Deutschland|Pop, charts and hit radio from Germany
+jahrzehnte|Oldies, 60er bis 90er|Oldies, 60s to 90s
+dance|Dance, Electro, House und Techno|Dance, electro, house and techno
+hiphop|Hip-Hop, Rap und R&B|Hip hop, rap and R&B
+irland|Beliebte Sender aus Irland|Popular stations from Ireland
+usa|Beliebte Sender aus den USA|Popular stations from the USA
+australien|Beliebte Sender aus Australien|Popular stations from Australia
+grossbritannien|Beliebte Sender aus Großbritannien|Popular stations from the UK
+frankreich|Beliebte Sender aus Frankreich|Popular stations from France

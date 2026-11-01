@@ -1,0 +1,76 @@
+# netspeaker stations
+rn1=RSA
+ru1=https://rsa.streamabc.net/regc-rsalive-mp3-192-5989815
+rv1=
+rn2=80s80s Radio
+ru2=http://regiocast.streamabc.net/regc-80s80smweb2517500-mp3-192-1672667?sABC=6nr0o818%230%236q8s7o7o3p7411o9n0871834qs5r90so%23&aw_0_1st.playerid=&amsparams=playerid:;skey:1793112088
+rv2=
+rn3=SWR3
+ru3=https://liveradio.swr.de/sw282p3/swr3/play.mp3
+rv3=
+rn4=OLDIE ANTENNE
+ru4=https://s1-webradio.oldie-antenne.de/oldie-antenne?aw_0_1st.playerid=OldieAntenneWebPlayer
+rv4=
+rn5=1LIVE
+ru5=http://wdr-1live-live.icecast.wdr.de/wdr/1live/live/mp3/128/stream.mp3
+rv5=
+rn6=Bayern 3
+ru6=https://dispatcher.rndfnk.com/br/br3/live/mp3/mid
+rv6=
+rn7=90s90s Hits
+ru7=http://streams.90s90s.de/pop/mp3-192/streams.90s90s.de/
+rv7=
+rn8=Hit Radio FFH
+ru8=http://mp3.ffh.de/radioffh/hqlivestream.mp3
+rv8=
+rn9=NDR 2
+ru9=https://icecast.ndr.de/ndr/ndr2/niedersachsen/mp3/128/stream.mp3
+rv9=
+rn10=Antenne Bayern
+ru10=http://mp3channels.webradio.antenne.de/antenne
+rv10=
+rn11=NIUS
+ru11=http://radio.nius.de/live?ref=radiobrowser
+rv11=
+rn12=bigFM Deutschland
+ru12=https://stream.bigfm.de/deutschland/mp3-128/radio-browser
+rv12=
+rn13=N-JOY
+ru13=https://icecast.ndr.de/ndr/njoy/live/mp3/128/stream.mp3
+rv13=
+rn14=Technolovers EDM
+ru14=https://stream.technolovers.fm/edm?ref=radiobrowser
+rv14=
+rn15=70s
+ru15=https://0n-70s.radionetz.de/0n-70s.mp3
+rv15=
+rn16=NDR 2 Hamburg
+ru16=https://icecast.ndr.de/ndr/ndr2/hamburg/mp3/128/stream.mp3?1728423809880&aggregator=web
+rv16=
+rn17=80s
+ru17=https://0n-80s.radionetz.de/0n-80s.mp3
+rv17=
+rn18=HR1
+ru18=http://dispatcher.rndfnk.com/hr/hr1/live/mp3/128/stream.mp3
+rv18=
+rn19=Technolovers ELECTRO
+ru19=https://stream.technolovers.fm/electro-house?ref=radiobrowser
+rv19=
+rn20=WDR 1Live Diggi
+ru20=http://wdr-1live-diggi.icecast.wdr.de/wdr/1live/diggi/mp3/128/stream.mp3
+rv20=
+rn21=98.8 Kiss FM
+ru21=http://stream.kissfm.de/kissfm/mp3-128/internetradio/
+rv21=
+rn22=NDR 1 Welle Nord
+ru22=http://icecast.ndr.de/ndr/ndr1wellenord/kiel/mp3/128/stream.mp3
+rv22=
+rn23=60s
+ru23=https://0n-60s.radionetz.de/0n-60s.mp3
+rv23=
+rn24=Ballermann Radio
+ru24=http://stream.bmr-radio.de/
+rv24=
+rn25=WDR COSMO
+ru25=http://wdr-cosmo-live.icecast.wdr.de/wdr/cosmo/live/mp3/128/stream.mp3
+rv25=

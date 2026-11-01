@@ -850,6 +850,11 @@ function postApi(path,params,resId){
   return fetch(path,{method:'POST',body:new URLSearchParams(params)}).then(function(r){return r.json();}).then(function(j){showRes(resId,j);return j;})
     .catch(function(){showRes(resId,{ok:false,error:'Keine Antwort vom Ger&auml;t'});});
 }
+function listIndex(){var c='';try{c=localStorage.getItem('uilang')||'';}catch(e){}var en=c?c.indexOf('en')===0:!/^de/i.test(navigator.language||'de');
+  fetch('https://raw.githubusercontent.com/holgiw/ESP32-netspeaker/main/stations/index.txt',{cache:'no-store'}).then(function(r){return r.ok?r.text():'';}).then(function(t){
+    var s=document.getElementById('stList');if(!s||!t)return;var ls=t.split(/\r?\n/),n=0,i,p,o,keep=s.value;s.textContent='';
+    for(i=0;i<ls.length;i++){p=ls[i].split('|');if(!/^[a-z0-9-]+$/.test(p[0]||''))continue;o=document.createElement('option');o.value=p[0];o.textContent=p[0]+' – '+((en?p[2]:p[1])||'');s.appendChild(o);n++;}
+    if(!n){s.innerHTML='<option>aac-auswahl</option><option>mp3-auswahl</option><option>rock</option><option>entspannung</option>';}else{s.value=keep;}}).catch(function(){});}
 function listFetch(){var n=(document.getElementById('stList').value||'').trim();if(!n)return;if(!confirm('Die gespeicherte Senderliste wird durch die Liste von GitHub ersetzt. Fortfahren?'))return;showRes('stListResult',{ok:true,msg:'Lade von GitHub &hellip;'});postApi('/api/stationlist',{list:n},'stListResult').then(function(j){if(j&&j.ok)setTimeout(function(){location.href='/?tab=radio';},1200);});}
 function sayNow(){postApi('/api/say',{text:document.getElementById('sayText').value,lang:document.getElementById('sayLang').value,voice:document.getElementById('sayVoice').value},'sayResult');}
 function clearLog(){if(!confirm('Log l\u00f6schen?'))return;postApi('/api/log',{clear:'1'},'logResult').then(function(){var p=document.getElementById('logContent');if(p)p.textContent='';});}
@@ -995,7 +1000,7 @@ function testNtp(n){var box=document.getElementById('ntpTestResult'+n);var v=doc
 fillVoiceSel('sayVoice',document.getElementById('sayLang').value,true);fillVoiceSel('cfgVoice',(document.getElementById('cfgLang')||{}).value,true);
 document.querySelectorAll('.codehost').forEach(function(p){p.textContent=p.textContent.replace(/@HOST@/g,location.host);});
 (function(){var m=location.search.match(/[?&]tab=([a-zA-Z0-9]+)/);if(m){var el=document.getElementById('tab-'+m[1]);if(el)el.checked=true;}
-  loadFiles();sdLoad('/');pollPlay();checkPins();setInterval(pollPlay,3000);if(location.search.indexOf('tab=wlan')>=0)scanWifi();})();
+  listIndex();loadFiles();sdLoad('/');pollPlay();checkPins();setInterval(pollPlay,3000);if(location.search.indexOf('tab=wlan')>=0)scanWifi();})();
 (function(){
   var cb=document.getElementById('logAutoRefresh');var pre=document.getElementById('logContent');
   var errEl=document.getElementById('logErrorHint');var btn=document.getElementById('logRefreshNow');var timer=null;

@@ -1,0 +1,76 @@
+# netspeaker stations
+rn1=RSA
+ru1=https://rsa.streamabc.net/regc-rsalive-mp3-192-5989815
+rv1=
+rn2=90s90s HipHop & Rap
+ru2=http://streams.90s90s.de/hiphop/mp3-192/streams.90s90s.de/
+rv2=
+rn3=DEUTSCHRAP
+ru3=https://deutschrap-high.rautemusik.fm/?ref=radiobrowser
+rv3=
+rn4=bigFM Deutsch Rap
+ru4=http://streams.bigfm.de/bigfm-deutschrap-128-aac
+rv4=
+rn5=Jam FM - Black Label
+ru5=http://stream.jam.fm/jamfm-bl/mp3-128/radio-browser.info/
+rv5=
+rn6=90s90s Black & RnB HQ
+ru6=http://streams.90s90s.de/rnb/mp3-192/
+rv6=
+rn7=Kiss FM Oldschool Hiphop
+ru7=http://topradio-de-hz-fal-stream03-cluster01.radiohost.de/kissfm-hiphop_aac-64?
+rv7=
+rn8=OLDSCHOOL HIPHOP
+ru8=http://stream.laut.fm/oldschool-hiphop
+rv8=
+rn9=Kiss FM DeutschRap
+ru9=https://stream.kissfm.de/kissfm-germanbeats/mp3-192/internetradio
+rv9=
+rn10=1LIVE RnB & Hip Hop
+ru10=https://wdr-1live-hiphoprnb.icecast.wdr.de/wdr/1live/hiphoprnb/mp3/128/stream.mp3
+rv10=
+rn11=90s90s Soul & RNB
+ru11=https://regiocast.streamabc.net/regc-90s90srnb9791660-mp3-192-2459421
+rv11=
+rn12=Black
+ru12=https://0n-black.radionetz.de/0n-black.mp3
+rv12=
+rn13=BreakZ HipHop & House
+ru13=https://breakz-high.rautemusik.fm/?ref=radio-browser-info
+rv13=
+rn14=DEUTSCHRAP CLASSIC
+ru14=https://deutschrap-classic-high.rautemusik.fm/?ref=radiobrowser
+rv14=
+rn15=BLACKBEATS.FM
+ru15=http://stream3.blackbeats.fm/;
+rv15=
+rn16=DEUTSCHRAP CHARTS
+ru16=https://deutschrap-charts-high.rautemusik.fm/?ref=radiobrowser
+rv16=
+rn17=98.8 Kiss FM Urban Beats
+ru17=http://stream.kissfm.de/kissfm-urbanbeats/mp3-128/internetradio/
+rv17=
+rn18=104.6 RTL Best of Black
+ru18=http://stream.104.6rtl.com/rtl-black/mp3-128/radio-browser.info/
+rv18=
+rn19=Soul RnB Lovers Radio
+ru19=https://s10.streamingcloud.online/stream/13580
+rv19=
+rn20=N90 4.. BEAT
+ru20=https://frontend.streamonkey.net/fhn-n904beat/stream/mp3
+rv20=
+rn21=radio SAW-Urban Music
+ru21=https://stream.radiosaw.de/saw-urban/mp3-192/radio-browser/
+rv21=
+rn22=TRAP
+ru22=https://trap-high.rautemusik.fm/?ref=radiobrowser
+rv22=
+rn23=wiphopbeatz
+ru23=https://stream.laut.fm/wiphopbeatz
+rv23=
+rn24=RauteMusik Deutschrap
+ru24=http://deutschrap-high.rautemusik.fm/
+rv24=
+rn25=BeatGo
+ru25=http://stream.laut.fm/beatgo
+rv25=

@@ -1,0 +1,76 @@
+# netspeaker stations
+rn1=RSA
+ru1=https://rsa.streamabc.net/regc-rsalive-mp3-192-5989815
+rv1=
+rn2=Schlagerparadies
+ru2=https://webstream.schlagerparadies.de/schlager30842
+rv2=
+rn3=Radio Paloma
+ru3=http://icepool.silvacast.com/RADIOPALOMA.mp3
+rv3=
+rn4=Ballermann Radio
+ru4=http://stream.bmr-radio.de/
+rv4=
+rn5=SCHLAGER OLDIES
+ru5=https://schlager-oldies-high.rautemusik.fm/?ref=radiobrowser
+rv5=
+rn6=Schlager Gold
+ru6=https://0n-schlagergold.radionetz.de/0n-schlagergold.mp3
+rv6=
+rn7=NDR Schlager
+ru7=https://icecast.ndr.de/ndr/ndrschlager/live/mp3/128/stream.mp3?1728425971529&aggregator=web
+rv7=
+rn8=Absolut bella
+ru8=https://absolut-bella.live-sm.absolutradio.de/absolut-bella/stream/mp3
+rv8=
+rn9=BR Schlager
+ru9=https://dispatcher.rndfnk.com/br/brschlager/live/mp3/mid
+rv9=
+rn10=Schlager Kult
+ru10=https://0n-schlagerkult.radionetz.de/0n-schlagerkult.mp3
+rv10=
+rn11=PARTYHITS
+ru11=https://partyhits-high.rautemusik.fm/?ref=radiobrowser
+rv11=
+rn12=BEST OF SCHLAGER
+ru12=https://best-of-schlager-high.rautemusik.fm/?ref=radiobrowser
+rv12=
+rn13=M1.FM - Schlagerparty
+ru13=http://tuner.m1.fm/schlagerparty.mp3
+rv13=
+rn14=Schlager
+ru14=https://0n-schlager.radionetz.de/0n-schlager.mp3
+rv14=
+rn15=MDR Schlagerwelt Sachsen
+ru15=http://mdr-990801-0.sslcast.mdr.de/mdr/990801/0/mp3/high/stream.mp3
+rv15=
+rn16=Radio B2 - Roland Kaiser
+ru16=http://mp3ad.radiob2rolandkaiser.c.nmdn.net/radiob2rolandkaiser/livestream.mp3
+rv16=
+rn17=Ostseewelle Schlagerhits
+ru17=http://streamosw.ir-media-tec.com/schlager/mp3-128/web/
+rv17=
+rn18=VOLKSMUSIK.FM
+ru18=https://volksmusik-high.rautemusik.fm/?ref=radiobrowser
+rv18=
+rn19=Radio Heimatmelodie
+ru19=http://play.radio-heimatmelodie.de/;
+rv19=
+rn20=SCHLAGERRADIO.FM
+ru20=https://schlager-high.rautemusik.fm/?ref=radiobrowser
+rv20=
+rn21=harmony.fm Schlager
+ru21=http://mp3.harmonyfm.de/hrmchannels/schlager.aac
+rv21=
+rn22=Volksmusik
+ru22=https://1a-volksmusik.radionetz.de/1a-volksmusik.mp3
+rv22=
+rn23=Radio Schlagerparadies
+ru23=http://webstream.schlagerparadies.de/schlagerparadies128k.mp3
+rv23=
+rn24=Radio B2 - Schlagermixx
+ru24=http://mp3ad.radiob2schlagermixx.c.nmdn.net/radiob2schlagermixx/livestream.mp3
+rv24=
+rn25=Radio B2 Berlin
+ru25=http://mp3ad.radiob2.c.nmdn.net/ps-radiob2regional/livestream.mp3
+rv25=

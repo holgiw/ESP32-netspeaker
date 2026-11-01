@@ -1,0 +1,76 @@
+# netspeaker stations
+rn1=RSA
+ru1=https://rsa.streamabc.net/regc-rsalive-mp3-192-5989815
+rv1=
+rn2=Classic FM UK
+ru2=http://ice-the.musicradio.com/ClassicFMMP3
+rv2=
+rn3=Your Classical - Relax
+ru3=http://relax.stream.publicradio.org/relax.mp3
+rv3=
+rn4=Rai Radio 3
+ru4=http://icestreaming.rai.it/3.mp3
+rv4=
+rn5=Classic FM Calm
+ru5=https://media-ice.musicradio.com/ClassicFMCalmMP3
+rv5=
+rn6=Classic FM HD
+ru6=https://ice-sov.musicradio.com/ClassicFMHD?hdauth=:2000000000:a290d4b39a16153061d4c743008b9fe8d424a7e5ec6469d40acf51fdcd336e80
+rv6=
+rn7=Klassik Radio - Live
+ru7=https://live.streams.klassikradio.de/klassikradio-deutschland/stream/mp3
+rv7=
+rn8=Jazz Radio Classic Jazz
+ru8=http://jazz-wr01.ice.infomaniak.ch/jazz-wr01-128.mp3
+rv8=
+rn9=Classic FM
+ru9=http://media-ice.musicradio.com/ClassicFMMP3
+rv9=
+rn10=Classic FM Movies
+ru10=https://media-ice.musicradio.com/ClassicFMMoviesMP3
+rv10=
+rn11=Radio Swiss Classic
+ru11=http://stream.srg-ssr.ch/m/rsc_de/mp3_128
+rv11=
+rn12=BR-Klassik
+ru12=https://dispatcher.rndfnk.com/br/brklassik/live/mp3/high
+rv12=
+rn13=Classical Radio - Mozart
+ru13=https://drive.uber.radio/uber/crmozart/icecast.audio
+rv13=
+rn14=Rai Radio Classica
+ru14=http://icestreaming.rai.it/5.mp3
+rv14=
+rn15=0nlineradio BACH
+ru15=https://stream.0nlineradio.com/bach?ref=radiobrowser
+rv15=
+rn16=Radio Classique
+ru16=https://radioclassique.ice.infomaniak.ch/radioclassique-high.mp3
+rv16=
+rn17=WDR 3
+ru17=http://wdr-wdr3-live.icecast.wdr.de/wdr/wdr3/live/mp3/128/stream.mp3
+rv17=
+rn18=Classic21
+ru18=http://radios.rtbf.be/classic21-128.mp3
+rv18=
+rn19=Venice Classic Radio
+ru19=https://uk2.streamingpulse.com/ssl/vcr1
+rv19=
+rn20=Klassikradio - Pure Bach
+ru20=http://stream.klassikradio.de/purebach/mp3-192/www.klassikradio.de/
+rv20=
+rn21=Classic NL
+ru21=https://classic.nl/streams/?s=main
+rv21=
+rn22=CHILLOUT PIANO by Epic
+ru22=https://stream.epic-piano.com/chillout-piano?ref=radiobrowser
+rv22=
+rn23=RMF Classic
+ru23=http://rmfstream1.interia.pl:8000/rmf_classic
+rv23=
+rn24=EPIC CLASSICAL
+ru24=https://stream.epic-classical.com/classical-music-for-sleep
+rv24=
+rn25=SDBA Classics 94.7
+ru25=https://lhttp.qingting.fm/live/267/64k.mp3?listening-from-radio-garden=1696445196
+rv25=
