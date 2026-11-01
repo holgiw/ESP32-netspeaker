@@ -1,6 +1,6 @@
 # Changelog
 
-## Nächste Version / Next version
+## 2026-11-01 - Version 1.4.3
 
 **Deutsch**
 
