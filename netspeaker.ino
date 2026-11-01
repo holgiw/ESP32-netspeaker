@@ -19,6 +19,7 @@
 #include <WebServer.h>
 #include <ESPmDNS.h>
 #include <Preferences.h>
+#include <nvs_flash.h>
 #include <LittleFS.h>
 #include <SPI.h>
 #include <SD.h>
@@ -71,6 +72,8 @@ struct Settings {
     bool bootTone;
     bool mixAnn;
     bool loudNorm;
+    bool radioAgc;
+    int agcDb;
     int duckPct;
     int volRampMs;
     bool resumeLast;
@@ -590,6 +593,8 @@ void loadSettings() {
     cfg.bootTone = prefs.getBool("btone", true);
     cfg.mixAnn = prefs.getBool("mix", true);
     cfg.loudNorm = prefs.getBool("loud", true);
+    cfg.radioAgc = prefs.getBool("agc", false);
+    cfg.agcDb = constrain(prefs.getInt("agcdb", -18), -30, -10);
     cfg.duckPct = constrain(prefs.getInt("duck", 35), 0, 100);
     cfg.volRampMs = constrain(prefs.getInt("vramp", VOLUME_RAMP_DEFAULT_MS), 0, VOLUME_RAMP_MAX_MS);
     cfg.resumeLast = prefs.getBool("rlast", false);
@@ -1099,6 +1104,9 @@ struct LoudRec {
 std::vector<LoudRec> loudCache;
 bool loudCacheLoaded = false;
 volatile bool fileGainOn = false;
+volatile bool agcActive = false;
+volatile bool agcResetReq = false;
+volatile float agcGainShown = 0.0f;
 volatile int32_t fileGainQ15 = 32768;
 float fileGainCurDb = 0.0f;
 float fileGainTargetDb = 0.0f;
@@ -1497,6 +1505,7 @@ void startUrl(const String& url) {
         streamWaitSince = millis();
         streamLastFill = 0;
         nowKind = "radio";
+        agcResetReq = true;
         nowName = "";
         nowTitle = "";
         nowGenre = "";
@@ -1716,6 +1725,98 @@ static void mixAddTrack(MixTrack& m, int32_t* buf, int16_t words) {
     m.phase = phase;
     m.rd.store(rd, std::memory_order_release);
     m.inHook = false;
+}
+
+// Lautstaerke der Webradios angleichen (AGC): misst den Pegel des Radiotons vor der Lautstaerke, fuehrt die Verstaerkung langsam auf den
+// Zielpegel nach (hoch in etwa 5 s, runter in etwa 1 s) und haelt die Spitzen unter -1 dBFS. Nur fuer Webradio; Ansagen und Dateien bleiben unveraendert.
+// Level matching of the web radios (AGC): measures the level of the radio sound before the volume, follows the gain slowly to the target
+// level (up in about 5 s, down in about 1 s) and keeps the peaks below -1 dBFS. Only for web radio; announcements and files stay unchanged.
+
+#define AGC_MAX_GAIN_DB 12.0f
+#define AGC_MIN_GAIN_DB -12.0f
+
+void audio_process_raw_samples(int32_t* buf, int16_t words) {
+    static float levelMs = 0.0f, peak = 0.0f, gainDb = 0.0f;
+    static uint32_t lastUs = 0;
+    if (!agcActive) {
+        gainDb = 0.0f;
+        return;
+    }
+    if (agcResetReq) {
+        agcResetReq = false;
+        levelMs = 0.0f;
+        peak = 0.0f;
+        gainDb = 0.0f;
+        lastUs = 0;
+    }
+    uint32_t now = micros();
+    float dt = lastUs ? (now - lastUs) / 1000000.0f : 0.0f;
+    lastUs = now;
+    if (dt > 0.25f) dt = 0.25f;
+    int n = words / 2;
+    if (n <= 0) return;
+    int64_t sum = 0;
+    int32_t pk = 0;
+    for (int i = 0; i < words; i++) {
+        int32_t s = buf[i] >> 16;
+        sum += (int64_t)s * s;
+        int32_t a = s < 0 ? -s : s;
+        if (a > pk) pk = a;
+    }
+    float ms = (float)sum / (float)words / 1073741824.0f;
+    float pkf = pk / 32768.0f;
+    if (ms > 1.0e-6f) {
+        if (levelMs <= 0.0f) levelMs = ms;
+        else levelMs += (ms - levelMs) * (dt > 0.0f ? (dt / 3.0f > 1.0f ? 1.0f : dt / 3.0f) : 0.0f);
+    }
+    peak = pkf > peak ? pkf : peak * (1.0f - (dt / 4.0f > 1.0f ? 1.0f : dt / 4.0f));
+    if (levelMs > 0.0f) {
+        float target = (float)cfg.agcDb - 10.0f * log10f(levelMs);
+        if (target > AGC_MAX_GAIN_DB) target = AGC_MAX_GAIN_DB;
+        if (target < AGC_MIN_GAIN_DB) target = AGC_MIN_GAIN_DB;
+        if (peak > 0.01f) {
+            float lim = -1.0f - 20.0f * log10f(peak);
+            if (target > lim) target = lim;
+        }
+        float tau = target < gainDb ? 1.0f : 5.0f;
+        float k = dt / tau;
+        if (k > 1.0f) k = 1.0f;
+        gainDb += (target - gainDb) * k;
+    }
+    agcGainShown = gainDb;
+    if (fabsf(gainDb) < 0.05f) return;
+    int32_t g = (int32_t)(powf(10.0f, gainDb / 20.0f) * 65536.0f);
+    for (int i = 0; i < words; i++) {
+        int64_t v = ((int64_t)buf[i] * g) >> 16;
+        if (v > INT32_MAX) v = INT32_MAX;
+        if (v < INT32_MIN) v = INT32_MIN;
+        buf[i] = (int32_t)v;
+    }
+}
+
+// Laeuft in der Hauptschleife: schaltet den Ausgleich nur waehrend eines Webradios ein.
+// Runs in the main loop: switches the matching on only while a web radio plays.
+
+void agcWatch() {
+    bool on = cfg.radioAgc && nowKind == "radio" && playState == PS_PLAYING;
+    if (on != agcActive) {
+        agcResetReq = true;
+        agcActive = on;
+        if (!on) agcGainShown = 0.0f;
+    }
+}
+
+// Belegung des NVS-Speichers (Eintraege); steht in /api/status, damit ein volles NVS auffaellt.
+// Usage of the NVS memory (entries); shown in /api/status so a full NVS gets noticed.
+
+uint32_t nvsUsedEntries() {
+    nvs_stats_t st;
+    return nvs_get_stats(NULL, &st) == ESP_OK ? st.used_entries : 0;
+}
+
+uint32_t nvsFreeEntries() {
+    nvs_stats_t st;
+    return nvs_get_stats(NULL, &st) == ESP_OK ? st.free_entries : 0;
 }
 
 // Wird im Audio-Task vor jeder I2S-Ausgabe aufgerufen: addiert beide Mischspuren zu den Radio-Samples.
@@ -3719,14 +3820,16 @@ void ledWatch() {
 #endif
 }
 
-// Kurzer Ton "buub" beim Start, direkt ueber den I2S-Treiber (die Audio-Bibliothek wird erst bei Bedarf angelegt). Er ist so laut wie die
-// allgemeine Lautstaerke; nach einem Absturz, im abgesicherten Modus und nach einem Neustart per MQTT bleibt er aus.
-// Short tone "buub" at the start, directly through the I2S driver (the audio library is only created when needed). It is as loud as the
-// general volume; after a crash, in safe mode and after a restart via MQTT it stays off.
+// Kurzer Ton "buub" beim Start, direkt ueber den I2S-Treiber (die Audio-Bibliothek wird erst bei Bedarf angelegt). Er spielt immer mit der
+// Lautstaerke BOOT_TONE_VOL, unabhaengig von der allgemeinen Lautstaerke; nach einem Absturz, im abgesicherten Modus und nach einem Neustart
+// per MQTT bleibt er aus.
+// Short tone "buub" at the start, directly through the I2S driver (the audio library is only created when needed). It always plays at the
+// volume BOOT_TONE_VOL, regardless of the general volume; after a crash, in safe mode and after a restart via MQTT it stays off.
+
+#define BOOT_TONE_VOL 50
 
 void bootTone() {
-    int vol = cfg.vol;
-    if (vol <= 0) return;
+    int vol = BOOT_TONE_VOL;
     int bclk = pinAllowed(cfg.bclk) ? cfg.bclk : DEFAULT_PIN_BCLK;
     int lrc = pinAllowed(cfg.lrc) ? cfg.lrc : DEFAULT_PIN_LRC;
     int din = pinAllowed(cfg.din) ? cfg.din : DEFAULT_PIN_DIN;
@@ -3899,6 +4002,7 @@ void loop() {
     mixWatch();
     fileFadeWatch();
     loudWatch();
+    agcWatch();
     pinWatch();
     logWatch();
     ntpWatch();

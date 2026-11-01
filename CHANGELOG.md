@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-11-01 - Version 1.4.4
+
+**Deutsch**
+
+- Der Ton beim Start spielt immer mit Lautstärke 50, unabhängig von der allgemeinen Lautstärke (auch bei Lautstärke 0).
+- Favoriten gingen nach einem Neustart verloren, weil der knappe NVS-Speicher der Einstellungen voll war; sie liegen jetzt in einer Datei im Dateisystem (`/favorites.dat`), Favoriten einer älteren Firmware werden beim ersten Start übernommen. `/api/status` meldet `nvsUsed` und `nvsFree` (Einträge im NVS).
+- Neu im Tab *Audio*: *Webradio-Lautstärke angleichen* (Standard: aus) mit *Zielpegel*; das Gerät führt die Verstärkung des Webradios langsam nach, damit laute und leise Sender ähnlich klingen. `/api/status` meldet `agcDb`; Export und Import kennen `agc` und `agcdb`.
+- Neu im Tab *Webradio*: eine Favoritenliste (bis zu 40 Sender) (anlegen mit dem Knopf *+* in der Senderliste), Anhören, Entfernen und *Als Senderliste übernehmen*. REST `/api/favorites`, `/api/favoriteadd`, `/api/favoritedelete`, `/api/favoritestolist`. Der gerade laufende Sender ist in der Favoritenliste mit ♪ und fett markiert. Die Favoriten stehen im Export der Einstellungen und lassen sich mit *Favoriten speichern* / *Favoriten laden* als eigene Datei sichern (`/favorites.txt`, `POST /importfavorites`).
+- RSA: Hast du den Sender selbst aus der Senderliste gelöscht, kommt er beim Laden einer Liste nicht mehr automatisch auf Platz 1; trägst du ihn wieder ein, gilt die Regel wieder.
+- Favoriten stehen nach dem Laden einer Senderliste (Datei oder GitHub) vorn in der Senderliste: erst RSA, dann die Favoriten, dann die Sender der Liste ohne Doppelte. In der Senderliste hat jeder Platz einen Knopf *+*, der den Sender zu den Favoriten legt.
+- Jeder Platz der Senderliste und jeder Favorit hat einen Knopf *API*, der den Aufruf per REST (`/api/station?n=Platz` bzw. `?name=`, bei Favoriten `/api/play`) und per MQTT (Thema `<Basis>/station` mit Platznummer oder Name, bei Favoriten `<Basis>/play` mit der URL) anzeigt und kopierbar macht; er ersetzt den Knopf *URL*.
+
+**English**
+
+- The start tone always plays at volume 50, regardless of the general volume (even at volume 0).
+- Favorites were lost after a restart because the scarce NVS memory of the settings was full; they now live in a file in the file system (`/favorites.dat`), favorites of an older firmware are taken over at the first start. `/api/status` reports `nvsUsed` and `nvsFree` (entries in the NVS).
+- New in the *Audio* tab: *Match web radio volume* (default: off) with *target level*; the device slowly follows the gain of the web radio so loud and quiet stations sound alike. `/api/status` reports `agcDb`; export and import know `agc` and `agcdb`.
+- New in the *Webradio* tab: a favorites list (up to 40 stations) (add with the *+* button in the station list), listening, removing and *Als Senderliste übernehmen* (use as station list). REST `/api/favorites`, `/api/favoriteadd`, `/api/favoritedelete`, `/api/favoritestolist`. The station that is playing right now is marked with ♪ and bold in the favorites list. The favorites are part of the settings export and can be saved / loaded as a file of their own with *Favoriten speichern* / *Favoriten laden* (`/favorites.txt`, `POST /importfavorites`).
+- RSA: If you deleted the station from the station list yourself, it is no longer put at slot 1 automatically when a list is loaded; if you enter it again the rule applies again.
+- After a station list (file or GitHub) is loaded the favorites are at the front of the station list: first RSA, then the favorites, then the stations of the list without duplicates. Every slot in the station list has a *+* button that puts the station into the favorites.
+- Every slot of the station list and every favorite has an *API* button that shows the call via REST (`/api/station?n=slot` or `?name=`, for favorites `/api/play`) and via MQTT (topic `<base>/station` with slot number or name, for favorites `<base>/play` with the URL) and makes it copyable; it replaces the *URL* button.
+
 ## 2026-11-01 - Version 1.4.3
 
 **Deutsch**

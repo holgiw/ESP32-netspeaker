@@ -2,7 +2,7 @@
 
 ## Deutsch
 
-Fertige Listen für den Tab *Webradio*. Im Abschnitt *Senderlisten* bei *Fertige Liste* eine Liste wählen und *Von GitHub laden* drücken, oder die Datei herunterladen und mit *Liste laden* einlesen. **Das Laden ersetzt die ganze Senderliste**; vorher mit *Liste speichern* sichern. RSA bleibt dabei immer auf Platz 1: Fehlt der Sender in der Liste, wird er vorn eingefügt.
+Fertige Listen für den Tab *Webradio*. Im Abschnitt *Senderlisten* bei *Fertige Liste* eine Liste wählen und *Von GitHub laden* drücken, oder die Datei herunterladen und mit *Liste laden* einlesen. **Das Laden ersetzt die ganze Senderliste**; vorher mit *Liste speichern* sichern. RSA bleibt dabei immer auf Platz 1: Fehlt der Sender in der Liste, wird er vorn eingefügt. Hast du RSA selbst aus der Senderliste gelöscht, bleibt er auch beim Laden weg, bis du ihn wieder einträgst. Danach folgen deine Favoriten (Tab *Webradio*), dann die Sender der Liste ohne Doppelte; was über die 30 Plätze hinausgeht, entfällt.
 
 Die Auswahl im Tab stammt aus der Datei `index.txt` in diesem Ordner (eine Zeile je Liste: `name|Beschreibung deutsch|Beschreibung englisch`). **Eine neue Liste braucht kein neues Flashen:** Datei `name.txt` und eine Zeile in `index.txt` auf GitHub ablegen, dann erscheint sie nach dem Neuladen der Seite. Ohne Internet im Browser bleiben die vier ersten Listen im Auswahlfeld.
 
@@ -31,7 +31,7 @@ Alle Streams waren beim Anlegen erreichbar (Audiodaten abgerufen; die AAC-Sender
 
 ## English
 
-Ready-made lists for the *Webradio* tab. In the section *Senderlisten* pick a list at *Fertige Liste* and press *Von GitHub laden*, or download the file and read it in with *Liste laden*. **Loading replaces the whole station list**; save it first with *Liste speichern*. RSA always stays at slot 1: if the station is missing in the list it is inserted at the front.
+Ready-made lists for the *Webradio* tab. In the section *Senderlisten* pick a list at *Fertige Liste* and press *Von GitHub laden*, or download the file and read it in with *Liste laden*. **Loading replaces the whole station list**; save it first with *Liste speichern*. RSA always stays at slot 1: if the station is missing in the list it is inserted at the front. If you deleted RSA from the station list yourself, it stays away when a list is loaded too, until you enter it again. Then come your favorites (*Webradio* tab), then the stations of the list without duplicates; whatever exceeds the 30 slots is dropped.
 
 The selection in the tab comes from the file `index.txt` in this folder (one line per list: `name|description German|description English`). **A new list needs no new flashing:** put the file `name.txt` and one line in `index.txt` on GitHub, and it appears after the page is reloaded. Without internet in the browser the first four lists stay in the selection field.
 

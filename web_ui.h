@@ -302,6 +302,11 @@ void storageRefresh() {
 String panelRadio() {
     String h = volumeRow() + nowPlayingRow();
     h += "<details id='radioInfoBox' style='display:none;max-width:500px;margin:0 auto 10px;text-align:left'><summary style='cursor:pointer;color:var(--muted)'>Stream-Info</summary><table id='radioInfo' style='width:100%;margin-top:6px'></table></details>";
+    h += "<div class='card' id='favCard' style='max-width:900px'><h3>Favoriten " + infoTip("Eigene Liste mit deinen Lieblingssendern, unabh&auml;ngig von der Senderliste (bis zu 40). Sender lassen sich aus der gespeicherten Senderliste und aus jeder fertigen Liste von GitHub &uuml;bernehmen, direkt anh&ouml;ren und wieder entfernen") + "</h3><small id='favInfo'></small><div id='favList'></div>";
+    h += "<div class='row' style='justify-content:flex-start;gap:8px'><button type='button' onclick='favToList()' style='width:auto;padding:8px 14px'>Als Senderliste &uuml;bernehmen</button> " + infoTip("Ersetzt die gespeicherte Senderliste durch die Favoriten (RSA steht danach auf Platz 1)") + "</div>";
+    h += "<div class='row' style='justify-content:flex-start;gap:8px'><button type='button' onclick=\"location.href='/favorites.txt'\" style='width:auto;padding:8px 14px'>Favoriten speichern</button> " + infoTip("Speichert die Favoriten als Textdatei auf deinem Rechner; sie steht auch im Export der Einstellungen") + " ";
+    h += "<button type='button' onclick=\"document.getElementById('favFile').click()\" style='width:auto;padding:8px 14px'>Favoriten laden</button><input type='file' id='favFile' accept='.txt' style='display:none' onchange='loadFavorites(this)'> " + infoTip("Ersetzt die Favoriten durch eine zuvor gespeicherte Datei") + "</div>";
+    h += "<div id='favResult'></div></div>";
     h += "<div class='card'><h3>Webradio-URL abspielen</h3><div class='row'>";
     h += "<input id='playUrl' placeholder='https://...' style='width:90%'><button type='button' onclick='playUrlNow()' style='width:150px'>URL abspielen</button><button type='button' class='stopbtn' onclick='stopNow()' style='width:150px' disabled>&#9632; Stopp</button> " + infoTip("Adresse eines Webradios oder einer MP3-Datei (http:// oder https://); sie wird jetzt abgespielt, aber nicht gespeichert. Stopp beendet die Wiedergabe, auch ein Webradio, ohne Fortsetzung") + "</div><div id='radioResult'></div></div>";
 
@@ -329,8 +334,9 @@ String panelRadio() {
         String off = cfg.radioUrl[i].isEmpty() ? " disabled" : "";
         h += "<button type='button' class='copy-btn' style='position:static;margin:2px' title='Nach oben schieben (speichert sofort)' onclick='moveStation(" + n + ",-1)'" + off + ">&#9650;</button>";
         h += "<button type='button' class='copy-btn' style='position:static;margin:2px' title='Nach unten schieben (speichert sofort)' onclick='moveStation(" + n + ",1)'" + off + ">&#9660;</button>";
+        h += "<button type='button' class='copy-btn' style='position:static;margin:2px' title='Zu den Favoriten hinzuf&uuml;gen' onclick='favAddStation(" + n + ")'" + off + ">+</button>";
         h += "<button type='button' class='playbtn' onclick='playStation(" + n + ")' title='Abspielen' style='width:auto;padding:8px 14px'" + off + ">&#9654;</button>";
-        h += "<button type='button' class='copy-btn' style='position:static;margin:2px' title='REST-Link kopieren' onclick='copyText(stationLink(" + n + "),this)'" + off + ">URL</button>";
+        h += "<button type='button' class='copy-btn' style='position:static;margin:2px' title='Aufruf per REST und MQTT anzeigen' onclick='stationCall(" + n + ",this)'" + off + ">API</button>";
         h += "<button type='button' class='copy-btn' style='position:static;margin:2px' title='Platz l&ouml;schen (Name und URL); die folgenden Pl&auml;tze r&uuml;cken auf' onclick='delStation(" + n + ")'" + off + ">&#10006;</button></div>";
     }
     h += "<small>Das Feld rechts neben der URL ist die Lautst&auml;rke des Senders (0-100, leer = allgemeine Lautst&auml;rke). Speichern, bevor du &#9654; dr&uuml;ckst. &#9650;&#9660; verschieben den Sender und speichern sofort. Der URL-Knopf kopiert den REST-Aufruf <code>/api/station?n=Platz</code>; auch der Name geht (<code>?name=...</code>).</small>";
@@ -338,7 +344,7 @@ String panelRadio() {
     h += "<div style='margin-top:18px;padding-top:12px;border-top:1px solid var(--panel-border)'><h3 style='margin:0 0 6px'>Senderlisten</h3>";
     h += "<div class='row' style='justify-content:flex-start;gap:8px'><span style='min-width:110px;text-align:left'>Eigene Liste</span><button type='button' onclick=\"location.href='/stations.txt'\" style='width:auto;padding:8px 14px'>Liste speichern</button> " + infoTip("Speichert die Senderliste (Name, URL, Lautst&auml;rke) als Textdatei auf deinem Rechner") + " ";
     h += "<button type='button' onclick=\"document.getElementById('stFile').click()\" style='width:auto;padding:8px 14px'>Liste laden</button><input type='file' id='stFile' accept='.txt' style='display:none' onchange='loadStations(this)'> " + infoTip("Ersetzt die gespeicherte Senderliste durch eine zuvor gespeicherte Datei") + "</div>";
-    h += "<div class='row' style='justify-content:flex-start;gap:8px'><span style='min-width:110px;text-align:left'>Fertige Liste</span><select id='stList' style='width:auto'><option>aac-auswahl</option><option>mp3-auswahl</option><option>rock</option><option>entspannung</option></select><button type='button' onclick='listFetch()' style='width:auto;padding:8px 14px'>Von GitHub laden</button> " + infoTip("L&auml;dt eine fertige Senderliste aus dem Ordner stations des Projekts auf GitHub und ersetzt die gespeicherte Liste; das Ger&auml;t braucht dazu Internet") + "</div><div id='stListResult'></div></div></div>";
+    h += "<div class='row' style='justify-content:flex-start;gap:8px'><span style='min-width:110px;text-align:left'>Fertige Liste</span><select id='stList' style='width:auto'><option>aac-auswahl</option><option>mp3-auswahl</option><option>rock</option><option>entspannung</option><option>schlager</option><option>country</option><option>folk</option><option>jazz</option><option>klassik</option><option>pop-charts</option><option>jahrzehnte</option><option>dance</option><option>hiphop</option><option>irland</option><option>usa</option><option>australien</option><option>grossbritannien</option><option>frankreich</option></select><button type='button' onclick='listFetch()' style='width:auto;padding:8px 14px'>Von GitHub laden</button> " + infoTip("L&auml;dt eine fertige Senderliste aus dem Ordner stations des Projekts auf GitHub und ersetzt die gespeicherte Liste; das Ger&auml;t braucht dazu Internet") + "</div><div id='stListResult'></div></div></div>";
     return h;
 }
 
@@ -415,12 +421,14 @@ String panelAudio() {
     h += "</div><div class='sub'><h4>Ansagen &uuml;ber dem Radio</h4>";
     h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' name='mix' value='1'" + String(cfg.mixAnn ? " checked" : "") + " style='width:auto;margin:0;'>Radio unter Ansagen weiterlaufen lassen</label> " + infoTip("Ansagen (und bei Webradio auch MP3-Dateien) werden leise &uuml;ber das laufende Webradio oder eine laufende MP3-Datei gelegt, die ohne Unterbrechung weiterl&auml;uft. Aus: das Radio stoppt f&uuml;r die Ansage und wird danach neu verbunden; eine MP3-Datei stoppt ebenfalls") + " Radio dabei auf <input type='number' name='duck' min='0' max='100' value='" + String(cfg.duckPct) + "' style='width:64px'> % " + infoTip("Lautst&auml;rke des Radios w&auml;hrend der Ansage in Prozent der eingestellten Lautst&auml;rke") + "</div>";
     h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' name='loud' value='1'" + String(cfg.loudNorm ? " checked" : "") + " style='width:auto;margin:0;'>MP3-Lautst&auml;rke angleichen</label> " + infoTip("Beim ersten Abspielen einer MP3-Datei misst das Ger&auml;t im Hintergrund ihre Lautst&auml;rke und gleicht sie auf einen einheitlichen Pegel an; der Ausgleich wird gespeichert, die Datei selbst bleibt unver&auml;ndert. W&auml;hrend der Messung (einige Sekunden bis eine Minute) l&auml;uft die Datei noch unver&auml;ndert und wird dann sanft angepasst. Ansagen und Radio bleiben unver&auml;ndert") + "</div>";
+    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' name='agc' value='1'" + String(cfg.radioAgc ? " checked" : "") + " style='width:auto;margin:0;'>Webradio-Lautst&auml;rke angleichen</label> " + infoTip("Misst laufend den Pegel des Webradios und f&uuml;hrt die Verst&auml;rkung langsam auf den Zielpegel nach (hoch in etwa 5 s, runter in etwa 1 s, h&ouml;chstens 12 dB), so klingen laute und leise Sender &auml;hnlich; Spitzen bleiben unter -1 dBFS. Wirkt nur auf Webradio, nicht auf Ansagen und Dateien. Die Lautst&auml;rke je Sender in der Senderliste bleibt zus&auml;tzlich wirksam") + "</div>";
+    h += "<div class='row'>Zielpegel Webradio (dBFS) " + infoTip("Mittlerer Pegel, auf den die Angleichung zielt: -30 (leise) bis -10 (laut); -18 ist ein guter Anfang. Gilt nur mit dem Haken oben") + " <input type='number' name='agcdb' min='-30' max='-10' value='" + String(cfg.agcDb) + "' style='width:70px'></div>";
     h += "</div><div class='sub'><h4>Titelregel</h4>";
     h += "<div class='row'>Titelregel: Titel enth&auml;lt " + infoTip("Stichworte der Titelregel:&#10;&#8226; Mehrere Stichworte mit Komma oder Semikolon trennen.&#10;&#8226; Gro&szlig;-/Kleinschreibung ist egal; es gen&uuml;gt, wenn der Titel das Stichwort enth&auml;lt.&#10;&#8226; Mit =Wert (0-100) bekommt ein Stichwort eine eigene Lautst&auml;rke, zum Beispiel: Cambodia=90, Thunder&#10;&#8226; Leer = Regel aus") + " <input name='tmatch' maxlength='120' value='" + htmlEsc(cfg.titleMatch) + "' placeholder='z. B. Cambodia, Thunder=90' style='width:280px'> Lautst&auml;rke <input type='number' name='tvol' min='0' max='" + String(VOLUME_MAX) + "' value='" + String(cfg.titleVol) + "' style='width:64px'> " + infoTip("Lautst&auml;rke (0-100) f&uuml;r Stichworte ohne eigenen Wert; sie gilt, solange der Titel l&auml;uft, danach wieder die vorherige") + " h&ouml;chstens <input type='number' name='tmax' min='0' max='3600' value='" + String(cfg.titleMaxS) + "' style='width:70px'> s " + infoTip("Ein Sender meldet das Ende eines Titels nicht. Mit einem Wert gr&ouml;&szlig;er als 0 endet die Titelregel nach so vielen Sekunden (zum Beispiel 210 f&uuml;r einen Titel von 3:30), damit Werbung nach dem Titel nicht laut bleibt; 0 = bis zum n&auml;chsten Titel") + "</div>";
     h += "</div></div>";
     h += "<div class='card wide'><h3>Start</h3>";
     h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' name='autostart' value='1'" + String(cfg.autoStart ? " checked" : "") + " style='width:auto;margin:0;'>Beim Start Sender 1 abspielen</label> " + infoTip("Spielt nach dem Start nach einigen Sekunden Sender 1 der Liste ab, sobald das WLAN steht und der Stream antwortet. Ausgeschaltet bleibt das Ger&auml;t nach dem Start stumm") + "</div>";
-    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' name='btone' value='1'" + String(cfg.bootTone ? " checked" : "") + " style='width:auto;margin:0;'>Kurzer Ton beim Start</label> " + infoTip("Beim Einschalten und nach einem Neustart &uuml;ber die Weboberfl&auml;che spielt das Ger&auml;t einen kurzen Ton (&bdquo;buub&ldquo;) in der eingestellten Lautst&auml;rke. Nach einem Neustart per MQTT, nach einem Absturz und im abgesicherten Modus bleibt er aus") + "</div>";
+    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' name='btone' value='1'" + String(cfg.bootTone ? " checked" : "") + " style='width:auto;margin:0;'>Kurzer Ton beim Start</label> " + infoTip("Beim Einschalten und nach einem Neustart &uuml;ber die Weboberfl&auml;che spielt das Ger&auml;t einen kurzen Ton (&bdquo;buub&ldquo;) immer mit Lautst&auml;rke 50, unabh&auml;ngig von der allgemeinen Lautst&auml;rke. Nach einem Neustart per MQTT, nach einem Absturz und im abgesicherten Modus bleibt er aus") + "</div>";
     h += "<small>Aus (Standard): Das Ger&auml;t startet stumm. An: Nach dem Start spielt es nach einigen Sekunden Sender 1 der Liste im Tab Webradio, sobald der Stream antwortet (bis zu 10 Versuche im Abstand von 6 s).</small><br>";
     h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' name='resume' value='1'" + String(cfg.resumeLast ? " checked" : "") + " style='width:auto;margin:0;'>Zuletzt gespielten Sender nach einem Neustart fortsetzen</label> " + infoTip("Merkt sich den laufenden Sender mit seiner Lautst&auml;rke und spielt ihn nach einem Neustart oder Stromausfall wieder ab; ein Stopp l&ouml;scht den Merker") + "</div>";
     h += "<small>Das Ger&auml;t merkt sich Sender und Lautst&auml;rke (erst wenn die Lautst&auml;rke 3 s unver&auml;ndert ist). Nach einem Neustart spielt es ihn wieder ab, mit derselben Lautst&auml;rke; ein Stopp l&ouml;scht den Merker, dann startet das Ger&auml;t stumm. Hat dieser Haken Vorrang vor &bdquo;Beim Start Sender 1 abspielen&ldquo;.</small>";
@@ -850,11 +858,32 @@ function postApi(path,params,resId){
   return fetch(path,{method:'POST',body:new URLSearchParams(params)}).then(function(r){return r.json();}).then(function(j){showRes(resId,j);return j;})
     .catch(function(){showRes(resId,{ok:false,error:'Keine Antwort vom Ger&auml;t'});});
 }
-function listIndex(){var c='';try{c=localStorage.getItem('uilang')||'';}catch(e){}var en=c?c.indexOf('en')===0:!/^de/i.test(navigator.language||'de');
+var FAVS=[];
+function favBtn(t,fn){var b=document.createElement('button');b.type='button';b.textContent=t;b.style.cssText='width:auto;padding:6px 12px';b.onclick=fn;return b;}
+function favRow(name,url,btns){var r=document.createElement('div'),s=document.createElement('span'),i;r.setAttribute('data-url',url);s.setAttribute('data-n',name);r.className='row';r.style.justifyContent='flex-start';r.style.gap='8px';s.textContent=name;s.title=url;s.style.cssText='flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';for(i=0;i<btns.length;i++)r.appendChild(btns[i]);r.appendChild(s);return r;}
+function favMarkNow(){var u=window.NOWURL||'',rs=document.querySelectorAll('#favList .row[data-url]'),i,r,s,on;for(i=0;i<rs.length;i++){r=rs[i];s=r.querySelector('span');if(!s)continue;on=u!==''&&r.getAttribute('data-url')===u;s.style.fontWeight=on?'700':'';s.style.color=on?'var(--accent,#2a9d4a)':'';s.textContent=(on?'\u266A ':'')+s.getAttribute('data-n');}}
+function favHas(u){for(var i=0;i<FAVS.length;i++)if(FAVS[i].url===u)return true;return false;}
+function favRender(){var b=document.getElementById('favList'),inf=document.getElementById('favInfo');if(!b)return;b.textContent='';if(inf)inf.textContent=FAVS.length+' Favoriten';
+  FAVS.forEach(function(f){b.appendChild(favRow(f.name,f.url,[favBtn('▶',function(){postApi('/api/play',{url:f.url},'favResult');}),favBtn('API',function(){favCall(f,this);}),favBtn('✕',function(){favDel(f.n);})]));});
+  favMarkNow();}
+function favLoad(){fetch('/api/favorites',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){FAVS=j.favorites||[];favRender();}).catch(function(){});}
+function loadFavorites(inp){var f=inp.files[0];if(!f)return;if(!confirm('Die Favoriten werden durch die Datei ersetzt. Fortfahren?')){inp.value='';return;}
+  var rd=new FileReader();rd.onload=function(){fetch('/importfavorites',{method:'POST',headers:{'Content-Type':'text/plain'},body:rd.result}).then(function(r){return r.text();}).then(function(t){
+    showRes('favResult',t.indexOf('OK|')===0?{ok:true,msg:t.substring(3)}:{ok:false,error:t.substring(5)});inp.value='';favLoad();});};rd.readAsText(f);}
+function favAddStation(n){var a=document.querySelector("input[name='rn"+n+"']"),u=document.querySelector("input[name='ru"+n+"']");if(u&&u.value)favAdd(a?a.value:"",u.value);}
+function favAdd(name,url){postApi('/api/favoriteadd',{name:name,url:url},'favResult').then(favLoad);}
+function favDel(n){postApi('/api/favoritedelete',{n:n},'favResult').then(favLoad);}
+function favToList(){if(!confirm('Die gespeicherte Senderliste wird durch die Favoriten ersetzt. Fortfahren?'))return;postApi('/api/favoritestolist',{},'favResult').then(function(j){if(j&&j.ok)setTimeout(function(){location.href='/?tab=radio';},1200);});}
+function listFill(t,en){var s=document.getElementById('stList'),ls=(t||'').split(/\r?\n/),opts=[],i,p,o,keep;if(!s)return 0;
+  for(i=0;i<ls.length;i++){p=ls[i].split('|');if(!/^[a-z0-9-]+$/.test(p[0]||''))continue;opts.push([p[0],p[0]+' – '+((en?p[2]:p[1])||'')]);}
+  if(!opts.length)return 0;keep=s.value;s.textContent='';
+  for(i=0;i<opts.length;i++){o=document.createElement('option');o.value=opts[i][0];o.textContent=opts[i][1];s.appendChild(o);}
+  if(keep)s.value=keep;if(s.selectedIndex<0)s.selectedIndex=0;return opts.length;}
+function listIndex(tryNo){tryNo=tryNo||0;var c='',cached='';try{c=localStorage.getItem('uilang')||'';}catch(e){}var en=c?c.indexOf('en')===0:!/^de/i.test(navigator.language||'de');
+  function again(){if(tryNo<3)setTimeout(function(){listIndex(tryNo+1);},3000*(tryNo+1));}
+  if(!tryNo){try{cached=localStorage.getItem('stidx')||'';}catch(e){}if(cached)listFill(cached,en);}
   fetch('https://raw.githubusercontent.com/holgiw/ESP32-netspeaker/main/stations/index.txt',{cache:'no-store'}).then(function(r){return r.ok?r.text():'';}).then(function(t){
-    var s=document.getElementById('stList');if(!s||!t)return;var ls=t.split(/\r?\n/),n=0,i,p,o,keep=s.value;s.textContent='';
-    for(i=0;i<ls.length;i++){p=ls[i].split('|');if(!/^[a-z0-9-]+$/.test(p[0]||''))continue;o=document.createElement('option');o.value=p[0];o.textContent=p[0]+' – '+((en?p[2]:p[1])||'');s.appendChild(o);n++;}
-    if(!n){s.innerHTML='<option>aac-auswahl</option><option>mp3-auswahl</option><option>rock</option><option>entspannung</option>';}else{s.value=keep;}}).catch(function(){});}
+    if(t&&listFill(t,en)){try{localStorage.setItem('stidx',t);}catch(e){}}else again();}).catch(again);}
 function listFetch(){var n=(document.getElementById('stList').value||'').trim();if(!n)return;if(!confirm('Die gespeicherte Senderliste wird durch die Liste von GitHub ersetzt. Fortfahren?'))return;showRes('stListResult',{ok:true,msg:'Lade von GitHub &hellip;'});postApi('/api/stationlist',{list:n},'stListResult').then(function(j){if(j&&j.ok)setTimeout(function(){location.href='/?tab=radio';},1200);});}
 function sayNow(){postApi('/api/say',{text:document.getElementById('sayText').value,lang:document.getElementById('sayLang').value,voice:document.getElementById('sayVoice').value},'sayResult');}
 function clearLog(){if(!confirm('Log l\u00f6schen?'))return;postApi('/api/log',{clear:'1'},'logResult').then(function(){var p=document.getElementById('logContent');if(p)p.textContent='';});}
@@ -868,6 +897,11 @@ function playStation(n){postApi('/api/station',{n:n},'stResult');}
 function moveStation(n,d){var a=document.querySelector('.stationrow[data-n="'+n+'"]'),b=document.querySelector('.stationrow[data-n="'+(n+d)+'"]');if(!a||!b||!b.getAttribute('data-url')&&d>0)return;['rn','ru','rv'].forEach(function(p){var x=a.querySelector('[name="'+p+n+'"]'),y=b.querySelector('[name="'+p+(n+d)+'"]'),t=x.value;x.value=y.value;y.value=t;});a.closest('form').submit();}
 function delStation(n){if(!confirm('Platz '+n+' (Name und URL) l\u00f6schen?'))return;postApi('/api/stationdelete',{n:n},'stResult').then(function(j){if(j&&j.ok)location.href='/?tab=radio';});}
 function stationLink(n){return location.origin+'/api/station?n='+n;}
+function callLine(box,label,text){var d=document.createElement('div'),c=document.createElement('code'),b=document.createElement('button');d.style.cssText='display:flex;gap:8px;align-items:center;margin:2px 0';d.appendChild(document.createTextNode(label+' '));c.textContent=text;c.style.flex='1';b.type='button';b.textContent='Kopieren';b.className='copy-btn';b.style.cssText='position:static;margin:0';b.onclick=function(){copyText(text,b);};d.appendChild(c);d.appendChild(b);box.appendChild(d);}
+function callBox(row,lines){var old=row.nextSibling;if(old&&old.className==='callbox'){old.remove();return;}var b=document.createElement('div'),i;b.className='callbox';b.style.cssText='margin:0 0 8px 2rem;padding:6px 10px;border:1px solid var(--panel-border);border-radius:6px;text-align:left;font-size:.85em;overflow-wrap:anywhere';
+  for(i=0;i<lines.length;i++)callLine(b,lines[i][0],lines[i][1]);if(!MQTT_ON){var s=document.createElement('small');s.textContent='MQTT: Broker im Tab MQTT eintragen.';b.appendChild(s);}row.parentNode.insertBefore(b,row.nextSibling);}
+function stationCall(n,btn){var row=btn.closest('.stationrow'),nm=row?(row.querySelector("input[name='rn"+n+"']")||{}).value:'';callBox(row,[['REST:',location.origin+'/api/station?n='+n],nm?['REST (Name):',location.origin+'/api/station?name='+encodeURIComponent(nm)]:null,['MQTT Thema:',MQTT_BASE+'/station'],['MQTT Nutzlast:',String(n)]].filter(Boolean));}
+function favCall(f,btn){callBox(btn.parentNode,[['REST:','curl -d "url='+f.url+'" '+location.origin+'/api/play'],['MQTT Thema:',MQTT_BASE+'/play'],['MQTT Nutzlast:',f.url]]);}
 function apiLink(n){return location.origin+'/api/file?file='+encodeURIComponent(n);}
 var VOICES={'de-de':['Hanna','Lina','Jonas'],'en-gb':['Alice','Nancy','Lily','Harry'],'en-us':['Linda','Amy','Mary','John','Mike'],'fr-fr':['Bette','Iva','Zola'],'es-es':['Camila','Sofia','Luna'],'it-it':['Bria','Mia','Pietro'],'pl-pl':['Julia','Jan'],'sv-se':['Molly','Hugo']};
 function fillVoiceSel(id,lang,keep){var s=document.getElementById(id);if(!s)return;var cur=s.value;var v=VOICES[lang||DEF_LANG]||[];s.innerHTML='';
@@ -956,6 +990,7 @@ function barTick(){var pm=nbs.on?Math.min(1000,nbs.pm+nbs.rate*(Date.now()-nbs.t
     bar.title=nbs.on&&nbs.dur>0?mmss(pm/1000*nbs.dur)+' / '+mmss(nbs.dur):'';});nbs.jump=false;}
 setInterval(barTick,250);
 function pollPlay(){if(document.hidden)return;fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+  window.NOWURL=(j.source==='radio'&&j.state==='playing')?(j.url||''):'';if(window.favMarkNow)favMarkNow();
   var el=document.getElementById('playState');if(el)el.textContent='Zustand: '+j.state+(j.error?' ('+j.error+')':'');
   var vs=document.querySelector('.volrange'),ae=document.activeElement;if(vs&&!(ae&&ae.className==='volrange')&&j.volume!==undefined&&+vs.value!==j.volume){volShow(j.volume);}
   {var t='';
@@ -1000,7 +1035,7 @@ function testNtp(n){var box=document.getElementById('ntpTestResult'+n);var v=doc
 fillVoiceSel('sayVoice',document.getElementById('sayLang').value,true);fillVoiceSel('cfgVoice',(document.getElementById('cfgLang')||{}).value,true);
 document.querySelectorAll('.codehost').forEach(function(p){p.textContent=p.textContent.replace(/@HOST@/g,location.host);});
 (function(){var m=location.search.match(/[?&]tab=([a-zA-Z0-9]+)/);if(m){var el=document.getElementById('tab-'+m[1]);if(el)el.checked=true;}
-  listIndex();loadFiles();sdLoad('/');pollPlay();checkPins();setInterval(pollPlay,3000);if(location.search.indexOf('tab=wlan')>=0)scanWifi();})();
+  listIndex();favLoad();loadFiles();sdLoad('/');pollPlay();checkPins();setInterval(pollPlay,3000);if(location.search.indexOf('tab=wlan')>=0)scanWifi();})();
 (function(){
   var cb=document.getElementById('logAutoRefresh');var pre=document.getElementById('logContent');
   var errEl=document.getElementById('logErrorHint');var btn=document.getElementById('logRefreshNow');var timer=null;
@@ -1022,6 +1057,98 @@ String flashText(const String& code) {
     if (code == "pinserr") return "Pins nicht gespeichert: ein Pin ist doppelt vergeben oder nicht erlaubt (alles andere wurde gespeichert)";
     if (code == "restart") return "Gespeichert - Neustart n&ouml;tig (Hostname oder Pins)";
     return "";
+}
+
+
+// Favoritenliste: eigene Liste, unabhaengig von der Senderliste; Sender lassen sich aus der gespeicherten Senderliste und aus jeder Liste auf GitHub uebernehmen.
+// Favorites list: a list of its own, independent of the station list; stations can be taken from the stored station list and from any list on GitHub.
+
+#define FAV_SLOTS 40
+
+String favName[FAV_SLOTS];
+String favUrl[FAV_SLOTS];
+bool favLoaded = false;
+
+// Die Favoriten liegen in einer Datei im Dateisystem (eine Zeile je Favorit: Name, Tab, URL), nicht im knappen NVS-Speicher der Einstellungen.
+// The favorites live in a file in the file system (one line per favorite: name, tab, URL), not in the scarce NVS memory of the settings.
+
+#define FAV_FILE "/favorites.dat"
+
+void favSaveAll() {
+    if (!fsReady) return;
+    File f = LittleFS.open(FAV_FILE, FILE_WRITE);
+    if (!f) {
+        logLine("[FAV] cannot write " FAV_FILE);
+        return;
+    }
+    for (int i = 0; i < FAV_SLOTS; i++) {
+        if (favUrl[i].isEmpty()) continue;
+        String nm = favName[i];
+        nm.replace("\t", " ");
+        nm.replace("\r", " ");
+        nm.replace("\n", " ");
+        f.print(nm);
+        f.print("\t");
+        f.print(favUrl[i]);
+        f.print("\n");
+    }
+    f.close();
+}
+
+// Beim ersten Zugriff laden; fehlt die Datei, werden Favoriten einer aelteren Firmware aus dem NVS uebernommen und dort geloescht.
+// Loaded on first access; if the file is missing, favorites of an older firmware are taken over from the NVS and deleted there.
+
+void favEnsure() {
+    if (favLoaded) return;
+    favLoaded = true;
+    if (!fsReady) return;
+    if (LittleFS.exists(FAV_FILE)) {
+        File f = LittleFS.open(FAV_FILE, FILE_READ);
+        int n = 0;
+        while (f && f.available() && n < FAV_SLOTS) {
+            String ln = f.readStringUntil('\n');
+            ln.replace("\r", "");
+            int t = ln.indexOf('\t');
+            if (t < 0 || t + 1 >= (int)ln.length()) continue;
+            favName[n] = ln.substring(0, t);
+            favUrl[n] = ln.substring(t + 1);
+            n++;
+        }
+        if (f) f.close();
+        return;
+    }
+    int n = 0;
+    for (int i = 0; i < FAV_SLOTS; i++) {
+        String nm = prefs.getString(("fn" + String(i + 1)).c_str(), "");
+        String u = prefs.getString(("fu" + String(i + 1)).c_str(), "");
+        prefs.remove(("fn" + String(i + 1)).c_str());
+        prefs.remove(("fu" + String(i + 1)).c_str());
+        if (u.isEmpty()) continue;
+        favName[n] = nm;
+        favUrl[n] = u;
+        n++;
+    }
+    favSaveAll();
+}
+
+// Wurde RSA von Hand aus der Senderliste geloescht, bleibt er auch beim Laden einer Liste weg; wieder eintragen hebt das auf.
+// If RSA was deleted by hand from the station list, it stays away when a list is loaded as well; entering it again cancels this.
+
+bool rsaGoneLoaded = false;
+bool rsaGoneFlag = false;
+
+bool rsaGone() {
+    if (!rsaGoneLoaded) {
+        rsaGoneLoaded = true;
+        rsaGoneFlag = prefs.getBool("rsadel", false);
+    }
+    return rsaGoneFlag;
+}
+
+void rsaSetGone(bool v) {
+    if (rsaGone() == v) return;
+    rsaGoneFlag = v;
+    prefs.putBool("rsadel", v);
 }
 
 void sendChunk(const String& s) {
@@ -1076,6 +1203,7 @@ void handleRoot() {
     sendChunk("<script>");
     sendChunk("var DEF_LANG='" + jsonEscape(cfg.vlang) + "';");
     sendChunk("var UI_HOST='" + jsonEscape(cfg.host) + "';");
+    sendChunk("var MQTT_BASE='" + jsonEscape(mqttBaseTopic()) + "';var MQTT_ON=" + (cfg.mqttServer.isEmpty() ? "false" : "true") + ";");
     sendChunk(FPSTR(TOPBAR_JS));
     sendChunk(FPSTR(PAGE_JS));
     sendChunk(FPSTR(PINS_JS));
@@ -1206,6 +1334,11 @@ void handleSave() {
         cfg.mixAnn = webserver.hasArg("mix");
         cfg.loudNorm = webserver.hasArg("loud");
         prefs.putBool("loud", cfg.loudNorm);
+        cfg.radioAgc = webserver.hasArg("agc");
+        prefs.putBool("agc", cfg.radioAgc);
+        cfg.agcDb = constrain(webserver.arg("agcdb").toInt(), -30, -10);
+        prefs.putInt("agcdb", cfg.agcDb);
+        agcResetReq = true;
         cfg.duckPct = constrain(webserver.arg("duck").toInt(), 0, 100);
         prefs.putBool("mix", cfg.mixAnn);
         prefs.putInt("duck", cfg.duckPct);
@@ -1267,6 +1400,10 @@ void handleSave() {
         prefs.putString("mq_pw", cfg.mqttPass);
         mqttReconnectNow();
     } else if (sect == "radio") {
+        bool hadRsa = false;
+        for (int i = 0; i < RADIO_SLOTS; i++) {
+            if (cfg.radioUrl[i] == RSA_URL) hadRsa = true;
+        }
         for (int i = 0; i < RADIO_SLOTS; i++) {
             String n = String(i + 1);
             if (!webserver.hasArg("ru" + n)) continue;
@@ -1287,6 +1424,12 @@ void handleSave() {
             prefs.putString(("rn" + n).c_str(), name);
             prefs.putString(("ru" + n).c_str(), url);
         }
+        bool hasRsa = false;
+        for (int i = 0; i < RADIO_SLOTS; i++) {
+            if (cfg.radioUrl[i] == RSA_URL) hasRsa = true;
+        }
+        if (hasRsa) rsaSetGone(false);
+        else if (hadRsa) rsaSetGone(true);
         compactStations();
     } else if (sect == "log") {
         cfg.logEnabled = webserver.hasArg("log");
@@ -1321,6 +1464,96 @@ void handleSave() {
     redirectTab(tab, pinsBad ? "pinserr" : (restart ? "restart" : "saved"));
 }
 
+// Favoriten als Text: "favcount=N" gefolgt von favn1/favu1 ...; steht im Export der Einstellungen und in einer eigenen Datei.
+// Favorites as text: "favcount=N" followed by favn1/favu1 ...; it is part of the settings export and of a file of its own.
+
+String favExportText() {
+    favEnsure();
+    int n = 0;
+    for (int i = 0; i < FAV_SLOTS; i++) {
+        if (!favUrl[i].isEmpty()) n++;
+    }
+    String t = "favcount=" + String(n) + "\n";
+    int k = 0;
+    for (int i = 0; i < FAV_SLOTS; i++) {
+        if (favUrl[i].isEmpty()) continue;
+        k++;
+        String nm = favName[i];
+        nm.replace("\r", " ");
+        nm.replace("\n", " ");
+        t += "favn" + String(k) + "=" + nm + "\nfavu" + String(k) + "=" + favUrl[i] + "\n";
+    }
+    return t;
+}
+
+bool favImportLine(const String& k, const String& v) {
+    if (k == "favcount") {
+        favEnsure();
+        for (int i = 0; i < FAV_SLOTS; i++) {
+            favName[i] = "";
+            favUrl[i] = "";
+        }
+        return true;
+    }
+    bool isN = k.startsWith("favn");
+    bool isU = k.startsWith("favu");
+    if (!isN && !isU) return false;
+    int n = k.substring(4).toInt();
+    if (n < 1 || n > FAV_SLOTS) return true;
+    favEnsure();
+    int i = n - 1;
+    if (isN) {
+        favName[i] = v.substring(0, RADIO_NAME_MAX);
+    } else {
+        favUrl[i] = ((v.startsWith("http://") || v.startsWith("https://")) && v.length() <= RADIO_URL_MAX) ? v : String();
+    }
+    return true;
+}
+
+void handleFavoritesExport() {
+    String t = "# " PROJECT_NAME " favorites\n" + favExportText();
+    webserver.sendHeader("Content-Disposition", "attachment; filename=" + cfg.host + "-favorites.txt");
+    webserver.sendHeader("Cache-Control", "no-store");
+    webserver.send(200, "text/plain; charset=utf-8", t);
+}
+
+void handleFavoritesImport() {
+    String body = webserver.arg("plain");
+    if (body.startsWith("\xEF\xBB\xBF")) body.remove(0, 3);
+    if (!body.startsWith("# " PROJECT_NAME " favorites")) {
+        webserver.send(200, "text/plain", "FAIL|Das ist keine Favoritendatei dieses Ger\xC3\xA4ts.");
+        return;
+    }
+    int pos = 0;
+    while (pos < (int)body.length()) {
+        int end = body.indexOf('\n', pos);
+        if (end < 0) end = body.length();
+        String line = body.substring(pos, end);
+        pos = end + 1;
+        line.trim();
+        int eq = line.indexOf('=');
+        if (line.startsWith("#") || eq <= 0) continue;
+        favImportLine(line.substring(0, eq), line.substring(eq + 1));
+    }
+    favEnsure();
+    int kk = 0;
+    for (int i = 0; i < FAV_SLOTS; i++) {
+        if (!favUrl[i].isEmpty()) {
+            favName[kk] = favName[i];
+            favUrl[kk] = favUrl[i];
+            kk++;
+        }
+    }
+    for (int i = kk; i < FAV_SLOTS; i++) {
+        favName[i] = "";
+        favUrl[i] = "";
+    }
+    favSaveAll();
+    int n = kk;
+    logLine("[WEB] favorites loaded: " + String(n));
+    webserver.send(200, "text/plain", "OK|" + String(n) + " Favoriten geladen.");
+}
+
 void handleExport() {
     String t = "# " PROJECT_NAME " settings export (WiFi passwords, MQTT password and API key omitted)\n";
     t += "host=" + cfg.host + "\n";
@@ -1332,11 +1565,12 @@ void handleExport() {
     t += "mq_srv=" + cfg.mqttServer + "\nmq_port=" + String(cfg.mqttPort) + "\nmq_user=" + cfg.mqttUser + "\nmq_base=" + cfg.mqttBase + "\n";
     for (int i = 0; i < 5; i++) t += "mq_g" + String(i + 1) + "=" + cfg.mqttGroup[i] + "\n";
     t += "mq_ha=" + String(cfg.haDisc ? 1 : 0) + "\n";
-    t += "fade=" + String(cfg.fadeMs) + "\nswfade=" + String(cfg.switchFadeMs) + "\nautostart=" + String(cfg.autoStart ? 1 : 0) + "\nbtone=" + String(cfg.bootTone ? 1 : 0) + "\nresume=" + String(cfg.resumeLast ? 1 : 0) + "\nsdon=" + String(cfg.sdOn ? 1 : 0) + "\nsdcs=" + String(cfg.sdCs) + "\nsdsck=" + String(cfg.sdSck) + "\nsdmosi=" + String(cfg.sdMosi) + "\nsdmiso=" + String(cfg.sdMiso) + "\nvolmax=" + String(VOLUME_MAX) + "\nvramp=" + String(cfg.volRampMs) + "\nmix=" + String(cfg.mixAnn ? 1 : 0) + "\nloud=" + String(cfg.loudNorm ? 1 : 0) + "\nduck=" + String(cfg.duckPct) + "\ntmatch=" + cfg.titleMatch + "\ntvol=" + String(cfg.titleVol) + "\ntmax=" + String(cfg.titleMaxS) + "\n";
+    t += "fade=" + String(cfg.fadeMs) + "\nswfade=" + String(cfg.switchFadeMs) + "\nautostart=" + String(cfg.autoStart ? 1 : 0) + "\nbtone=" + String(cfg.bootTone ? 1 : 0) + "\nresume=" + String(cfg.resumeLast ? 1 : 0) + "\nsdon=" + String(cfg.sdOn ? 1 : 0) + "\nsdcs=" + String(cfg.sdCs) + "\nsdsck=" + String(cfg.sdSck) + "\nsdmosi=" + String(cfg.sdMosi) + "\nsdmiso=" + String(cfg.sdMiso) + "\nvolmax=" + String(VOLUME_MAX) + "\nvramp=" + String(cfg.volRampMs) + "\nmix=" + String(cfg.mixAnn ? 1 : 0) + "\nloud=" + String(cfg.loudNorm ? 1 : 0) + "\nagc=" + String(cfg.radioAgc ? 1 : 0) + "\nagcdb=" + String(cfg.agcDb) + "\nduck=" + String(cfg.duckPct) + "\ntmatch=" + cfg.titleMatch + "\ntvol=" + String(cfg.titleVol) + "\ntmax=" + String(cfg.titleMaxS) + "\n";
     t += "log=" + String(cfg.logEnabled ? 1 : 0) + "\nlogmin=" + String(cfg.logAutoMin) + "\n";
     for (int i = 0; i < RADIO_SLOTS; i++) t += "rn" + String(i + 1) + "=" + cfg.radioName[i] + "\nru" + String(i + 1) + "=" + cfg.radioUrl[i] + "\nrv" + String(i + 1) + "=" + (cfg.radioVol[i] >= 0 ? String(cfg.radioVol[i]) : String()) + "\n";
     webserver.sendHeader("Content-Disposition", "attachment; filename=" + cfg.host + "-settings.txt");
     webserver.sendHeader("Cache-Control", "no-store");
+    t += favExportText();
     webserver.send(200, "text/plain; charset=utf-8", t);
 }
 
@@ -1422,6 +1656,11 @@ void handleImport() {
         } else if (k == "vramp") { cfg.volRampMs = constrain(v.toInt(), 0, VOLUME_RAMP_MAX_MS); prefs.putInt("vramp", cfg.volRampMs);
         } else if (k == "mix") { cfg.mixAnn = v.toInt() != 0; prefs.putBool("mix", cfg.mixAnn);
         } else if (k == "loud") { cfg.loudNorm = v.toInt() != 0; prefs.putBool("loud", cfg.loudNorm);
+        } else if (k == "agc") { cfg.radioAgc = v.toInt() != 0; prefs.putBool("agc", cfg.radioAgc);
+        } else if (k == "agcdb") { cfg.agcDb = constrain(v.toInt(), -30, -10); prefs.putInt("agcdb", cfg.agcDb);
+        } else if (favImportLine(k, v)) {
+            // Favoriten (favcount, favn1, favu1 ...) sind in favImportLine erledigt.
+            // Favorites (favcount, favn1, favu1 ...) are handled in favImportLine.
         } else if (k == "duck") { cfg.duckPct = constrain(v.toInt(), 0, 100); prefs.putInt("duck", cfg.duckPct);
         } else if (k == "tmatch") { cfg.titleMatch = v; prefs.putString("tmatch", v);
         } else if (k == "tmax") { cfg.titleMaxS = constrain(v.toInt(), 0, 3600); prefs.putInt("tmax", cfg.titleMaxS);
@@ -1448,6 +1687,7 @@ void handleImport() {
         }
         count++;
     }
+    if (favLoaded) favSaveAll();
     applyVolume(cfg.vol);
     setupTime();
     mqttReconnectNow();
@@ -1522,6 +1762,7 @@ void handleApiStation() {
 void handleApiStationDelete() {
     int n = apiArg("n").toInt();
     if (n < 1 || n > RADIO_SLOTS) return sendErr(400, "Platz 1-" + String(RADIO_SLOTS) + " angeben");
+    if (cfg.radioUrl[n - 1] == RSA_URL) rsaSetGone(true);
     cfg.radioName[n - 1] = "";
     cfg.radioUrl[n - 1] = "";
     prefs.putString(("rn" + String(n)).c_str(), "");
@@ -1593,22 +1834,45 @@ String stationsApply(String body) {
 
     String on[RADIO_SLOTS], ou[RADIO_SLOTS];
     int ov[RADIO_SLOTS];
-    int k = 1;
+    bool gone = rsaGone();
+    int k = gone ? 0 : 1;
     ou[0] = RSA_URL;
     on[0] = "RSA";
     ov[0] = -1;
     for (int i = 0; i < RADIO_SLOTS; i++) {
-        if (cfg.radioUrl[i] == RSA_URL) {
+        if (!gone && cfg.radioUrl[i] == RSA_URL) {
             on[0] = cfg.radioName[i];
             ov[0] = cfg.radioVol[i];
         }
     }
+    // Danach die Favoriten, dann die Sender der Liste (ohne Doppelte); bei zu vielen Eintraegen faellt das Ende weg.
+    // Then the favorites, then the stations of the list (without duplicates); with too many entries the end is dropped.
+
+    favEnsure();
+    for (int f = 0; f < FAV_SLOTS && k < RADIO_SLOTS; f++) {
+        if (favUrl[f].isEmpty() || favUrl[f] == RSA_URL) continue;
+        bool dup = false;
+        for (int j = 0; j < k; j++) {
+            if (ou[j] == favUrl[f]) dup = true;
+        }
+        if (dup) continue;
+        on[k] = favName[f];
+        ou[k] = favUrl[f];
+        ov[k] = -1;
+        k++;
+    }
     for (int i = 0; i < RADIO_SLOTS; i++) {
         if (urls[i].isEmpty()) continue;
         if (urls[i] == RSA_URL) {
+            if (gone) continue;
             on[0] = names[i];
             ov[0] = vols[i];
         } else if (k < RADIO_SLOTS) {
+            bool dup = false;
+            for (int j = 0; j < k; j++) {
+                if (ou[j] == urls[i]) dup = true;
+            }
+            if (dup) continue;
             on[k] = names[i];
             ou[k] = urls[i];
             ov[k] = vols[i];
@@ -1675,12 +1939,14 @@ void handleApiStatus() {
         if (audio && playState == PS_PLAYING) j += ",\"codec\":\"" + jsonEscape(String(audio->getCodecname())) + "\",\"rate\":" + String(audio->getSampleRate()) + ",\"ch\":" + String(audio->getChannels()) + ",\"bits\":" + String(audio->getBitsPerSample());
     }
     if (!idleNow && nowKind == "file" && playState == PS_PLAYING && cfg.loudNorm) j += ",\"gainDb\":" + (fileGainKnown ? String(fileGainCurDb, 1) : String("null"));
+    if (agcActive) j += ",\"agcDb\":" + String(agcGainShown, 1);
     if (!idleNow && nowKind == "file" && playState == PS_PLAYING && audio && audio->getFileSize() > 0) {
         uint32_t fsz = audio->getFileSize();
         uint32_t fpos = audio->getAudioFilePosition();
         j += ",\"pm\":" + String((uint32_t)((uint64_t)(fpos > fsz ? fsz : fpos) * 1000ULL / fsz)) + ",\"rate\":" + String((double)audio->getBitRate() / 8.0 * 1000.0 / (double)fsz, 3);
     }
     j += ",\"audioLoopMs\":" + String(diagAudioMs) + ",\"loopMs\":" + String(diagLoopMs) + ",\"bufKb\":" + String(diagBufKb) + ",\"bufMinKb\":" + String(diagBufMinKb) + ",\"decErr\":" + String(diagDecErr);
+    j += ",\"nvsUsed\":" + String(nvsUsedEntries()) + ",\"nvsFree\":" + String(nvsFreeEntries());
     j += ",\"uptime\":" + String(millis() / 1000) + ",\"resetReason\":\"" + resetReasonName() + "\",\"wifiReconnects\":" + String(wifiReconnects) + ",\"mqttReconnects\":" + String(mqttReconnects) + ",\"minFreeHeap\":" + String(ESP.getMinFreeHeap()) + ",\"safeMode\":" + (safeMode ? "true" : "false");
     storageRefresh();
     j += ",\"heap\":" + String(ESP.getFreeHeap()) + ",\"fsUsed\":" + String(fsReady ? fsUsedC : 0);
@@ -2106,6 +2372,93 @@ void handleApiStationList() {
     sendErr(422, res.substring(5));
 }
 
+
+void favSaveFrom(int first) {
+    (void)first;
+    favSaveAll();
+}
+
+int favCount() {
+    int n = 0;
+    for (int i = 0; i < FAV_SLOTS; i++) {
+        if (!favUrl[i].isEmpty()) n++;
+    }
+    return n;
+}
+
+void handleApiFavorites() {
+    favEnsure();
+    String j = "{\"max\":" + String(FAV_SLOTS) + ",\"favorites\":[";
+    bool first = true;
+    for (int i = 0; i < FAV_SLOTS; i++) {
+        if (favUrl[i].isEmpty()) continue;
+        if (!first) j += ",";
+        first = false;
+        j += "{\"n\":" + String(i + 1) + ",\"name\":\"" + jsonEscape(favName[i]) + "\",\"url\":\"" + jsonEscape(favUrl[i]) + "\"}";
+    }
+    j += "]}";
+    sendJson(200, j);
+}
+
+void handleApiFavoriteAdd() {
+    favEnsure();
+    String url = apiArg("url");
+    url.trim();
+    String name = apiArg("name");
+    name.trim();
+    name.replace("\r", " ");
+    name.replace("\n", " ");
+    if (!(url.startsWith("http://") || url.startsWith("https://"))) return sendErr(400, "URL muss mit http:// oder https:// beginnen");
+    if (url.length() > RADIO_URL_MAX) return sendErr(400, "URL zu lang");
+    if (name.isEmpty()) name = url.substring(url.indexOf("//") + 2);
+    if (name.length() > RADIO_NAME_MAX) name = name.substring(0, RADIO_NAME_MAX);
+    for (int i = 0; i < FAV_SLOTS; i++) {
+        if (favUrl[i] == url) return sendOk("Schon in den Favoriten");
+    }
+    for (int i = 0; i < FAV_SLOTS; i++) {
+        if (favUrl[i].isEmpty()) {
+            favName[i] = name;
+            favUrl[i] = url;
+            favSaveFrom(i);
+            logLine("[WEB] favorite added: " + name);
+            return sendOk("Zu den Favoriten hinzugef\xC3\xBCgt");
+        }
+    }
+    sendErr(400, "Favoriten voll (" + String(FAV_SLOTS) + ")");
+}
+
+void handleApiFavoriteDelete() {
+    favEnsure();
+    int n = apiArg("n").toInt();
+    if (n < 1 || n > FAV_SLOTS || favUrl[n - 1].isEmpty()) return sendErr(404, "Favorit nicht gefunden");
+    for (int i = n - 1; i < FAV_SLOTS - 1; i++) {
+        favName[i] = favName[i + 1];
+        favUrl[i] = favUrl[i + 1];
+    }
+    favName[FAV_SLOTS - 1] = "";
+    favUrl[FAV_SLOTS - 1] = "";
+    favSaveFrom(n - 1);
+    logLine("[WEB] favorite " + String(n) + " deleted");
+    sendOk("Favorit gel\xC3\xB6scht");
+}
+
+// Favoriten als neue Senderliste uebernehmen (ersetzt die gespeicherte Senderliste; RSA steht danach auf Platz 1).
+// Take the favorites over as the new station list (replaces the stored station list; RSA is at slot 1 afterwards).
+
+void handleApiFavoritesToList() {
+    favEnsure();
+    String t = "# " PROJECT_NAME " stations\n";
+    int k = 0;
+    for (int i = 0; i < FAV_SLOTS; i++) {
+        if (favUrl[i].isEmpty()) continue;
+        k++;
+        t += "rn" + String(k) + "=" + favName[i] + "\nru" + String(k) + "=" + favUrl[i] + "\nrv" + String(k) + "=\n";
+    }
+    if (k == 0) return sendErr(400, "Keine Favoriten");
+    String res = stationsApply(t);
+    if (res.startsWith("OK|")) return sendOk(res.substring(3));
+    sendErr(400, res.startsWith("FAIL|") ? res.substring(5) : res);
+}
 void handleApiLang() {
     if (webserver.method() == HTTP_POST) {
         String d = langCode(apiArg("delete"));
@@ -2420,6 +2773,8 @@ void setupWeb() {
     webserver.on("/import", HTTP_POST, handleImport);
     webserver.on("/stations.txt", HTTP_GET, handleStationsExport);
     webserver.on("/importstations", HTTP_POST, handleStationsImport);
+    webserver.on("/favorites.txt", HTTP_GET, handleFavoritesExport);
+    webserver.on("/importfavorites", HTTP_POST, handleFavoritesImport);
     webserver.on("/api/stationlist", handleApiStationList);
     webserver.on("/restart", HTTP_POST, handleRestart);
     webserver.on("/log", HTTP_GET, handleLog);
@@ -2429,6 +2784,10 @@ void setupWeb() {
     webserver.on("/api/station", handleApiStation);
     webserver.on("/api/stations", HTTP_GET, handleApiStations);
     webserver.on("/api/stationdelete", handleApiStationDelete);
+    webserver.on("/api/favorites", handleApiFavorites);
+    webserver.on("/api/favoriteadd", handleApiFavoriteAdd);
+    webserver.on("/api/favoritedelete", handleApiFavoriteDelete);
+    webserver.on("/api/favoritestolist", handleApiFavoritesToList);
     webserver.on("/api/url", handleApiUrl);
     webserver.on("/api/file", handleApiFile);
     webserver.on("/api/log", handleApiLog);
