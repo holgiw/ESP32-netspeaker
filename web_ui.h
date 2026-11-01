@@ -220,7 +220,7 @@ function loadStations(inp){
   if(!confirm('Die gespeicherte Senderliste wird durch die Datei ersetzt. Fortfahren?')){inp.value='';return;}
   var rd=new FileReader();
   rd.onload=function(){fetch('/importstations',{method:'POST',headers:{'Content-Type':'text/plain'},body:rd.result}).then(function(r){return r.text();}).then(function(t){
-    alert(t.indexOf('OK|')===0?t.substring(3):('Fehler: '+t.substring(5)));location.reload();});};
+    alert(t.indexOf('OK|')===0?t.substring(3):('Fehler: '+t.substring(5)));location.href='/?tab=radio';});};
   rd.readAsText(f);
 }
 )js";
@@ -248,15 +248,21 @@ static const char* const FMT_LABELS[] = {"8 kHz mono (klein)", "22 kHz mono (Sta
 
 String nowPlayingRow();
 
+// Lautstaerkeregler ganz oben in den Tabs MP3, Sprechen, SD-Karte und Webradio; alle Regler zeigen denselben Wert.
+// Volume slider at the very top of the tabs MP3, Sprechen, SD-Karte and Webradio; all sliders show the same value.
+
+String volumeRow() {
+    return "<div class='row volrow'><label>Lautst&auml;rke <input type='range' class='volrange' min='0' max='" + String(VOLUME_MAX) + "' value='" + String(cfg.vol) + "' style='width:200px' oninput='volShow(this.value)' onchange='setVol(this.value)'> <span class='volshow' style='display:inline-block;min-width:76px'>" + String(cfg.vol) + " / " + String(VOLUME_MAX) + "</span></label> " + infoTip("Lautst&auml;rke 0 bis 100; wird sofort &uuml;bernommen und gespeichert") + "</div>";
+}
+
 String panelSpeak() {
-    String h = nowPlayingRow();
+    String h = volumeRow() + nowPlayingRow();
     h += "<div class='card'><h3>Text ansagen</h3>";
     h += "<div class='row'>Text zum Ansagen " + infoTip("Text, der &uuml;ber VoiceRSS angesagt wird (h&ouml;chstens 500 Zeichen)") + "</div>";
     h += "<textarea id='sayText' maxlength='" + String(TTS_MAX_CHARS) + "' placeholder='Text zum Ansagen'></textarea>";
     h += "<div class='row'><select id='sayLang' onchange=\"fillVoiceSel('sayVoice',this.value,false)\" style='width:210px'><option value=''>Standard (" + htmlEsc(cfg.vlang) + ")</option>" + selectOptions(LANG_VALUES, LANG_LABELS, LANG_COUNT, "") + "</select> " + infoTip("Sprache der Ansage; Standard ist die Sprache aus dem Tab Audio") + "";
     h += "<select id='sayVoice' onchange='voiceChosen(this)' style='width:210px'><option value=''>Standard (VoiceRSS)</option></select> " + infoTip("Stimme f&uuml;r diese Ansage; Standard = gespeicherte Stimme bzw. Standardstimme der Sprache") + "</div>";
     h += "<div class='row'><button type='button' onclick='sayNow()' style='width:150px'>Sprechen</button><button type='button' onclick='stopNow()' style='width:150px'>Stopp</button> " + infoTip("Sprechen: sagt den Text jetzt an, ein laufendes Webradio l&auml;uft danach weiter. Stopp: beendet die Wiedergabe sofort, auch ein Webradio, ohne Fortsetzung") + "</div>";
-    h += "<div class='row'><label>Lautst&auml;rke <input type='range' id='vol' min='0' max='" + String(VOLUME_MAX) + "' value='" + String(cfg.vol) + "' style='width:200px' oninput='volShow(this.value)' onchange='setVol(this.value)'> <span id='volShow' style='display:inline-block;min-width:76px'>" + String(cfg.vol) + " / " + String(VOLUME_MAX) + "</span></label> " + infoTip("Lautst&auml;rke 0 bis 100; wird sofort &uuml;bernommen und gespeichert") + "</div>";
     h += "<div id='sayResult'></div><div class='row'><small id='playState'></small></div></div>";
     return h;
 }
@@ -268,8 +274,33 @@ String nowPlayingRow() {
     return "<div class='row' style='min-height:2.4rem'><strong class='nowplaying' style='color:var(--ok)'></strong><button type='button' class='stopbtn' onclick='stopNow()' style='width:auto;padding:6px 16px;margin:0 8px' disabled>&#9632; Stopp</button></div>";
 }
 
+// Belegung von LittleFS und SD-Karte: usedBytes() braucht 45 ms bis mehrere Hundert ms und haelt die Schleife (und den Ton) an; deshalb alle 15 s neu lesen oder nach Aenderungen an Dateien.
+// Usage of LittleFS and SD card: usedBytes() takes 45 ms up to several hundred ms and holds up the loop (and the sound); so re-read every 15 s or after file changes.
+
+static unsigned long storageRead = 0;
+static size_t fsUsedC = 0, fsTotalC = 0;
+static uint64_t sdUsedC = 0, sdTotalC = 0;
+
+void storageInvalidate() {
+    storageRead = 0;
+}
+
+void storageRefresh() {
+    if (storageRead != 0 && millis() - storageRead < 15000UL) return;
+    if (fsReady) {
+        fsUsedC = LittleFS.usedBytes();
+        fsTotalC = LittleFS.totalBytes();
+    }
+    if (sdReady) {
+        sdUsedC = SD.usedBytes();
+        sdTotalC = SD.totalBytes();
+    }
+    storageRead = millis();
+    if (storageRead == 0) storageRead = 1;
+}
+
 String panelRadio() {
-    String h = nowPlayingRow();
+    String h = volumeRow() + nowPlayingRow();
     h += "<details id='radioInfoBox' style='display:none;max-width:500px;margin:0 auto 10px;text-align:left'><summary style='cursor:pointer;color:var(--muted)'>Stream-Info</summary><table id='radioInfo' style='width:100%;margin-top:6px'></table></details>";
     h += "<div class='card'><h3>Webradio-URL abspielen</h3><div class='row'>";
     h += "<input id='playUrl' placeholder='https://...' style='width:90%'><button type='button' onclick='playUrlNow()' style='width:150px'>URL abspielen</button><button type='button' class='stopbtn' onclick='stopNow()' style='width:150px' disabled>&#9632; Stopp</button> " + infoTip("Adresse eines Webradios oder einer MP3-Datei (http:// oder https://); sie wird jetzt abgespielt, aber nicht gespeichert. Stopp beendet die Wiedergabe, auch ein Webradio, ohne Fortsetzung") + "</div><div id='radioResult'></div></div>";
@@ -289,6 +320,7 @@ String panelRadio() {
     h += "<div class='card' style='max-width:900px'><h3>Gespeicherte Webradios / URLs " + infoTip("Pro Platz: Name (beliebig, auch per REST und MQTT abrufbar), URL (Webradio oder MP3; leer lassen und speichern gibt den Platz frei) und Lautst&auml;rke des Senders (0-100, leer = allgemeine Lautst&auml;rke)") + "</h3><small>" + String(used) + " von " + String(RADIO_SLOTS) + " Pl&auml;tzen belegt</small><form method='POST' action='/save'><input type='hidden' name='sect' value='radio'>";
     for (int i = 0; i < RADIO_SLOTS; i++) {
         if (cfg.radioUrl[i].isEmpty() && i != firstEmpty) continue;
+        audioPump();
         String n = String(i + 1);
         h += "<div class='row stationrow' data-n='" + n + "' data-url='" + htmlEsc(cfg.radioUrl[i]) + "'><span style='width:1.6rem;text-align:right;color:var(--muted)'>" + n + "</span>";
         h += "<input name='rn" + n + "' maxlength='" + String(RADIO_NAME_MAX) + "' placeholder='Name' value='" + htmlEsc(cfg.radioName[i]) + "' style='width:150px'>";
@@ -303,7 +335,7 @@ String panelRadio() {
     }
     h += "<small>Das Feld rechts neben der URL ist die Lautst&auml;rke des Senders (0-100, leer = allgemeine Lautst&auml;rke). Speichern, bevor du &#9654; dr&uuml;ckst. &#9650;&#9660; verschieben den Sender und speichern sofort. Der URL-Knopf kopiert den REST-Aufruf <code>/api/station?n=Platz</code>; auch der Name geht (<code>?name=...</code>).</small>";
     h += "<button type='submit'>Speichern</button><div id='stResult'></div></form>";
-    h += "<div style='margin-top:18px;padding-top:12px;border-top:1px solid var(--panel-border)'><h3 style='margin:0 0 6px'>Senderlisten</h3><small>Beim Laden einer Liste bleibt RSA immer Platz 1.</small>";
+    h += "<div style='margin-top:18px;padding-top:12px;border-top:1px solid var(--panel-border)'><h3 style='margin:0 0 6px'>Senderlisten</h3>";
     h += "<div class='row' style='justify-content:flex-start;gap:8px'><span style='min-width:110px;text-align:left'>Eigene Liste</span><button type='button' onclick=\"location.href='/stations.txt'\" style='width:auto;padding:8px 14px'>Liste speichern</button> " + infoTip("Speichert die Senderliste (Name, URL, Lautst&auml;rke) als Textdatei auf deinem Rechner") + " ";
     h += "<button type='button' onclick=\"document.getElementById('stFile').click()\" style='width:auto;padding:8px 14px'>Liste laden</button><input type='file' id='stFile' accept='.txt' style='display:none' onchange='loadStations(this)'> " + infoTip("Ersetzt die gespeicherte Senderliste durch eine zuvor gespeicherte Datei") + "</div>";
     h += "<div class='row' style='justify-content:flex-start;gap:8px'><span style='min-width:110px;text-align:left'>Fertige Liste</span><select id='stList' style='width:auto'><option>aac-auswahl</option><option>mp3-auswahl</option><option>rock</option><option>entspannung</option></select><button type='button' onclick='listFetch()' style='width:auto;padding:8px 14px'>Von GitHub laden</button> " + infoTip("L&auml;dt eine fertige Senderliste aus dem Ordner stations des Projekts auf GitHub und ersetzt die gespeicherte Liste; das Ger&auml;t braucht dazu Internet") + "</div><div id='stListResult'></div></div></div>";
@@ -311,7 +343,7 @@ String panelRadio() {
 }
 
 String panelSd() {
-    String h = nowPlayingRow();
+    String h = volumeRow() + nowPlayingRow();
     h += "<div class='card' style='max-width:900px'><h3>SD-Karte</h3><small id='sdInfo'>Lade &hellip;</small><div id='sdMem'></div><div id='sdPath' style='margin:6px 0;color:var(--muted)'></div><div id='sdList'></div>";
     h += "<div class='row'><input type='file' id='sdUpFile' multiple accept='.mp3' style='width:55%'><button type='button' onclick='sdUploadNow()' style='width:auto;padding:8px 14px'>Hochladen</button> " + infoTip("Eine oder mehrere MP3-Dateien w&auml;hlen; sie werden nacheinander in den gezeigten Ordner der Karte hochgeladen") + "</div>";
     h += "<div class='row'><button type='button' onclick='sdMkdir()' style='width:auto;padding:8px 14px'>Neuer Ordner</button><button type='button' onclick='sdRemount()' style='width:auto;padding:8px 14px'>Neu einbinden</button> <label style='display:inline-flex;align-items:center;gap:4px'><input type='checkbox' id='sdLoop'> Endlos</label> " + infoTip("Neuer Ordner: legt einen Ordner im gezeigten Ordner an. Neu einbinden: bindet die Karte neu ein, zum Beispiel nach dem Einstecken. Endlos: nach der letzten Datei eines Ordners beginnt eine neue Runde. Zufall (Knopf am Ordner): jede Datei kommt je Sitzung einmal, die Reihenfolge ist jedes Mal eine andere und beginnt nie mit der Datei der letzten Sitzung") + "</div><div id='sdResult'></div></div>";
@@ -326,7 +358,7 @@ String panelPins() {
 }
 
 String panelMp3() {
-    String h = nowPlayingRow();
+    String h = volumeRow() + nowPlayingRow();
     h += "<div class='card'><h3>Dateien im Ger&auml;t</h3><div id='fsMem'></div><div id='fileList'>Lade &hellip;</div><hr>";
     h += "<div class='row'><input type='file' id='upFile' multiple accept='.mp3' style='width:90%'><button type='button' onclick='uploadNow()' style='width:150px'>Hochladen</button> " + infoTip("Eine oder mehrere MP3-Dateien vom Rechner w&auml;hlen; sie werden nacheinander in den Speicher des Ger&auml;ts geladen") + "</div>";
     h += "<div id='upResult'></div></div>";
@@ -536,11 +568,12 @@ String panelStatus() {
     h += statusRow("MQTT Reconnects", String(mqttReconnects));
     h += statusRow("PSRAM", String(ESP.getPsramSize()) + " bytes (free " + String(ESP.getFreePsram()) + ")");
     h += statusRow("Flash Size", String(ESP.getFlashChipSize()) + " bytes");
-    h += statusRow("LittleFS", fsReady ? String(LittleFS.usedBytes()) + " / " + String(LittleFS.totalBytes()) + " bytes" : String("not mounted"));
+    storageRefresh();
+    h += statusRow("LittleFS", fsReady ? String(fsUsedC) + " / " + String(fsTotalC) + " bytes" : String("not mounted"));
     h += statusRow("SD Card", sdState);
     if (sdReady) {
-        unsigned long sdTotal = (unsigned long)(SD.totalBytes() / 1048576ULL);
-        unsigned long sdUsed = (unsigned long)(SD.usedBytes() / 1048576ULL);
+        unsigned long sdTotal = (unsigned long)(sdTotalC / 1048576ULL);
+        unsigned long sdUsed = (unsigned long)(sdUsedC / 1048576ULL);
         unsigned long sdFree = sdTotal > sdUsed ? sdTotal - sdUsed : 0;
         h += statusRow("SD Size", String(sdTotal) + " MB (card " + String((unsigned long)(SD.cardSize() / 1048576ULL)) + " MB)");
         h += statusRow("SD Used", String(sdUsed) + " MB" + (sdTotal > 0 ? " (" + String(sdUsed * 100UL / sdTotal) + " %)" : String()));
@@ -817,7 +850,7 @@ function postApi(path,params,resId){
   return fetch(path,{method:'POST',body:new URLSearchParams(params)}).then(function(r){return r.json();}).then(function(j){showRes(resId,j);return j;})
     .catch(function(){showRes(resId,{ok:false,error:'Keine Antwort vom Ger&auml;t'});});
 }
-function listFetch(){var n=(document.getElementById('stList').value||'').trim();if(!n)return;if(!confirm('Die gespeicherte Senderliste wird durch die Liste von GitHub ersetzt. Fortfahren?'))return;showRes('stListResult',{ok:true,msg:'Lade von GitHub &hellip;'});postApi('/api/stationlist',{list:n},'stListResult').then(function(j){if(j&&j.ok)setTimeout(function(){location.reload();},1200);});}
+function listFetch(){var n=(document.getElementById('stList').value||'').trim();if(!n)return;if(!confirm('Die gespeicherte Senderliste wird durch die Liste von GitHub ersetzt. Fortfahren?'))return;showRes('stListResult',{ok:true,msg:'Lade von GitHub &hellip;'});postApi('/api/stationlist',{list:n},'stListResult').then(function(j){if(j&&j.ok)setTimeout(function(){location.href='/?tab=radio';},1200);});}
 function sayNow(){postApi('/api/say',{text:document.getElementById('sayText').value,lang:document.getElementById('sayLang').value,voice:document.getElementById('sayVoice').value},'sayResult');}
 function clearLog(){if(!confirm('Log l\u00f6schen?'))return;postApi('/api/log',{clear:'1'},'logResult').then(function(){var p=document.getElementById('logContent');if(p)p.textContent='';});}
 function copyText(t,btn){
@@ -842,8 +875,8 @@ function voiceChosen(s){if(s.value!=='__custom__')return;
   var n=(prompt('Name der Stimme (wie bei VoiceRSS):')||'').replace(/[^A-Za-z0-9_-]/g,'');
   if(!n){s.value='';return;}
   var o=document.createElement('option');o.value=n;o.textContent=n;s.insertBefore(o,s.querySelector('option[value="__custom__"]'));s.value=n;}function stopNow(){postApi('/api/stop',{},'sayResult');}
-function volShow(v){var e=document.getElementById('volShow'),s=document.getElementById('vol');if(e&&s)e.textContent=v+' / '+s.max;}
-function setVol(v){volShow(v);postApi('/api/volume',{v:v},'sayResult');}
+function volShow(v){var s=document.querySelectorAll('.volrange'),e=document.querySelectorAll('.volshow'),i;for(i=0;i<s.length;i++){if(+s[i].value!==+v)s[i].value=v;}for(i=0;i<e.length;i++)e[i].textContent=v+' / '+(s[0]?s[0].max:100);}
+function setVol(v){volShow(v);fetch('/api/volume',{method:'POST',body:new URLSearchParams({v:v})});}
 function playUrlNow(){postApi('/api/play',{url:document.getElementById('playUrl').value},'radioResult');}
 var sdCur='/';
 function checkPins(){var s=document.querySelectorAll('select.pinsel'),seen={},dup=false;s.forEach(function(e){e.classList.remove('dup');});
@@ -919,7 +952,7 @@ function barTick(){var pm=nbs.on?Math.min(1000,nbs.pm+nbs.rate*(Date.now()-nbs.t
 setInterval(barTick,250);
 function pollPlay(){if(document.hidden)return;fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
   var el=document.getElementById('playState');if(el)el.textContent='Zustand: '+j.state+(j.error?' ('+j.error+')':'');
-  var vs=document.getElementById('vol');if(vs&&document.activeElement!==vs&&j.volume!==undefined&&+vs.value!==j.volume){vs.value=j.volume;volShow(j.volume);}
+  var vs=document.querySelector('.volrange'),ae=document.activeElement;if(vs&&!(ae&&ae.className==='volrange')&&j.volume!==undefined&&+vs.value!==j.volume){volShow(j.volume);}
   {var t='';
     if(j.source==='radio'){t='\u266a Webradio: '+(j.name||j.url)+(j.title?' \u2013 '+j.title:'');}
     else if(j.source==='file'){t='\u266a Datei: '+j.name;}
@@ -988,6 +1021,7 @@ String flashText(const String& code) {
 
 void sendChunk(const String& s) {
     webserver.sendContent(s);
+    audioPump();
 }
 
 void handleRoot() {
@@ -1641,10 +1675,11 @@ void handleApiStatus() {
         uint32_t fpos = audio->getAudioFilePosition();
         j += ",\"pm\":" + String((uint32_t)((uint64_t)(fpos > fsz ? fsz : fpos) * 1000ULL / fsz)) + ",\"rate\":" + String((double)audio->getBitRate() / 8.0 * 1000.0 / (double)fsz, 3);
     }
-    j += ",\"audioLoopMs\":" + String(diagAudioMs) + ",\"loopMs\":" + String(diagLoopMs) + ",\"bufKb\":" + String(diagBufKb) + ",\"bufMinKb\":" + String(diagBufMinKb);
+    j += ",\"audioLoopMs\":" + String(diagAudioMs) + ",\"loopMs\":" + String(diagLoopMs) + ",\"bufKb\":" + String(diagBufKb) + ",\"bufMinKb\":" + String(diagBufMinKb) + ",\"decErr\":" + String(diagDecErr);
     j += ",\"uptime\":" + String(millis() / 1000) + ",\"resetReason\":\"" + resetReasonName() + "\",\"wifiReconnects\":" + String(wifiReconnects) + ",\"mqttReconnects\":" + String(mqttReconnects) + ",\"minFreeHeap\":" + String(ESP.getMinFreeHeap()) + ",\"safeMode\":" + (safeMode ? "true" : "false");
-    j += ",\"heap\":" + String(ESP.getFreeHeap()) + ",\"fsUsed\":" + String(fsReady ? LittleFS.usedBytes() : 0);
-    j += ",\"fsTotal\":" + String(fsReady ? LittleFS.totalBytes() : 0) + "}";
+    storageRefresh();
+    j += ",\"heap\":" + String(ESP.getFreeHeap()) + ",\"fsUsed\":" + String(fsReady ? fsUsedC : 0);
+    j += ",\"fsTotal\":" + String(fsReady ? fsTotalC : 0) + "}";
     sendJson(200, j);
 }
 
@@ -1678,7 +1713,8 @@ void handleApiSd() {
     bool ok = sdListDir(dir, list);
     if (!dir.startsWith("/")) dir = "/" + dir;
     String j = String("{\"mounted\":") + (sdReady ? "true" : "false") + ",\"state\":\"" + jsonEscape(sdState) + "\"";
-    if (sdReady) j += ",\"size\":" + String((unsigned long)(SD.totalBytes() / 1048576ULL)) + ",\"used\":" + String((unsigned long)(SD.usedBytes() / 1048576ULL));
+    storageRefresh();
+    if (sdReady) j += ",\"size\":" + String((unsigned long)(sdTotalC / 1048576ULL)) + ",\"used\":" + String((unsigned long)(sdUsedC / 1048576ULL));
     j += ",\"dir\":\"" + jsonEscape(dir) + "\",\"ok\":" + (ok ? "true" : "false") + ",\"entries\":[";
     for (size_t i = 0; i < list.size(); i++) {
         if (i) j += ",";
@@ -1726,6 +1762,7 @@ void handleApiSdDelete() {
     xSemaphoreGive(sdMutex);
     if (!exists) return sendErr(404, "Nicht gefunden");
     if (!ok) return sendErr(400, "Konnte nicht gel\xC3\xB6scht werden");
+    storageInvalidate();
     logLine("[SD] deleted " + path);
     sendOk("Gel\xC3\xB6scht");
 }
@@ -1819,9 +1856,12 @@ void handleApiFiles() {
                 j += "{\"name\":\"" + jsonEscape(n) + "\",\"size\":" + String((unsigned long)f.size()) + "}";
             }
             f = dir.openNextFile();
+            audioPump();
         }
     }
-    j += "],\"used\":" + String(fsReady ? LittleFS.usedBytes() : 0) + ",\"total\":" + String(fsReady ? LittleFS.totalBytes() : 0) + "}";
+    audioPump();
+    storageRefresh();
+    j += "],\"used\":" + String(fsReady ? fsUsedC : 0) + ",\"total\":" + String(fsReady ? fsTotalC : 0) + "}";
     sendJson(200, j);
 }
 
@@ -1831,6 +1871,7 @@ void handleApiDelete() {
     if (name.isEmpty() || !LittleFS.exists(path)) return sendErr(404, "Datei nicht gefunden");
     stopIfUsing(name);
     LittleFS.remove(path);
+    storageInvalidate();
     logLine("[FILES] deleted " + path);
     sendOk("Gel\xC3\xB6scht");
 }
@@ -2176,6 +2217,7 @@ void handleUploadData() {
 
 void handleUploadDone() {
     if (uploadError.length() > 0) return sendErr(400, uploadError);
+    storageInvalidate();
     sendOk("Hochgeladen");
 }
 

@@ -95,6 +95,7 @@ volatile uint32_t diagAudioMs = 0;
 volatile uint32_t diagLoopMs = 0;
 volatile uint32_t diagBufMinKb = 0;
 volatile uint32_t diagBufKb = 0;
+volatile uint32_t diagDecErr = 0;
 Preferences prefs;
 
 // ---------------------------------------------------------------------------
@@ -3662,6 +3663,16 @@ void healthWatch() {
 // ---------------------------------------------------------------------------
 // Web-Oberflaeche / web interface
 
+// Laesst die Audio-Bibliothek zweimal laufen; Webseiten rufen es zwischen ihren Teilen auf, damit der Ton waehrend langer Zugriffe nicht abreisst.
+// Lets the audio library run twice; web pages call it between their parts so the sound does not break off during long requests.
+
+static inline void audioPump() {
+    if (audio) {
+        audio->loop();
+        audio->loop();
+    }
+}
+
 #include "web_ui.h"
 
 // ---------------------------------------------------------------------------
@@ -3867,6 +3878,7 @@ void loop() {
     if (audio) {
         uint32_t bf = audio->inBufferFilled();
         diagBufKb = bf / 1024;
+        diagDecErr = audio->getDecodeErrors();
         if (bf < bMin) bMin = bf;
     }
     audioEventPump();

@@ -1,5 +1,21 @@
 # Changelog
 
+## Nächste Version / Next version
+
+**Deutsch**
+
+- AAC-Aussetzer bei geöffneter Weboberfläche behoben: Die Audio-Bibliothek läuft jetzt auch zwischen den Teilen der Webseite, in der Dateiliste und in der Senderliste; die Belegung von LittleFS und SD-Karte wird nur alle 15 s neu gelesen (und nach Löschen oder Hochladen), weil `usedBytes()` die Schleife bis zu mehrere Hundert Millisekunden anhält. `/api/status` meldet zusätzlich `decErr` (Dekodierfehler).
+- Nach dem Laden einer Senderliste (Datei oder GitHub) bleibt die Seite im Tab *Webradio*. Der Hinweis zu RSA unter *Senderlisten* entfällt.
+- Der Lautstärkeregler steht ganz oben in den Tabs *MP3*, *Sprechen*, *SD-Karte* und *Webradio*; alle vier zeigen denselben Wert.
+- Die Senderlisten in `stations/` haben jetzt je mehr als 20 Sender (`aac-auswahl` 30, `rock` 26, `entspannung` 25).
+
+**English**
+
+- Fixed AAC dropouts while the web interface is open: the audio library now also runs between the parts of the web page, in the file list and in the station list; the usage of LittleFS and the SD card is re-read only every 15 s (and after deleting or uploading), because `usedBytes()` holds up the loop for up to several hundred milliseconds. `/api/status` also reports `decErr` (decoder errors).
+- After a station list is loaded (file or GitHub) the page stays on the *Webradio* tab. The RSA note under *Senderlisten* is gone.
+- The volume slider is at the very top of the tabs *MP3*, *Sprechen*, *SD-Karte* and *Webradio*; all four show the same value.
+- The station lists in `stations/` now have more than 20 stations each (`aac-auswahl` 30, `rock` 26, `entspannung` 25).
+
 ## 2026-10-31 - Version 1.4.2
 
 **Deutsch**

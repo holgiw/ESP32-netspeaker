@@ -5954,6 +5954,7 @@ void Audio::setDecoderItems() {
 }
 // —————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
 uint32_t Audio::decodeError(int8_t res, uint8_t* data, int32_t bytesDecoded) {
+    m_decodeErrors++;
     // for(int i = 0; i < 10; i++){printf("0x%02X ", data[i]);} printf("\n");
     if (res == -100) {
         stopSong();

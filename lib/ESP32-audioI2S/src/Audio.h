@@ -318,6 +318,7 @@ class Audio {
     uint32_t         getAudioFilePosition();
     bool             setAudioFilePosition(uint32_t pos);
     uint32_t         inBufferFilled();  // returns the number of stored bytes in the inputbuffer
+    uint32_t         getDecodeErrors() const { return m_decodeErrors; } // number of decoder errors since the start (project addition)
     uint32_t         inBufferFree();    // returns the number of free bytes in the inputbuffer
     uint32_t         getInBufferSize(); // returns the size of the inputbuffer in bytes
     void             inBufferStatus() { InBuff.showStatus(); }
@@ -597,6 +598,7 @@ class Audio {
     uint32_t       m_chunkcount = 0;                  // Counter for chunked transfer
     uint32_t       m_t0 = 0;                          // store millis(), is needed for a small delay
     uint32_t       m_bytesNotConsumed = 0;            // pictures or something else that comes with the stream
+    uint32_t       m_decodeErrors = 0;                // number of decoder errors since the start (project addition)
     uint64_t       m_lastGranulePosition = 0;         // necessary to calculate the duration in OPUS and VORBIS
     int32_t        m_resumeFilePos = -1;              // the return value from stopSong(), (-1) is idle
     int32_t        m_fileStartTime = -1;              // may be set in connecttoFS()
