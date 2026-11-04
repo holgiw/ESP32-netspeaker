@@ -110,6 +110,7 @@ curl --data-binary @stations.txt -H "Content-Type: text/plain" http://<ip>/impor
 curl -d "list=aac-auswahl" http://<ip>/api/stationlist    # fertige Liste aus stations/ auf GitHub laden (ersetzt die ganze Liste)
 curl -d "n=3" http://<ip>/api/stationdelete                    # Platz löschen (Name und URL); die folgenden Plätze rücken auf
 curl -X POST http://<ip>/api/stop
+curl -d "toggle=1" http://<ip>/api/mute                      # stumm schalten / aufheben (on=1, on=0, toggle=1; ohne Angabe nur Zustand)
 curl -d "v=50" http://<ip>/api/volume                      # 0-100
 curl http://<ip>/api/volume                                # meldet volume (allgemein) und playVolume (gerade wirkend)
 curl http://<ip>/api/status
@@ -127,7 +128,7 @@ Alle Parameter können als Formular, Query oder flaches JSON im Body kommen. Web
 
 ## MQTT
 
-Basis-Topic (Standard `netspeaker/<hostname>`): `…/say` (Text oder JSON `{"text":"…","lang":"de-de","voice":"Hanna","rate":0,"vol":60}`), `…/play` (URL oder Dateiname, auch JSON `{"url":"…"}` oder `{"file":"…"}`), `…/url` (nur URL), `…/file` (nur Dateiname aus dem Tab MP3 (Flash)), `…/station` (gespeicherter Platz 1–30 oder Name), `…/stop`, `…/volume` (0–21), `…/restart` (ohne Nutzlast, startet das Gerät neu; nicht retained senden, in den ersten 3 s nach dem Verbinden wird es ignoriert). Status in `…/status` (`idle`, `loading`, `playing`, `error: …`), die Lautstärke in `…/volume/state` (gerade wirkend) und `…/volume/general` (allgemein, beide retained), die Senderliste als JSON in `…/stations` (retained, nach jeder Änderung neu; Anfrage mit beliebiger Nutzlast an `…/list`), was gerade läuft in `…/now` (Sendername – Titel, Dateiname oder „Ansage“), Erreichbarkeit in `…/availability`.
+Basis-Topic (Standard `netspeaker/<hostname>`): `…/say` (Text oder JSON `{"text":"…","lang":"de-de","voice":"Hanna","rate":0,"vol":60}`), `…/play` (URL oder Dateiname, auch JSON `{"url":"…"}` oder `{"file":"…"}`), `…/url` (nur URL), `…/file` (nur Dateiname aus dem Tab MP3 (Flash)), `…/station` (gespeicherter Platz 1–30 oder Name), `…/stop`, `…/mute` (`on`, `off` oder `toggle`), `…/volume` (0–21), `…/restart` (ohne Nutzlast, startet das Gerät neu; nicht retained senden, in den ersten 3 s nach dem Verbinden wird es ignoriert). Status in `…/status` (`idle`, `loading`, `playing`, `error: …`), der Stumm-Zustand in `…/muted` (`on`/`off`, retained), die Lautstärke in `…/volume/state` (gerade wirkend) und `…/volume/general` (allgemein, beide retained), die Senderliste als JSON in `…/stations` (retained, nach jeder Änderung neu; Anfrage mit beliebiger Nutzlast an `…/list`, die auch die Favoriten erneut sendet), die Favoriten als JSON in `…/favorites` (retained, nach jeder Änderung neu), was gerade läuft in `…/now` (Sendername – Titel, Dateiname oder „Ansage“), Erreichbarkeit in `…/availability`.
 
 ## Hinweise
 

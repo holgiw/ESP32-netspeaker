@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-04 - Version 1.4.5
+
+**Deutsch**
+
+- Neu: Stumm-Taste neben *Stopp* (Tabs *Sprechen*, *Webradio* und in der Zeile *Läuft gerade*). Sie blendet den Ton sanft auf 0 aus und wieder ein (Dauer: die Lautstärke-Rampe, mindestens 300 ms); die eingestellte Lautstärke bleibt unverändert. REST `/api/mute` (`on=1|0`, `toggle=1`, ohne Angabe nur Zustand), MQTT `<Basis>/mute` (`on`, `off`, `toggle`) mit Zustand in `<Basis>/muted`, `muted` in `/api/status` und `/api/volume`, Schalter *Stumm* in Home Assistant.
+- Die Favoriten werden per MQTT gemeldet: `<Basis>/favorites` (retained, JSON `{"max":40,"favorites":[{"n":1,"name":"…","url":"…"}]}`), beim Verbinden und nach jeder Änderung der Liste; eine Anfrage an `<Basis>/list` sendet Senderliste und Favoriten erneut. Ein Favorit lässt sich mit seiner URL über `<Basis>/play` abspielen. Damit können Hausautomationen (z. B. openHAB) die Favoriten anzeigen.
+
+**English**
+
+- New: mute button next to *Stopp* (tabs *Sprechen*, *Webradio* and in the row *Läuft gerade*). It fades the sound out to 0 gently and back in (duration: the volume ramp, at least 300 ms); the set volume stays unchanged. REST `/api/mute` (`on=1|0`, `toggle=1`, without a parameter only the state), MQTT `<base>/mute` (`on`, `off`, `toggle`) with the state in `<base>/muted`, `muted` in `/api/status` and `/api/volume`, switch *Stumm* in Home Assistant.
+- The favorites are reported via MQTT: `<base>/favorites` (retained, JSON `{"max":40,"favorites":[{"n":1,"name":"…","url":"…"}]}`), when connecting and after every change of the list; a request to `<base>/list` sends the station list and the favorites again. A favorite can be played with its URL via `<base>/play`. Home automations (e.g. openHAB) can show the favorites this way.
+
 ## 2026-11-01 - Version 1.4.4
 
 **Deutsch**

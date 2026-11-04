@@ -252,7 +252,7 @@ String nowPlayingRow();
 // Volume slider at the very top of the tabs MP3, Sprechen, SD-Karte and Webradio; all sliders show the same value.
 
 String volumeRow() {
-    return "<div class='row volrow'><label>Lautst&auml;rke <input type='range' class='volrange' min='0' max='" + String(VOLUME_MAX) + "' value='" + String(cfg.vol) + "' style='width:200px' oninput='volShow(this.value)' onchange='setVol(this.value)'> <span class='volshow' style='display:inline-block;min-width:76px'>" + String(cfg.vol) + " / " + String(VOLUME_MAX) + "</span></label> " + infoTip("Lautst&auml;rke 0 bis 100; wird sofort &uuml;bernommen und gespeichert") + "</div>";
+    return "<div class='row volrow'><label>Lautst&auml;rke <input type='range' class='volrange' min='0' max='" + String(VOLUME_MAX) + "' value='" + String(cfg.vol) + "' style='width:200px' oninput='volShow(this.value)' onchange='setVol(this.value)'> <span class='volshow' style='display:inline-block;min-width:76px'>" + String(cfg.vol) + " / " + String(VOLUME_MAX) + "</span></label><button type='button' class='stopbtn' onclick='stopNow()' style='width:auto;padding:6px 16px;margin:0 4px 0 12px' disabled>&#9632; Stopp</button><button type='button' class='mutebtn' onclick='muteToggle()' style='width:auto;padding:6px 16px;margin:0 8px 0 4px'>Stumm</button> " + infoTip("Lautst&auml;rke 0 bis 100; wird sofort &uuml;bernommen und gespeichert. Stopp: beendet die Wiedergabe sofort, auch ein Webradio, ohne Fortsetzung. Stumm: blendet den Ton sanft aus und wieder ein, die eingestellte Lautst&auml;rke bleibt unver&auml;ndert") + "</div>";
 }
 
 String panelSpeak() {
@@ -262,7 +262,7 @@ String panelSpeak() {
     h += "<textarea id='sayText' maxlength='" + String(TTS_MAX_CHARS) + "' placeholder='Text zum Ansagen'></textarea>";
     h += "<div class='row'><select id='sayLang' onchange=\"fillVoiceSel('sayVoice',this.value,false)\" style='width:210px'><option value=''>Standard (" + htmlEsc(cfg.vlang) + ")</option>" + selectOptions(LANG_VALUES, LANG_LABELS, LANG_COUNT, "") + "</select> " + infoTip("Sprache der Ansage; Standard ist die Sprache aus dem Tab Audio") + "";
     h += "<select id='sayVoice' onchange='voiceChosen(this)' style='width:210px'><option value=''>Standard (VoiceRSS)</option></select> " + infoTip("Stimme f&uuml;r diese Ansage; Standard = gespeicherte Stimme bzw. Standardstimme der Sprache") + "</div>";
-    h += "<div class='row'><button type='button' onclick='sayNow()' style='width:150px'>Sprechen</button><button type='button' onclick='stopNow()' style='width:150px'>Stopp</button> " + infoTip("Sprechen: sagt den Text jetzt an, ein laufendes Webradio l&auml;uft danach weiter. Stopp: beendet die Wiedergabe sofort, auch ein Webradio, ohne Fortsetzung") + "</div>";
+    h += "<div class='row'><button type='button' onclick='sayNow()' style='width:150px'>Sprechen</button> " + infoTip("Sprechen: sagt den Text jetzt an, ein laufendes Webradio l&auml;uft danach weiter") + "</div>";
     h += "<div id='sayResult'></div><div class='row'><small id='playState'></small></div></div>";
     return h;
 }
@@ -271,7 +271,7 @@ String panelSpeak() {
 // Row with the display of what is playing right now and the stop button; at the top of every tab that starts playback.
 
 String nowPlayingRow() {
-    return "<div class='row' style='min-height:2.4rem'><strong class='nowplaying' style='color:var(--ok)'></strong><button type='button' class='stopbtn' onclick='stopNow()' style='width:auto;padding:6px 16px;margin:0 8px' disabled>&#9632; Stopp</button></div>";
+    return "<div class='row' style='min-height:2.4rem'><strong class='nowplaying' style='color:var(--ok)'></strong></div>";
 }
 
 // Belegung von LittleFS und SD-Karte: usedBytes() braucht 45 ms bis mehrere Hundert ms und haelt die Schleife (und den Ton) an; deshalb alle 15 s neu lesen oder nach Aenderungen an Dateien.
@@ -308,7 +308,7 @@ String panelRadio() {
     h += "<button type='button' onclick=\"document.getElementById('favFile').click()\" style='width:auto;padding:8px 14px'>Favoriten laden</button><input type='file' id='favFile' accept='.txt' style='display:none' onchange='loadFavorites(this)'> " + infoTip("Ersetzt die Favoriten durch eine zuvor gespeicherte Datei") + "</div>";
     h += "<div id='favResult'></div></div>";
     h += "<div class='card'><h3>Webradio-URL abspielen</h3><div class='row'>";
-    h += "<input id='playUrl' placeholder='https://...' style='width:90%'><button type='button' onclick='playUrlNow()' style='width:150px'>URL abspielen</button><button type='button' class='stopbtn' onclick='stopNow()' style='width:150px' disabled>&#9632; Stopp</button> " + infoTip("Adresse eines Webradios oder einer MP3-Datei (http:// oder https://); sie wird jetzt abgespielt, aber nicht gespeichert. Stopp beendet die Wiedergabe, auch ein Webradio, ohne Fortsetzung") + "</div><div id='radioResult'></div></div>";
+    h += "<input id='playUrl' placeholder='https://...' style='width:90%'><button type='button' onclick='playUrlNow()' style='width:150px'>URL abspielen</button> " + infoTip("Adresse eines Webradios oder einer MP3-Datei (http:// oder https://); sie wird jetzt abgespielt, aber nicht gespeichert") + "</div><div id='radioResult'></div></div>";
 
     // Belegte Plaetze plus der erste freie werden angezeigt; nach dem Speichern erscheint der naechste freie.
     // Used slots plus the first free one are shown; after saving the next free one appears.
@@ -492,6 +492,7 @@ String panelMqtt() {
     static const char* const exStatus[] = {"idle", "playing", "error: File not found: /mp3/klingel.mp3"};
     static const char* const exNow[] = {"BR3 - K\xC3\xBCnstler - Titel", "klingel.mp3", "Ansage"};
     static const char* const exStations[] = {"{\"stations\":[{\"n\":1,\"name\":\"BR3\",\"url\":\"https://...\",\"vol\":null}]}"};
+    static const char* const exFavorites[] = {"{\"max\":40,\"favorites\":[{\"n\":1,\"name\":\"BR3\",\"url\":\"https://...\"}]}"};
     static const char* const exVolState[] = {"12"};
     static const char* const exAvail[] = {"online", "offline"};
     h += mqttRow(base, "/say", true, "Text, der angesagt wird. Oder JSON mit <code>text</code> und optional <code>lang</code>, <code>voice</code>, <code>rate</code>, <code>vol</code>.", exSay, 2);
@@ -501,11 +502,12 @@ String panelMqtt() {
     h += mqttRow(base, "/station", true, "Gespeicherter Sender: Platznummer 1-30 oder Name. JSON: <code>n</code> oder <code>name</code>, optional <code>vol</code>.", exStation, 3);
     h += mqttRow(base, "/stop", true, "Keine Nutzlast: beendet die Wiedergabe, auch ein Webradio.", exStop, 1);
     h += mqttRow(base, "/volume", true, "Allgemeine Lautst&auml;rke 0 bis 100 (wird gespeichert); sie wandert sanft zum neuen Wert. Als JSON l&auml;sst sich die Dauer je Aufruf in Millisekunden angeben: <code>{\"v\":60,\"ms\":3000}</code>.", exVol, 2);
-    h += mqttRow(base, "/list", true, "Keine Nutzlast: sendet die Senderliste erneut.", exList, 1);
+    h += mqttRow(base, "/list", true, "Keine Nutzlast: sendet Senderliste und Favoriten erneut.", exList, 1);
     h += mqttRow(base, "/restart", true, "Keine Nutzlast: startet das Ger&auml;t neu. <strong>Nicht retained senden</strong>, sonst wird ein gespeicherter Befehl nach dem Verbinden ignoriert.", exRestart, 1);
     h += mqttRow(base, "/status", false, "Zustand: <code>idle</code>, <code>loading</code>, <code>playing</code> oder <code>error: ...</code>.", exStatus, 3);
     h += mqttRow(base, "/now", false, "Was gerade l&auml;uft: Sendername und Titel, Dateiname oder &quot;Ansage&quot;; leer, wenn nichts l&auml;uft.", exNow, 3);
     h += mqttRow(base, "/stations", false, "Liste der gespeicherten Sender als JSON; wird nach jeder &Auml;nderung neu gesendet.", exStations, 1);
+    h += mqttRow(base, "/favorites", false, "Liste der Favoriten als JSON (bis zu 40); wird nach jeder &Auml;nderung neu gesendet. Ein Favorit l&auml;sst sich mit seiner URL auf <code>/play</code> abspielen.", exFavorites, 1);
     h += mqttRow(base, "/volume/state", false, "Gerade wirkende Lautst&auml;rke (kann die eines Senders sein).", exVolState, 1);
     h += mqttRow(base, "/volume/general", false, "Allgemeine Lautst&auml;rke.", exVolState, 1);
     h += mqttRow(base, "/availability", false, "Ger&auml;t erreichbar (<code>online</code>) oder weg (<code>offline</code>, kommt vom Broker).", exAvail, 2);
@@ -703,6 +705,10 @@ curl -F "file=@glocke.mp3" http://@HOST@/upload)d");
     h += docCard("Stopp, Lautst&auml;rke, Status",
         "<code>v</code> ist 0-100 und wird gespeichert; die Lautst&auml;rke wandert sanft zum neuen Wert, die Dauer in Millisekunden steht im Tab Audio und l&auml;sst sich je Aufruf mit <code>ms</code> &uuml;berschreiben. Ohne <code>v</code> meldet <code>/api/volume</code> nur: <code>volume</code> (allgemein) und <code>playVolume</code> (gerade wirkend). <code>/api/status</code> liefert <code>state</code> (idle, loading, playing), <code>error</code>, <code>queue</code> (wartende Ansagen und Dateien), <code>volume</code> (allgemein), <code>playVolume</code> (die gerade wirkende Lautst&auml;rke), den freien Speicher und was gerade l&auml;uft: <code>source</code> (radio, file, speech), <code>name</code> (Sendername oder Dateiname), <code>title</code> (aktueller Titel, wenn der Sender ihn meldet) und <code>url</code>. Bei einer laufenden Datei kommen <code>pos</code> und <code>dur</code> (Sekunden), <code>pm</code> (Fortschritt in Promille) und <code>rate</code> (Promille je Sekunde) dazu, bei einem Webradio <code>genre</code>, <code>desc</code>, <code>web</code>, <code>logo</code>, <code>host</code>, <code>bitrate</code>, <code>codec</code>, <code>rate</code> (Abtastrate in Hz), <code>ch</code> und <code>bits</code>, und mit der Lautst&auml;rke-Angleichung <code>gainDb</code>.",
         R"d(curl -X POST http://@HOST@/api/stop
+curl -d "toggle=1" http://@HOST@/api/mute
+curl -d "on=1" http://@HOST@/api/mute
+curl -d "on=0" http://@HOST@/api/mute
+curl http://@HOST@/api/mute
 curl -d "v=50" http://@HOST@/api/volume
 curl -d "v=60&ms=3000" http://@HOST@/api/volume
 curl http://@HOST@/api/volume
@@ -913,7 +919,9 @@ function fillVoiceSel(id,lang,keep){var s=document.getElementById(id);if(!s)retu
 function voiceChosen(s){if(s.value!=='__custom__')return;
   var n=(prompt('Name der Stimme (wie bei VoiceRSS):')||'').replace(/[^A-Za-z0-9_-]/g,'');
   if(!n){s.value='';return;}
-  var o=document.createElement('option');o.value=n;o.textContent=n;s.insertBefore(o,s.querySelector('option[value="__custom__"]'));s.value=n;}function stopNow(){postApi('/api/stop',{},'sayResult');}
+  var o=document.createElement('option');o.value=n;o.textContent=n;s.insertBefore(o,s.querySelector('option[value="__custom__"]'));s.value=n;}function muteShow(m){document.querySelectorAll('.mutebtn').forEach(function(b){b.textContent=m?'Ton an':'Stumm';b.style.opacity=m?'0.75':'';b.style.outline=m?'2px solid var(--accent,#f4a02a)':'';});}
+function muteToggle(){fetch('/api/mute',{method:'POST',body:new URLSearchParams({toggle:'1'})}).then(function(r){return r.json();}).then(function(j){muteShow(!!j.muted);}).catch(function(){});}
+function stopNow(){postApi('/api/stop',{},'sayResult');}
 function volShow(v){var s=document.querySelectorAll('.volrange'),e=document.querySelectorAll('.volshow'),i;for(i=0;i<s.length;i++){if(+s[i].value!==+v)s[i].value=v;}for(i=0;i<e.length;i++)e[i].textContent=v+' / '+(s[0]?s[0].max:100);}
 function setVol(v){volShow(v);fetch('/api/volume',{method:'POST',body:new URLSearchParams({v:v})});}
 function playUrlNow(){postApi('/api/play',{url:document.getElementById('playUrl').value},'radioResult');}
@@ -990,6 +998,7 @@ function barTick(){var pm=nbs.on?Math.min(1000,nbs.pm+nbs.rate*(Date.now()-nbs.t
     bar.title=nbs.on&&nbs.dur>0?mmss(pm/1000*nbs.dur)+' / '+mmss(nbs.dur):'';});nbs.jump=false;}
 setInterval(barTick,250);
 function pollPlay(){if(document.hidden)return;fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+  if(j.muted!==undefined)muteShow(!!j.muted);
   window.NOWURL=(j.source==='radio'&&j.state==='playing')?(j.url||''):'';if(window.favMarkNow)favMarkNow();
   var el=document.getElementById('playState');if(el)el.textContent='Zustand: '+j.state+(j.error?' ('+j.error+')':'');
   var vs=document.querySelector('.volrange'),ae=document.activeElement;if(vs&&!(ae&&ae.className==='volrange')&&j.volume!==undefined&&+vs.value!==j.volume){volShow(j.volume);}
@@ -1068,6 +1077,7 @@ String flashText(const String& code) {
 String favName[FAV_SLOTS];
 String favUrl[FAV_SLOTS];
 bool favLoaded = false;
+bool favMqttPending = false;   // Favoriten wurden geaendert und muessen per MQTT gemeldet werden / favorites changed and must be reported via MQTT
 
 // Die Favoriten liegen in einer Datei im Dateisystem (eine Zeile je Favorit: Name, Tab, URL), nicht im knappen NVS-Speicher der Einstellungen.
 // The favorites live in a file in the file system (one line per favorite: name, tab, URL), not in the scarce NVS memory of the settings.
@@ -1075,6 +1085,7 @@ bool favLoaded = false;
 #define FAV_FILE "/favorites.dat"
 
 void favSaveAll() {
+    favMqttPending = true;
     if (!fsReady) return;
     File f = LittleFS.open(FAV_FILE, FILE_WRITE);
     if (!f) {
@@ -1129,6 +1140,26 @@ void favEnsure() {
         n++;
     }
     favSaveAll();
+}
+
+// Veroeffentlicht die Favoriten (retained) unter <Basis>/favorites; beim Verbinden und nach jeder Aenderung der Liste.
+// Publishes the favorites (retained) under <base>/favorites; when connecting and after every change of the list.
+
+void publishFavorites(bool force) {
+    if (!mqttClient.connected()) return;
+    if (!force && !favMqttPending) return;
+    favEnsure();
+    favMqttPending = false;
+    String j = "{\"max\":" + String(FAV_SLOTS) + ",\"favorites\":[";
+    bool first = true;
+    for (int i = 0; i < FAV_SLOTS; i++) {
+        if (favUrl[i].isEmpty()) continue;
+        if (!first) j += ",";
+        first = false;
+        j += "{\"n\":" + String(i + 1) + ",\"name\":\"" + jsonEscape(favName[i]) + "\",\"url\":\"" + jsonEscape(favUrl[i]) + "\"}";
+    }
+    j += "]}";
+    if (!mqttClient.publish((mqttBaseTopic() + "/favorites").c_str(), j.c_str(), true)) logLine("[MQTT] favorites not published (too large for the buffer?)");
 }
 
 // Wurde RSA von Hand aus der Senderliste geloescht, bleibt er auch beim Laden einer Liste weg; wieder eintragen hebt das auf.
@@ -1904,6 +1935,20 @@ void handleApiStop() {
     sendOk("Gestoppt");
 }
 
+// Stumm schalten: on=1|0 oder toggle=1 (GET oder POST); ohne Angabe wird nur der Zustand gemeldet.
+// Mute: on=1|0 or toggle=1 (GET or POST); without a parameter it only reports the state.
+
+void handleApiMute() {
+    String a = apiArg("on");
+    if (a.isEmpty()) a = apiArg("mute");
+    if (flagOn(apiArg("toggle"))) a = "toggle";
+    if (!a.isEmpty()) {
+        String err = commandMute(a);
+        if (err.length() > 0) return sendErr(400, err);
+    }
+    sendJson(200, String("{\"ok\":true,\"muted\":") + (muted ? "true" : "false") + "}");
+}
+
 void handleApiVolume() {
     String v = apiArg("v");
 
@@ -1911,7 +1956,7 @@ void handleApiVolume() {
     // Without v it only reports: volume = general, playVolume = currently effective volume.
 
     if (!v.isEmpty()) commandVolume(v.toInt(), numberOr(apiArg("ms"), -1));
-    sendJson(200, String("{\"ok\":true,\"volume\":") + String(cfg.vol) + ",\"playVolume\":" + String(currentVolume) + "}");
+    sendJson(200, String("{\"ok\":true,\"volume\":") + String(cfg.vol) + ",\"playVolume\":" + String(currentVolume) + ",\"muted\":" + (muted ? "true" : "false") + "}");
 }
 
 // Log ein- oder ausschalten und leeren: enable=1|0, clear=1 (POST); GET liefert den Zustand.
@@ -1930,7 +1975,7 @@ void handleApiLog() {
     sendJson(200, String("{\"enabled\":") + (cfg.logEnabled ? "true" : "false") + "}");
 }
 void handleApiStatus() {
-    String j = "{\"state\":\"" + playStateName() + "\",\"error\":\"" + jsonEscape(lastError) + "\",\"volume\":" + String(cfg.vol) + ",\"playVolume\":" + String(currentVolume) + ",\"queue\":" + String(annCount) + ",\"sd\":\"" + sdState + "\",\"sdMounted\":" + (sdReady ? "true" : "false") + ",\"resume\":" + (resumeUrl.length() > 0 ? "true" : "false");
+    String j = "{\"state\":\"" + playStateName() + "\",\"error\":\"" + jsonEscape(lastError) + "\",\"volume\":" + String(cfg.vol) + ",\"playVolume\":" + String(currentVolume) + ",\"muted\":" + (muted ? "true" : "false") + ",\"queue\":" + String(annCount) + ",\"sd\":\"" + sdState + "\",\"sdMounted\":" + (sdReady ? "true" : "false") + ",\"resume\":" + (resumeUrl.length() > 0 ? "true" : "false");
     bool idleNow = playState == PS_IDLE || nowKind.isEmpty();
     j += ",\"source\":\"" + String(idleNow ? "" : nowKind.c_str()) + "\",\"name\":\"" + jsonEscape(idleNow ? String() : (nowKind == "radio" ? stationDisplayName() : (nowKind == "file" ? nowFile : String()))) + "\",\"title\":\"" + jsonEscape(nowKind == "radio" && !idleNow ? nowTitle : String()) + "\",\"url\":\"" + jsonEscape(nowKind == "radio" && !idleNow ? streamUrl : String()) + "\"";
     if (!idleNow && nowKind == "file" && playState == PS_PLAYING && audio) j += ",\"pos\":" + String(audio->getAudioCurrentTime()) + ",\"dur\":" + String(audio->getAudioFileDuration());
@@ -2792,6 +2837,7 @@ void setupWeb() {
     webserver.on("/api/file", handleApiFile);
     webserver.on("/api/log", handleApiLog);
     webserver.on("/api/stop", handleApiStop);
+    webserver.on("/api/mute", handleApiMute);
     webserver.on("/api/volume", handleApiVolume);
     webserver.on("/api/status", HTTP_GET, handleApiStatus);
     webserver.on("/api/files", HTTP_GET, handleApiFiles);

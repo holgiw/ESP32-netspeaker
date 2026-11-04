@@ -627,6 +627,7 @@ void loadSettings() {
 // Wiedergabe / playback
 
 void publishStatus(bool force = false);
+void publishFavorites(bool force = false);
 void onAudioEvent(Audio::msg_t m);
 void mixStopAll();
 
@@ -1105,6 +1106,8 @@ std::vector<LoudRec> loudCache;
 bool loudCacheLoaded = false;
 volatile bool fileGainOn = false;
 volatile bool agcActive = false;
+volatile bool muted = false;
+volatile int32_t muteGainQ15 = 32768;
 volatile bool agcResetReq = false;
 volatile float agcGainShown = 0.0f;
 volatile int32_t fileGainQ15 = 32768;
@@ -1819,6 +1822,38 @@ uint32_t nvsFreeEntries() {
     return nvs_get_stats(NULL, &st) == ESP_OK ? st.free_entries : 0;
 }
 
+// Stumm schalten: eine letzte Verstaerkung am Ende des Audiowegs (nach den Mischspuren), die sanft auf 0 faellt und wieder auf 1 steigt; die
+// eingestellte Lautstaerke bleibt unveraendert. Die Dauer ist die Lautstaerke-Rampe (mindestens 300 ms).
+// Mute: a last gain at the end of the audio path (after the mix tracks) that falls gently to 0 and rises to 1 again; the set volume stays
+// unchanged. The duration is the volume ramp (at least 300 ms).
+
+void muteApply(int32_t* buf, int16_t words) {
+    static uint32_t lastUs = 0;
+    int32_t cur = muteGainQ15;
+    int32_t target = muted ? 0 : 32768;
+    if (cur == target) {
+        lastUs = 0;
+        if (cur == 32768) return;
+        for (int i = 0; i < words; i++) buf[i] = 0;
+        return;
+    }
+    uint32_t now = micros();
+    float dt = lastUs ? (now - lastUs) / 1000000.0f : 0.02f;
+    lastUs = now;
+    if (dt > 0.2f) dt = 0.2f;
+    float rampS = (cfg.volRampMs < 300 ? 300 : cfg.volRampMs) / 1000.0f;
+    int32_t step = (int32_t)(32768.0f * dt / rampS);
+    if (step < 1) step = 1;
+    int32_t next = cur < target ? (cur + step > target ? target : cur + step) : (cur - step < target ? target : cur - step);
+    int frames = words / 2;
+    for (int i = 0; i < frames; i++) {
+        int32_t g = cur + (int32_t)((int64_t)(next - cur) * i / (frames > 0 ? frames : 1));
+        buf[2 * i] = (int32_t)(((int64_t)buf[2 * i] * g) >> 15);
+        buf[2 * i + 1] = (int32_t)(((int64_t)buf[2 * i + 1] * g) >> 15);
+    }
+    muteGainQ15 = next;
+}
+
 // Wird im Audio-Task vor jeder I2S-Ausgabe aufgerufen: addiert beide Mischspuren zu den Radio-Samples.
 // Called in the audio task before every I2S output: adds both mix tracks to the radio samples.
 
@@ -1834,6 +1869,7 @@ void audio_process_i2s(int32_t* buf, int16_t words, bool* continueI2S) {
     }
     mixAddTrack(mixT[MIX_LAYER], buf, words);
     mixAddTrack(mixT[MIX_ANN], buf, words);
+    muteApply(buf, words);
 }
 
 // Lese-Task: MP3 aus dem Dateisystem lesen, mit dem Dekoder der Bibliothek in PCM wandeln und in den Ringpuffer schreiben.
@@ -3155,6 +3191,27 @@ void commandVolume(int v, int ms = -1) {
     applyVolumeSmooth(cfg.vol, ms);
 }
 
+// Stumm schalten oder aufheben: on, off oder toggle (auch 1, 0, true, false). Ohne laufenden Ton gilt der Zustand sofort, sonst blendet er sanft.
+// Switch mute on or off: on, off or toggle (also 1, 0, true, false). Without playing sound the state applies at once, otherwise it fades.
+
+void publishMute();
+
+String commandMute(const String& arg) {
+    String a = arg;
+    a.trim();
+    a.toLowerCase();
+    bool on;
+    if (a == "toggle" || a == "t") on = !muted;
+    else if (a == "1" || a == "true" || a == "on" || a == "yes" || a == "mute") on = true;
+    else if (a == "0" || a == "false" || a == "off" || a == "no" || a == "unmute") on = false;
+    else return "mute: on, off oder toggle angeben";
+    muted = on;
+    if (playState == PS_IDLE) muteGainQ15 = on ? 0 : 32768;
+    logLine(String("[VOL] mute ") + (on ? "on" : "off"));
+    publishMute();
+    return String();
+}
+
 // Zahl aus Text; leer = Standardwert def.
 // Number from text; empty = default value def.
 
@@ -3220,6 +3277,7 @@ static const HaEnt HA_ENTS[] = {
     {"number", "volume", "Lautst\xC3\xA4rke", "\"cmd_t\":\"~/volume\",\"stat_t\":\"~/volume/general\",\"min\":0,\"max\":100,\"step\":1,\"mode\":\"slider\",\"icon\":\"mdi:volume-high\""},
     {"text", "say", "Ansage", "\"cmd_t\":\"~/say\",\"min\":0,\"max\":500,\"icon\":\"mdi:account-voice\""},
     {"button", "stop", "Stopp", "\"cmd_t\":\"~/stop\",\"icon\":\"mdi:stop\""},
+    {"switch", "mute", "Stumm", "\"cmd_t\":\"~/mute\",\"stat_t\":\"~/muted\",\"payload_on\":\"on\",\"payload_off\":\"off\",\"state_on\":\"on\",\"state_off\":\"off\",\"icon\":\"mdi:volume-off\""},
 };
 
 static String haTopic(const char* comp, const char* key) {
@@ -3279,6 +3337,11 @@ void publishStations() {
 // Meldet die Lautstaerken per MQTT (retained): <Basis>/volume/state = gerade wirkende, <Basis>/volume/general = allgemeine.
 // Reports the volumes via MQTT (retained): <base>/volume/state = currently effective, <base>/volume/general = general.
 
+void publishMute() {
+    if (!mqttClient.connected()) return;
+    mqttClient.publish((mqttBaseTopic() + "/muted").c_str(), muted ? "on" : "off", true);
+}
+
 void publishVolumes(bool force) {
     if (!mqttClient.connected()) return;
     if (force || currentVolume != lastPublishedVol) {
@@ -3289,6 +3352,7 @@ void publishVolumes(bool force) {
         lastPublishedGeneral = cfg.vol;
         mqttClient.publish((mqttBaseTopic() + "/volume/general").c_str(), String(cfg.vol).c_str(), true);
     }
+    if (force) publishMute();
 }
 
 void onMqttMessage(char* topic, uint8_t* payload, unsigned int length) {
@@ -3336,8 +3400,11 @@ void onMqttMessage(char* topic, uint8_t* payload, unsigned int length) {
         else err = commandPlayStation(body, -1);
     } else if (t == base + "/list") {
         publishStations();
+        publishFavorites(true);
     } else if (t == base + "/stop") {
         commandStop();
+    } else if (t == base + "/mute") {
+        err = commandMute(body);
     } else if (t == base + "/volume") {
         if (isJson) commandVolume(numberOr(jsonGet(body, "v"), cfg.vol), numberOr(jsonGet(body, "ms"), -1));
         else commandVolume(body.toInt());
@@ -3431,6 +3498,7 @@ void mqttConnect() {
         logLine("[MQTT] Connected to " + cfg.mqttServer + ":" + String(cfg.mqttPort) + ", base " + base);
         publishStatus(true);
         publishStations();
+        publishFavorites(true);
         publishVolumes(true);
         if (cfg.haDisc) haPublish();
         else if (haRemovePending) {
@@ -3458,6 +3526,7 @@ void mqttWatch() {
         // Publish only when the volume has been quiet for 0.4 s (it changes continuously while fading).
 
         if (millis() - volChangedAt > 400) publishVolumes(false);
+        publishFavorites(false);
         return;
     }
     if (mqttWasConnected) {
