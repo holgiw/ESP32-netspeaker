@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-05 - Version 1.4.9
+
+**Deutsch**
+
+- Neu im Tab *Audio* (Karte *Sprachausgabe (VoiceRSS)*): Knopf *Stimme testen*. Er spricht einen kurzen Beispielsatz in der gewählten Sprache, Stimme und mit dem eingestellten Tempo, auch ohne vorher zu speichern (der API-Schlüssel muss gespeichert sein).
+
+**English**
+
+- New in the *Audio* tab (card *Sprachausgabe (VoiceRSS)*): button *Stimme testen* (test voice). It speaks a short example sentence in the chosen language and voice and at the set tempo, even without saving first (the API key has to be saved).
+
 ## 2026-11-04 - Version 1.4.8
 
 **Deutsch**
