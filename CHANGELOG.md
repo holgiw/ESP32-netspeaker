@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-05 - Version 1.4.10
+
+**Deutsch**
+
+- Der voreingestellte Sender wird nur noch dann eingetragen, wenn die Senderliste leer ist (neues Gerät); bei allen Änderungen danach wird er nicht wieder eingetragen, auch nicht beim Laden einer Liste oder nach dem Löschen. Die Listen in `stations/` enthalten ihn nicht mehr (jetzt 24 bis 29 Sender).
+
+**English**
+
+- The preset station is now entered only if the station list is empty (new device); with all changes after that it is not entered again, neither when a list is loaded nor after deleting. The lists in `stations/` no longer contain it (now 24 to 29 stations).
+
 ## 2026-11-05 - Version 1.4.9
 
 **Deutsch**
@@ -14,17 +24,15 @@
 
 **Deutsch**
 
-- Ist RSA als Favorit eingetragen, aber aus der Senderliste gelöscht, steht er nach dem Laden einer Liste als Favorit vorn (vorher wurde er übersprungen).
 - Favoriten löschen ist abgesichert: Die ✕-Knöpfe in der Favoritenliste sind erst nach dem Haken *Löschen freigeben* bedienbar; nach jedem gelöschten Favoriten springt der Haken zurück. Die REST-Schnittstelle bleibt unverändert.
-- Neu im Tab *Webradio* (Bereich *Senderlisten*): *Sender meines Landes* mit Länder- und Genre-Auswahl und dem Knopf *Von radio-browser laden*. Der Browser holt die beliebtesten Sender des Landes aus radio-browser.info (nur MP3 oder AAC, zuletzt erreichbar, höchstens 30, Namen auf 24 Byte gekürzt) und schickt sie als Senderliste an das Gerät; RSA und die Favoriten stehen danach vorn.
+- Neu im Tab *Webradio* (Bereich *Senderlisten*): *Sender meines Landes* mit Länder- und Genre-Auswahl und dem Knopf *Von radio-browser laden*. Der Browser holt die beliebtesten Sender des Landes aus radio-browser.info (nur MP3 oder AAC, zuletzt erreichbar, höchstens 30, Namen auf 24 Byte gekürzt) und schickt sie als Senderliste an das Gerät; Die Favoriten stehen danach vorn.
 - Stumm: Wird stumm geschaltet, während ein Webradio noch lädt, oder läuft gerade Sprache oder eine Flash-MP3, gilt der Zustand sofort; vorher blendete das Radio danach unnötig hörbar ein oder aus.
 - Beispiele für openHAB (Schalter *Stumm*) und Node-RED (Knopf *Stumm umschalten*) ergänzt; in der README steht für `…/volume` jetzt der Bereich 0–100.
 
 **English**
 
-- If RSA is a favorite but was deleted from the station list, it is at the front as a favorite after a list is loaded (before, it was skipped).
 - Deleting favorites is protected: the ✕ buttons in the favorites list only work after ticking *Löschen freigeben* (allow delete); after every deleted favorite the checkbox jumps back. The REST interface is unchanged.
-- New in the *Webradio* tab (section *Senderlisten*): *Sender meines Landes* (stations of my country) with a country and genre selection and the button *Von radio-browser laden*. The browser fetches the most popular stations of the country from radio-browser.info (only MP3 or AAC, reachable last time, at most 30, names shortened to 24 bytes) and sends them to the device as a station list; RSA and the favorites are at the front afterwards.
+- New in the *Webradio* tab (section *Senderlisten*): *Sender meines Landes* (stations of my country) with a country and genre selection and the button *Von radio-browser laden*. The browser fetches the most popular stations of the country from radio-browser.info (only MP3 or AAC, reachable last time, at most 30, names shortened to 24 bytes) and sends them to the device as a station list; The favorites are at the front afterwards.
 - Mute: if mute is switched while a web radio is still loading, or speech or a flash MP3 is playing, the state applies at once; before, the radio faded in or out audibly afterwards without need.
 - Examples for openHAB (switch *Stumm*) and Node-RED (button *Stumm umschalten*) added; the README now gives the range 0–100 for `…/volume`.
 
@@ -70,8 +78,7 @@
 - Favoriten gingen nach einem Neustart verloren, weil der knappe NVS-Speicher der Einstellungen voll war; sie liegen jetzt in einer Datei im Dateisystem (`/favorites.dat`), Favoriten einer älteren Firmware werden beim ersten Start übernommen. `/api/status` meldet `nvsUsed` und `nvsFree` (Einträge im NVS).
 - Neu im Tab *Audio*: *Webradio-Lautstärke angleichen* (Standard: aus) mit *Zielpegel*; das Gerät führt die Verstärkung des Webradios langsam nach, damit laute und leise Sender ähnlich klingen. `/api/status` meldet `agcDb`; Export und Import kennen `agc` und `agcdb`.
 - Neu im Tab *Webradio*: eine Favoritenliste (bis zu 40 Sender) (anlegen mit dem Knopf *+* in der Senderliste), Anhören, Entfernen und *Als Senderliste übernehmen*. REST `/api/favorites`, `/api/favoriteadd`, `/api/favoritedelete`, `/api/favoritestolist`. Der gerade laufende Sender ist in der Favoritenliste mit ♪ und fett markiert. Die Favoriten stehen im Export der Einstellungen und lassen sich mit *Favoriten speichern* / *Favoriten laden* als eigene Datei sichern (`/favorites.txt`, `POST /importfavorites`).
-- RSA: Hast du den Sender selbst aus der Senderliste gelöscht, kommt er beim Laden einer Liste nicht mehr automatisch auf Platz 1; trägst du ihn wieder ein, gilt die Regel wieder.
-- Favoriten stehen nach dem Laden einer Senderliste (Datei oder GitHub) vorn in der Senderliste: erst RSA, dann die Favoriten, dann die Sender der Liste ohne Doppelte. In der Senderliste hat jeder Platz einen Knopf *+*, der den Sender zu den Favoriten legt.
+- Favoriten stehen nach dem Laden einer Senderliste (Datei oder GitHub) vorn in der Senderliste: erst die Favoriten, dann die Sender der Liste ohne Doppelte. In der Senderliste hat jeder Platz einen Knopf *+*, der den Sender zu den Favoriten legt.
 - Jeder Platz der Senderliste und jeder Favorit hat einen Knopf *API*, der den Aufruf per REST (`/api/station?n=Platz` bzw. `?name=`, bei Favoriten `/api/play`) und per MQTT (Thema `<Basis>/station` mit Platznummer oder Name, bei Favoriten `<Basis>/play` mit der URL) anzeigt und kopierbar macht; er ersetzt den Knopf *URL*.
 
 **English**
@@ -80,8 +87,7 @@
 - Favorites were lost after a restart because the scarce NVS memory of the settings was full; they now live in a file in the file system (`/favorites.dat`), favorites of an older firmware are taken over at the first start. `/api/status` reports `nvsUsed` and `nvsFree` (entries in the NVS).
 - New in the *Audio* tab: *Match web radio volume* (default: off) with *target level*; the device slowly follows the gain of the web radio so loud and quiet stations sound alike. `/api/status` reports `agcDb`; export and import know `agc` and `agcdb`.
 - New in the *Webradio* tab: a favorites list (up to 40 stations) (add with the *+* button in the station list), listening, removing and *Als Senderliste übernehmen* (use as station list). REST `/api/favorites`, `/api/favoriteadd`, `/api/favoritedelete`, `/api/favoritestolist`. The station that is playing right now is marked with ♪ and bold in the favorites list. The favorites are part of the settings export and can be saved / loaded as a file of their own with *Favoriten speichern* / *Favoriten laden* (`/favorites.txt`, `POST /importfavorites`).
-- RSA: If you deleted the station from the station list yourself, it is no longer put at slot 1 automatically when a list is loaded; if you enter it again the rule applies again.
-- After a station list (file or GitHub) is loaded the favorites are at the front of the station list: first RSA, then the favorites, then the stations of the list without duplicates. Every slot in the station list has a *+* button that puts the station into the favorites.
+- After a station list (file or GitHub) is loaded the favorites are at the front of the station list: first the favorites, then the stations of the list without duplicates. Every slot in the station list has a *+* button that puts the station into the favorites.
 - Every slot of the station list and every favorite has an *API* button that shows the call via REST (`/api/station?n=slot` or `?name=`, for favorites `/api/play`) and via MQTT (topic `<base>/station` with slot number or name, for favorites `<base>/play` with the URL) and makes it copyable; it replaces the *URL* button.
 
 ## 2026-11-01 - Version 1.4.3
@@ -89,7 +95,7 @@
 **Deutsch**
 
 - AAC-Aussetzer bei geöffneter Weboberfläche behoben: Die Audio-Bibliothek läuft jetzt auch zwischen den Teilen der Webseite, in der Dateiliste und in der Senderliste; die Belegung von LittleFS und SD-Karte wird nur alle 15 s neu gelesen (und nach Löschen oder Hochladen), weil `usedBytes()` die Schleife bis zu mehrere Hundert Millisekunden anhält. `/api/status` meldet zusätzlich `decErr` (Dekodierfehler).
-- Nach dem Laden einer Senderliste (Datei oder GitHub) bleibt die Seite im Tab *Webradio*. Der Hinweis zu RSA unter *Senderlisten* entfällt.
+- Nach dem Laden einer Senderliste (Datei oder GitHub) bleibt die Seite im Tab *Webradio*.
 - Der Lautstärkeregler steht ganz oben in den Tabs *MP3*, *Sprechen*, *SD-Karte* und *Webradio*; alle vier zeigen denselben Wert.
 - Die Senderlisten in `stations/` haben jetzt je mehr als 20 Sender. Neue Listen nach Genre (`schlager`, `country`, `folk`, `jazz`, `klassik`, `pop-charts`, `jahrzehnte`, `dance`, `hiphop`) und Land (`irland`, `usa`, `australien`, `grossbritannien`, `frankreich`).
 - Die Auswahl *Fertige Liste* im Tab *Webradio* kommt aus `stations/index.txt` auf GitHub (vom Browser geladen): Neue Listen erscheinen ohne neues Flashen. Ohne Internet im Browser bleiben die ersten vier Listen.
@@ -97,7 +103,7 @@
 **English**
 
 - Fixed AAC dropouts while the web interface is open: the audio library now also runs between the parts of the web page, in the file list and in the station list; the usage of LittleFS and the SD card is re-read only every 15 s (and after deleting or uploading), because `usedBytes()` holds up the loop for up to several hundred milliseconds. `/api/status` also reports `decErr` (decoder errors).
-- After a station list is loaded (file or GitHub) the page stays on the *Webradio* tab. The RSA note under *Senderlisten* is gone.
+- After a station list is loaded (file or GitHub) the page stays on the *Webradio* tab.
 - The volume slider is at the very top of the tabs *MP3*, *Sprechen*, *SD-Karte* and *Webradio*; all four show the same value.
 - The station lists in `stations/` now have more than 20 stations each. New lists by genre (`schlager`, `country`, `folk`, `jazz`, `klassik`, `pop-charts`, `jahrzehnte`, `dance`, `hiphop`) and country (`irland`, `usa`, `australien`, `grossbritannien`, `frankreich`).
 - The selection *Fertige Liste* in the *Webradio* tab comes from `stations/index.txt` on GitHub (loaded by the browser): new lists appear without flashing again. Without internet in the browser the first four lists remain.
@@ -106,13 +112,11 @@
 
 **Deutsch**
 
-- Beim Laden einer Senderliste (Datei oder GitHub) bleibt der Sender RSA immer auf Platz 1; steht er in der Liste woanders, rückt er nach vorn, fehlt er, wird er vorn eingefügt. Die Listen in `stations/` beginnen mit RSA.
 - Tab *Webradio*: Die Listenknöpfe stehen jetzt in einem eigenen Abschnitt *Senderlisten* mit den Zeilen *Eigene Liste* (speichern, laden) und *Fertige Liste* (Auswahl und *Von GitHub laden*).
 - AAC-Sender stockten etwas: Die Firmware wird jetzt auf Geschwindigkeit statt auf Größe übersetzt (`-O2`), und die Hauptschleife ruft die Audio-Bibliothek zweimal je Durchlauf auf, damit der Ausgabepuffer nach einem Webzugriff (40 bis 60 ms) gleich wieder gefüllt wird. `/api/status` meldet dazu `audioLoopMs`, `loopMs`, `bufKb` und `bufMinKb` (längste Zeit von `audio->loop()` und der Schleife in den letzten 5 s, Füllstand des Eingangspuffers).
 
 **English**
 
-- When a station list (file or GitHub) is loaded, the station RSA always stays at slot 1; if it is elsewhere in the list it moves to the front, if it is missing it is inserted at the front. The lists in `stations/` start with RSA.
 - *Webradio* tab: the list buttons are now in their own section *Senderlisten* (station lists) with the rows *Eigene Liste* (own list: save, load) and *Fertige Liste* (ready-made list: selection and *Von GitHub laden*).
 - AAC stations stuttered a little: the firmware is now compiled for speed instead of size (`-O2`), and the main loop calls the audio library twice per pass so that the output buffer is refilled right after a web request (40 to 60 ms). `/api/status` now reports `audioLoopMs`, `loopMs`, `bufKb` and `bufMinKb` (longest time of `audio->loop()` and of the loop in the last 5 s, fill level of the input buffer).
 
@@ -352,7 +356,6 @@
 - Lautstärke 0-100 mit sanften Änderungen, Titelregel mit mehreren Stichworten, Autostart und Wiederherstellen des letzten Zustands.
 - Weboberfläche (Tabs Sprechen, Webradio, SD-Karte, MP3, Audio, MQTT, WLAN, Zeit, Status, Log, Doku) mit ``-Hinweisen und Verkabelungsplan, HTTP-API und MQTT.
 - Export und Import der Einstellungen ohne WLAN-Passwörter und ohne API-Schlüssel; die Exportdatei trägt den Hostnamen im Namen.
-- Platz 1 der Senderliste wird mit *RSA* vorbelegt, solange er leer ist.
 - Lizenz GPL-3.0, Drittkomponenten in der README.
 
 **English**
@@ -363,5 +366,4 @@
 - Volume 0-100 with smooth changes, title rule with several keywords, autostart and restoring the last state.
 - Web interface (tabs Sprechen, Webradio, SD-Karte, MP3, Audio, MQTT, WLAN, Zeit, Status, Log, Doku) with `` hints and wiring diagram, HTTP API and MQTT.
 - Export and import of the settings without WiFi passwords and without API key; the export file carries the hostname in its name.
-- Slot 1 of the station list is preset with *RSA* as long as it is empty.
 - License GPL-3.0, third-party components in the README.

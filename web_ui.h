@@ -303,7 +303,7 @@ String panelRadio() {
     String h = volumeRow() + nowPlayingRow();
     h += "<details id='radioInfoBox' style='display:none;max-width:500px;margin:0 auto 10px;text-align:left'><summary style='cursor:pointer;color:var(--muted)'>Stream-Info</summary><table id='radioInfo' style='width:100%;margin-top:6px'></table></details>";
     h += "<div class='card' id='favCard' style='max-width:900px'><h3>Favoriten " + infoTip("Eigene Liste mit deinen Lieblingssendern, unabh&auml;ngig von der Senderliste (bis zu 40). Sender lassen sich aus der gespeicherten Senderliste und aus jeder fertigen Liste von GitHub &uuml;bernehmen, direkt anh&ouml;ren und wieder entfernen") + "</h3><small id='favInfo'></small><div class='row' style='justify-content:flex-start;gap:8px'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='favDelOk' onchange='favRender()' style='width:auto;margin:0;'>L&ouml;schen freigeben</label> " + infoTip("Schutz vor versehentlichem L&ouml;schen: Die &#10006;-Kn&ouml;pfe der Favoriten sind erst nach dem Haken bedienbar; nach jedem gel&ouml;schten Favoriten springt der Haken zur&uuml;ck") + "</div><div id='favList'></div>";
-    h += "<div class='row' style='justify-content:flex-start;gap:8px'><button type='button' onclick='favToList()' style='width:auto;padding:8px 14px'>Als Senderliste &uuml;bernehmen</button> " + infoTip("Ersetzt die gespeicherte Senderliste durch die Favoriten (RSA steht danach auf Platz 1)") + "</div>";
+    h += "<div class='row' style='justify-content:flex-start;gap:8px'><button type='button' onclick='favToList()' style='width:auto;padding:8px 14px'>Als Senderliste &uuml;bernehmen</button> " + infoTip("Ersetzt die gespeicherte Senderliste durch die Favoriten") + "</div>";
     h += "<div class='row' style='justify-content:flex-start;gap:8px'><button type='button' onclick=\"location.href='/favorites.txt'\" style='width:auto;padding:8px 14px'>Favoriten speichern</button> " + infoTip("Speichert die Favoriten als Textdatei auf deinem Rechner; sie steht auch im Export der Einstellungen") + " ";
     h += "<button type='button' onclick=\"document.getElementById('favFile').click()\" style='width:auto;padding:8px 14px'>Favoriten laden</button><input type='file' id='favFile' accept='.txt' style='display:none' onchange='loadFavorites(this)'> " + infoTip("Ersetzt die Favoriten durch eine zuvor gespeicherte Datei") + "</div>";
     h += "<div id='favResult'></div></div>";
@@ -345,7 +345,7 @@ String panelRadio() {
     h += "<div class='row' style='justify-content:flex-start;gap:8px'><span style='min-width:110px;text-align:left'>Eigene Liste</span><button type='button' onclick=\"location.href='/stations.txt'\" style='width:auto;padding:8px 14px'>Liste speichern</button> " + infoTip("Speichert die Senderliste (Name, URL, Lautst&auml;rke) als Textdatei auf deinem Rechner") + " ";
     h += "<button type='button' onclick=\"document.getElementById('stFile').click()\" style='width:auto;padding:8px 14px'>Liste laden</button><input type='file' id='stFile' accept='.txt' style='display:none' onchange='loadStations(this)'> " + infoTip("Ersetzt die gespeicherte Senderliste durch eine zuvor gespeicherte Datei") + "</div>";
     h += "<div class='row' style='justify-content:flex-start;gap:8px'><span style='min-width:110px;text-align:left'>Fertige Liste</span><select id='stList' style='width:auto'><option>aac-auswahl</option><option>mp3-auswahl</option><option>rock</option><option>entspannung</option><option>schlager</option><option>country</option><option>folk</option><option>jazz</option><option>klassik</option><option>pop-charts</option><option>jahrzehnte</option><option>dance</option><option>hiphop</option><option>irland</option><option>usa</option><option>australien</option><option>grossbritannien</option><option>frankreich</option></select><button type='button' onclick='listFetch()' style='width:auto;padding:8px 14px'>Von GitHub laden</button> " + infoTip("L&auml;dt eine fertige Senderliste aus dem Ordner stations des Projekts auf GitHub und ersetzt die gespeicherte Liste; das Ger&auml;t braucht dazu Internet") + "</div>";
-    h += "<div class='row' style='justify-content:flex-start;gap:8px'><span style='min-width:110px;text-align:left'>Sender meines Landes</span><select id='rbCountry' style='width:auto'></select><select id='rbGenre' style='width:auto'><option value=''>Alle Genres</option><option>pop</option><option>rock</option><option>jazz</option><option>classical</option><option>country</option><option>folk</option><option>electronic</option><option>dance</option><option>hip hop</option><option>oldies</option><option>80s</option><option>90s</option><option>schlager</option><option>lounge</option><option>reggae</option><option>latin</option><option>world</option><option>metal</option><option>blues</option><option>soul</option></select><button type='button' onclick='rbLoad()' style='width:auto;padding:8px 14px'>Von radio-browser laden</button> " + infoTip("Holt die beliebtesten Sender des gew&auml;hlten Landes (optional eines Genres) aus dem offenen Verzeichnis radio-browser.info und ersetzt die gespeicherte Senderliste; nur Sender mit MP3 oder AAC, die zuletzt erreichbar waren, h&ouml;chstens 30. Der Browser ruft das Verzeichnis ab, das Ger&auml;t braucht dazu nichts. RSA und die Favoriten stehen danach vorn") + "</div><div id='stListResult'></div></div></div>";
+    h += "<div class='row' style='justify-content:flex-start;gap:8px'><span style='min-width:110px;text-align:left'>Sender meines Landes</span><select id='rbCountry' style='width:auto'></select><select id='rbGenre' style='width:auto'><option value=''>Alle Genres</option><option>pop</option><option>rock</option><option>jazz</option><option>classical</option><option>country</option><option>folk</option><option>electronic</option><option>dance</option><option>hip hop</option><option>oldies</option><option>80s</option><option>90s</option><option>schlager</option><option>lounge</option><option>reggae</option><option>latin</option><option>world</option><option>metal</option><option>blues</option><option>soul</option></select><button type='button' onclick='rbLoad()' style='width:auto;padding:8px 14px'>Von radio-browser laden</button> " + infoTip("Holt die beliebtesten Sender des gew&auml;hlten Landes (optional eines Genres) aus dem offenen Verzeichnis radio-browser.info und ersetzt die gespeicherte Senderliste; nur Sender mit MP3 oder AAC, die zuletzt erreichbar waren, h&ouml;chstens 30. Der Browser ruft das Verzeichnis ab, das Ger&auml;t braucht dazu nichts. Die Favoriten stehen danach vorn") + "</div><div id='stListResult'></div></div></div>";
     return h;
 }
 
@@ -1199,26 +1199,6 @@ void publishFavorites(bool force) {
     if (!mqttClient.publish((mqttBaseTopic() + "/favorites").c_str(), j.c_str(), true)) logLine("[MQTT] favorites not published (too large for the buffer?)");
 }
 
-// Wurde RSA von Hand aus der Senderliste geloescht, bleibt er auch beim Laden einer Liste weg; wieder eintragen hebt das auf.
-// If RSA was deleted by hand from the station list, it stays away when a list is loaded as well; entering it again cancels this.
-
-bool rsaGoneLoaded = false;
-bool rsaGoneFlag = false;
-
-bool rsaGone() {
-    if (!rsaGoneLoaded) {
-        rsaGoneLoaded = true;
-        rsaGoneFlag = prefs.getBool("rsadel", false);
-    }
-    return rsaGoneFlag;
-}
-
-void rsaSetGone(bool v) {
-    if (rsaGone() == v) return;
-    rsaGoneFlag = v;
-    prefs.putBool("rsadel", v);
-}
-
 void sendChunk(const String& s) {
     webserver.sendContent(s);
     audioPump();
@@ -1468,10 +1448,6 @@ void handleSave() {
         prefs.putString("mq_pw", cfg.mqttPass);
         mqttReconnectNow();
     } else if (sect == "radio") {
-        bool hadRsa = false;
-        for (int i = 0; i < RADIO_SLOTS; i++) {
-            if (cfg.radioUrl[i] == RSA_URL) hadRsa = true;
-        }
         for (int i = 0; i < RADIO_SLOTS; i++) {
             String n = String(i + 1);
             if (!webserver.hasArg("ru" + n)) continue;
@@ -1492,12 +1468,6 @@ void handleSave() {
             prefs.putString(("rn" + n).c_str(), name);
             prefs.putString(("ru" + n).c_str(), url);
         }
-        bool hasRsa = false;
-        for (int i = 0; i < RADIO_SLOTS; i++) {
-            if (cfg.radioUrl[i] == RSA_URL) hasRsa = true;
-        }
-        if (hasRsa) rsaSetGone(false);
-        else if (hadRsa) rsaSetGone(true);
         compactStations();
     } else if (sect == "log") {
         cfg.logEnabled = webserver.hasArg("log");
@@ -1830,7 +1800,6 @@ void handleApiStation() {
 void handleApiStationDelete() {
     int n = apiArg("n").toInt();
     if (n < 1 || n > RADIO_SLOTS) return sendErr(400, "Platz 1-" + String(RADIO_SLOTS) + " angeben");
-    if (cfg.radioUrl[n - 1] == RSA_URL) rsaSetGone(true);
     cfg.radioName[n - 1] = "";
     cfg.radioUrl[n - 1] = "";
     prefs.putString(("rn" + String(n)).c_str(), "");
@@ -1897,28 +1866,29 @@ String stationsApply(String body) {
     if (count == 0) {
         return String("FAIL|Die Datei enth\xC3\xA4lt keinen g\xC3\xBCltigen Sender (URL mit http:// oder https://).");
     }
-    // RSA steht immer auf Platz 1: ist der Sender in der Liste, rueckt er nach vorn, fehlt er, wird er vorn eingefuegt (Name und Lautstaerke wie bisher im Geraet).
-    // RSA is always at slot 1: if the station is in the list it moves to the front, if it is missing it is inserted at the front (name and volume as so far in the device).
+    // RSA wird nur dann vorn eingetragen, wenn die gespeicherte Senderliste leer ist; bei allen Aenderungen danach wird er nicht wieder eingetragen (in der Liste stehende Plaetze bleiben, wie sie sind).
+    // RSA is put at the front only if the stored station list is empty; with all changes after that it is not entered again (entries that are in the list stay as they are).
 
+    bool wasEmpty = true;
+    for (int i = 0; i < RADIO_SLOTS; i++) {
+        if (!cfg.radioUrl[i].isEmpty()) wasEmpty = false;
+    }
     String on[RADIO_SLOTS], ou[RADIO_SLOTS];
     int ov[RADIO_SLOTS];
-    bool gone = rsaGone();
-    int k = gone ? 0 : 1;
-    ou[0] = RSA_URL;
-    on[0] = "RSA";
-    ov[0] = -1;
-    for (int i = 0; i < RADIO_SLOTS; i++) {
-        if (!gone && cfg.radioUrl[i] == RSA_URL) {
-            on[0] = cfg.radioName[i];
-            ov[0] = cfg.radioVol[i];
-        }
+    int k = 0;
+    if (wasEmpty) {
+        ou[0] = RSA_URL;
+        on[0] = "RSA";
+        ov[0] = -1;
+        k = 1;
     }
+
     // Danach die Favoriten, dann die Sender der Liste (ohne Doppelte); bei zu vielen Eintraegen faellt das Ende weg.
     // Then the favorites, then the stations of the list (without duplicates); with too many entries the end is dropped.
 
     favEnsure();
     for (int f = 0; f < FAV_SLOTS && k < RADIO_SLOTS; f++) {
-        if (favUrl[f].isEmpty() || (!gone && favUrl[f] == RSA_URL)) continue;
+        if (favUrl[f].isEmpty()) continue;
         bool dup = false;
         for (int j = 0; j < k; j++) {
             if (ou[j] == favUrl[f]) dup = true;
@@ -1931,8 +1901,7 @@ String stationsApply(String body) {
     }
     for (int i = 0; i < RADIO_SLOTS; i++) {
         if (urls[i].isEmpty()) continue;
-        if (urls[i] == RSA_URL) {
-            if (gone) continue;
+        if (wasEmpty && urls[i] == RSA_URL) {
             on[0] = names[i];
             ov[0] = vols[i];
         } else if (k < RADIO_SLOTS) {
@@ -2553,8 +2522,8 @@ void handleApiFavoriteDelete() {
     sendOk("Favorit gel\xC3\xB6scht");
 }
 
-// Favoriten als neue Senderliste uebernehmen (ersetzt die gespeicherte Senderliste; RSA steht danach auf Platz 1).
-// Take the favorites over as the new station list (replaces the stored station list; RSA is at slot 1 afterwards).
+// Favoriten als neue Senderliste uebernehmen (ersetzt die gespeicherte Senderliste).
+// Take the favorites over as the new station list (replaces the stored station list).
 
 void handleApiFavoritesToList() {
     favEnsure();

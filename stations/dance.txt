@@ -1,76 +1,73 @@
 # netspeaker stations
-rn1=RSA
-ru1=https://rsa.streamabc.net/regc-rsalive-mp3-192-5989815
+rn1=Sunshine Live
+ru1=http://sunsl.streamabc.net/sunsl-sslsimulcast-mp3-192-4434053?sABC=6557p1o3%230%236080533n48sp2nrq0o4389q6o67o3qps%23fgernz.fhafuvar-yvir.qr&aw_0_1st.playerid=stream.sunshine-live.de&amsparams=playerid:stream.sunshine-live.de;skey:1700250035
 rv1=
-rn2=Sunshine Live
-ru2=http://sunsl.streamabc.net/sunsl-sslsimulcast-mp3-192-4434053?sABC=6557p1o3%230%236080533n48sp2nrq0o4389q6o67o3qps%23fgernz.fhafuvar-yvir.qr&aw_0_1st.playerid=stream.sunshine-live.de&amsparams=playerid:stream.sunshine-live.de;skey:1700250035
+rn2=Sunshine Live - Techno
+ru2=http://stream.sunshine-live.de/techno/mp3-192/stream.sunshine-live.de/
 rv2=
-rn3=Sunshine Live - Techno
-ru3=http://stream.sunshine-live.de/techno/mp3-192/stream.sunshine-live.de/
+rn3=TechnoBase.FM
+ru3=https://listener3.mp3.tb-group.fm/tb.mp3
 rv3=
-rn4=TechnoBase.FM
-ru4=https://listener3.mp3.tb-group.fm/tb.mp3
+rn4=Technolovers EDM
+ru4=https://stream.technolovers.fm/edm?ref=radiobrowser
 rv4=
-rn5=Technolovers EDM
-ru5=https://stream.technolovers.fm/edm?ref=radiobrowser
+rn5=90s90s - Eurodance
+ru5=https://regiocast.streamabc.net/regc-90s90seurodance7558633-mp3-192-3419489?sABC=6nr0n036%230%23nq59s62359o2nr38nsp8150610pq18p9%23fgernzf.90f90f.qr&aw_0_1st.playerid=streams.90s90s.de&amsparams=playerid:streams.90s90s.de;skey:1793105974
 rv5=
-rn6=90s90s - Eurodance
-ru6=https://regiocast.streamabc.net/regc-90s90seurodance7558633-mp3-192-3419489?sABC=6nr0n036%230%23nq59s62359o2nr38nsp8150610pq18p9%23fgernzf.90f90f.qr&aw_0_1st.playerid=streams.90s90s.de&amsparams=playerid:streams.90s90s.de;skey:1793105974
+rn6=Sunshine Live - Die 90er
+ru6=http://stream.sunshine-live.de/90er/mp3-192/stream.sunshine-live.de
 rv6=
-rn7=Sunshine Live - Die 90er
-ru7=http://stream.sunshine-live.de/90er/mp3-192/stream.sunshine-live.de
+rn7=TranceBase.FM
+ru7=http://listen.trancebase.fm/tunein-aac-hd-pls
 rv7=
-rn8=TranceBase.FM
-ru8=http://listen.trancebase.fm/tunein-aac-hd-pls
+rn8=90s90s Techno HQ
+ru8=http://streams.90s90s.de/techno/mp3-192/radiode/
 rv8=
-rn9=90s90s Techno HQ
-ru9=http://streams.90s90s.de/techno/mp3-192/radiode/
+rn9=TRANCE
+ru9=https://trance-high.rautemusik.fm/?ref=radiobrowser
 rv9=
-rn10=TRANCE
-ru10=https://trance-high.rautemusik.fm/?ref=radiobrowser
+rn10=Technolovers ELECTRO
+ru10=https://stream.technolovers.fm/electro-house?ref=radiobrowser
 rv10=
-rn11=Technolovers ELECTRO
-ru11=https://stream.technolovers.fm/electro-house?ref=radiobrowser
+rn11=Technolovers DEEP HOUSE
+ru11=https://stream.technolovers.fm/deep-house?ref=radiobrowser
 rv11=
-rn12=Technolovers DEEP HOUSE
-ru12=https://stream.technolovers.fm/deep-house?ref=radiobrowser
+rn12=TECHNO
+ru12=https://streams.rautemusik.fm/techno/mp3-192/?ref=radiobrowser
 rv12=
-rn13=TECHNO
-ru13=https://streams.rautemusik.fm/techno/mp3-192/?ref=radiobrowser
+rn13=Chillout
+ru13=https://0n-chillout.radionetz.de/0n-chillout.aac
 rv13=
-rn14=Chillout
-ru14=https://0n-chillout.radionetz.de/0n-chillout.aac
+rn14=Jam FM
+ru14=http://stream.jam.fm/jamfm-live/mp3-128/radio-browser.info/
 rv14=
-rn15=Jam FM
-ru15=http://stream.jam.fm/jamfm-live/mp3-128/radio-browser.info/
+rn15=CLUB
+ru15=https://club-high.rautemusik.fm/?ref=radiobrowser
 rv15=
-rn16=CLUB
-ru16=https://club-high.rautemusik.fm/?ref=radiobrowser
+rn16=Sunshine Live - Lounge
+ru16=http://stream.sunshine-live.de/lounge/mp3-192/stream.sunshine-live.de/
 rv16=
-rn17=Sunshine Live - Lounge
-ru17=http://stream.sunshine-live.de/lounge/mp3-192/stream.sunshine-live.de/
+rn17=90s
+ru17=https://0n-90s.radionetz.de/0n-90s.mp3
 rv17=
-rn18=90s
-ru18=https://0n-90s.radionetz.de/0n-90s.mp3
+rn18=Technolovers - PSYTRANCE
+ru18=https://stream.technolovers.fm/psytrance?ref=radiobrowser
 rv18=
-rn19=Technolovers - PSYTRANCE
-ru19=https://stream.technolovers.fm/psytrance?ref=radiobrowser
+rn19=Technolovers - MINIMAL
+ru19=https://stream.technolovers.fm/minimal?ref=radiobrowser
 rv19=
-rn20=Technolovers - MINIMAL
-ru20=https://stream.technolovers.fm/minimal?ref=radiobrowser
+rn20=Chillhouse Live
+ru20=https://stream.chillhouse-live.com/live
 rv20=
-rn21=Chillhouse Live
-ru21=https://stream.chillhouse-live.com/live
+rn21=FluxFM
+ru21=http://fluxfm.streamabc.net/flx-technounderground-mp3-128-7228171?sABC=6nr14651%230%236q8s7o7o3p7411o9n0871834qs5r90so%23nhqvb&aw_0_1st.playerid=audio&amsparams=playerid:audio;skey:1793148497
 rv21=
-rn22=FluxFM
-ru22=http://fluxfm.streamabc.net/flx-technounderground-mp3-128-7228171?sABC=6nr14651%230%236q8s7o7o3p7411o9n0871834qs5r90so%23nhqvb&aw_0_1st.playerid=audio&amsparams=playerid:audio;skey:1793148497
+rn22=100 %
+ru22=https://club-high.rautemusik.fm/?ref=radiobrowser-100-handsup
 rv22=
-rn23=100 %
-ru23=https://club-high.rautemusik.fm/?ref=radiobrowser-100-handsup
+rn23=Acid Jazz Radio
+ru23=http://stream.laut.fm/acidjazz
 rv23=
-rn24=Acid Jazz Radio
-ru24=http://stream.laut.fm/acidjazz
+rn24=Sunshine Live werbefrei
+ru24=http://stream.sunshine-live.de/premium/mp3-192/stream.sunshine-live.de
 rv24=
-rn25=Sunshine Live werbefrei
-ru25=http://stream.sunshine-live.de/premium/mp3-192/stream.sunshine-live.de
-rv25=

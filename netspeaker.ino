@@ -614,9 +614,10 @@ void loadSettings() {
         cfg.radioVol[i] = prefs.getInt(("rv" + String(i + 1)).c_str(), -1);
     }
 
-    // Ist Platz 1 leer, wird er mit dem Standardsender vorbelegt.
-    // If slot 1 is empty, it is preset with the default station.
+    // Ist die Senderliste leer (Platz 1 leer), wird sie mit dem Standardsender vorbelegt.
+    // If the station list is empty (slot 1 empty), it is preset with the default station.
 
+    prefs.remove("rsadel");
     if (cfg.radioUrl[0].isEmpty()) {
         cfg.radioName[0] = DEFAULT_STATION_NAME;
         cfg.radioUrl[0] = DEFAULT_STATION_URL;

@@ -1,76 +1,73 @@
 # netspeaker stations
-rn1=RSA
-ru1=https://rsa.streamabc.net/regc-rsalive-mp3-192-5989815
+rn1=Nostalgie HQ
+ru1=https://streaming.nrjaudio.fm/oua8a3w2dqao?origine=playernostalgie&aw_0_req.userConsentV2=&aw_0_1st.station=
 rv1=
-rn2=Nostalgie HQ
-ru2=https://streaming.nrjaudio.fm/oua8a3w2dqao?origine=playernostalgie&aw_0_req.userConsentV2=&aw_0_1st.station=
+rn2=Nrj Hits
+ru2=https://streaming.nrjaudio.fm/ou7xugf3s5gi?origine=playernrj&aw_0_req.userConsentV2=&aw_0_1st.station=NRJ-Hits
 rv2=
-rn3=Nrj Hits
-ru3=https://streaming.nrjaudio.fm/ou7xugf3s5gi?origine=playernrj&aw_0_req.userConsentV2=&aw_0_1st.station=NRJ-Hits
+rn3=Chérie FM
+ru3=https://cdnradio.streamakaci.com/cheriefm1.mp3
 rv3=
-rn4=Chérie FM
-ru4=https://cdnradio.streamakaci.com/cheriefm1.mp3
+rn4=Skyrock
+ru4=http://icecast.skyrock.net/s/natio_mp3_128k
 rv4=
-rn5=Skyrock
-ru5=http://icecast.skyrock.net/s/natio_mp3_128k
+rn5=Jazz Radio Blues
+ru5=http://jazzblues.ice.infomaniak.ch/jazzblues-high.mp3
 rv5=
-rn6=Jazz Radio Blues
-ru6=http://jazzblues.ice.infomaniak.ch/jazzblues-high.mp3
+rn6=FIP
+ru6=http://icecast.radiofrance.fr/fip-hifi.aac
 rv6=
-rn7=FIP
-ru7=http://icecast.radiofrance.fr/fip-hifi.aac
+rn7=Rire et Chansons
+ru7=https://streaming.nrjaudio.fm/ou8o8xgk7oiu?origine=fluxradios
 rv7=
-rn8=Rire et Chansons
-ru8=https://streaming.nrjaudio.fm/ou8o8xgk7oiu?origine=fluxradios
+rn8=Jazz Radio
+ru8=http://jazzradio.ice.infomaniak.ch/jazzradio-high.mp3
 rv8=
-rn9=Jazz Radio
-ru9=http://jazzradio.ice.infomaniak.ch/jazzradio-high.mp3
+rn9=EuroDance 90 radio
+ru9=https://stream-eurodance90.fr/radio/8000/128.mp3?1627933323
 rv9=
-rn10=EuroDance 90 radio
-ru10=https://stream-eurodance90.fr/radio/8000/128.mp3?1627933323
+rn10=Europe 2
+ru10=http://europe2.lmn.fm/europe2.mp3
 rv10=
-rn11=Europe 2
-ru11=http://europe2.lmn.fm/europe2.mp3
+rn11=Radio Nova
+ru11=http://novazz.ice.infomaniak.ch/novazz-128.mp3
 rv11=
-rn12=Radio Nova
-ru12=http://novazz.ice.infomaniak.ch/novazz-128.mp3
+rn12=OUI FM
+ru12=https://ouifm.ice.infomaniak.ch/ouifm-high.mp3
 rv12=
-rn13=OUI FM
-ru13=https://ouifm.ice.infomaniak.ch/ouifm-high.mp3
+rn13=Radio Classique
+ru13=https://str0.creacast.com/classique1
 rv13=
-rn14=Radio Classique
-ru14=https://str0.creacast.com/classique1
+rn14=Nostalgie 80 90
+ru14=https://streaming.nrjaudio.fm/ou62iyxp336f?origine=fluxradios&aw_0_1st.station=Nostalgie-80-90
 rv14=
-rn15=Nostalgie 80 90
-ru15=https://streaming.nrjaudio.fm/ou62iyxp336f?origine=fluxradios&aw_0_1st.station=Nostalgie-80-90
+rn15=100% Radio 80
+ru15=http://100radio-80.ice.infomaniak.ch/100radio-80-128.mp3
 rv15=
-rn16=100% Radio 80
-ru16=http://100radio-80.ice.infomaniak.ch/100radio-80-128.mp3
+rn16=Jazz Radio Classic Jazz
+ru16=http://jazz-wr01.ice.infomaniak.ch/jazz-wr01-128.mp3
 rv16=
-rn17=Jazz Radio Classic Jazz
-ru17=http://jazz-wr01.ice.infomaniak.ch/jazz-wr01-128.mp3
+rn17=Skyrock Klassics
+ru17=https://icecast.skyrock.net/s/klassiks_aac_64k?tvr_name=radiofr&tvr_section1=64aac
 rv17=
-rn18=Skyrock Klassics
-ru18=https://icecast.skyrock.net/s/klassiks_aac_64k?tvr_name=radiofr&tvr_section1=64aac
+rn18=Chante France 80's
+ru18=http://stream1.chantefrance.com/cf-80
 rv18=
-rn19=Chante France 80's
-ru19=http://stream1.chantefrance.com/cf-80
+rn19=RTL 2
+ru19=http://icecast.rtl2.fr/rtl2-1-44-128?listen=web
 rv19=
-rn20=RTL 2
-ru20=http://icecast.rtl2.fr/rtl2-1-44-128?listen=web
+rn20=Radio Nostalgie France
+ru20=https://streaming.nrjaudio.fm/oug7girb92oc?origine=tingfm
 rv20=
-rn21=Radio Nostalgie France
-ru21=https://streaming.nrjaudio.fm/oug7girb92oc?origine=tingfm
+rn21=La Grosse Radio Reggae
+ru21=http://hd.lagrosseradio.info/lagrosseradio-reggae-192.mp3
 rv21=
-rn22=La Grosse Radio Reggae
-ru22=http://hd.lagrosseradio.info/lagrosseradio-reggae-192.mp3
+rn22=Radio Orient
+ru22=https://stream.rcs.revma.com/7hnrkawf4p8uv.mp3
 rv22=
-rn23=Radio Orient
-ru23=https://stream.rcs.revma.com/7hnrkawf4p8uv.mp3
+rn23=Made in 80
+ru23=https://madein80.leswebradios.fr/
 rv23=
-rn24=Made in 80
-ru24=https://madein80.leswebradios.fr/
+rn24=Jazz Radio Funk
+ru24=http://jazz-wr06.ice.infomaniak.ch/jazz-wr06-128.mp3
 rv24=
-rn25=Jazz Radio Funk
-ru25=http://jazz-wr06.ice.infomaniak.ch/jazz-wr06-128.mp3
-rv25=
