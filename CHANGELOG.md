@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-11-04 - Version 1.4.8
+
+**Deutsch**
+
+- Ist RSA als Favorit eingetragen, aber aus der Senderliste gelöscht, steht er nach dem Laden einer Liste als Favorit vorn (vorher wurde er übersprungen).
+- Favoriten löschen ist abgesichert: Die ✕-Knöpfe in der Favoritenliste sind erst nach dem Haken *Löschen freigeben* bedienbar; nach jedem gelöschten Favoriten springt der Haken zurück. Die REST-Schnittstelle bleibt unverändert.
+- Neu im Tab *Webradio* (Bereich *Senderlisten*): *Sender meines Landes* mit Länder- und Genre-Auswahl und dem Knopf *Von radio-browser laden*. Der Browser holt die beliebtesten Sender des Landes aus radio-browser.info (nur MP3 oder AAC, zuletzt erreichbar, höchstens 30, Namen auf 24 Byte gekürzt) und schickt sie als Senderliste an das Gerät; RSA und die Favoriten stehen danach vorn.
+- Stumm: Wird stumm geschaltet, während ein Webradio noch lädt, oder läuft gerade Sprache oder eine Flash-MP3, gilt der Zustand sofort; vorher blendete das Radio danach unnötig hörbar ein oder aus.
+- Beispiele für openHAB (Schalter *Stumm*) und Node-RED (Knopf *Stumm umschalten*) ergänzt; in der README steht für `…/volume` jetzt der Bereich 0–100.
+
+**English**
+
+- If RSA is a favorite but was deleted from the station list, it is at the front as a favorite after a list is loaded (before, it was skipped).
+- Deleting favorites is protected: the ✕ buttons in the favorites list only work after ticking *Löschen freigeben* (allow delete); after every deleted favorite the checkbox jumps back. The REST interface is unchanged.
+- New in the *Webradio* tab (section *Senderlisten*): *Sender meines Landes* (stations of my country) with a country and genre selection and the button *Von radio-browser laden*. The browser fetches the most popular stations of the country from radio-browser.info (only MP3 or AAC, reachable last time, at most 30, names shortened to 24 bytes) and sends them to the device as a station list; RSA and the favorites are at the front afterwards.
+- Mute: if mute is switched while a web radio is still loading, or speech or a flash MP3 is playing, the state applies at once; before, the radio faded in or out audibly afterwards without need.
+- Examples for openHAB (switch *Stumm*) and Node-RED (button *Stumm umschalten*) added; the README now gives the range 0–100 for `…/volume`.
+
 ## 2026-11-04 - Version 1.4.7
 
 **Deutsch**

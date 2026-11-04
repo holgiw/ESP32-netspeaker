@@ -24,13 +24,21 @@
         "type": "inject",
         "z": "ns_tab",
         "name": "Ansage",
-        "props": [{ "p": "payload" }],
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
         "payload": "Das Essen ist fertig",
         "payloadType": "str",
         "once": false,
         "x": 130,
         "y": 60,
-        "wires": [["ns_say_out"]]
+        "wires": [
+            [
+                "ns_say_out"
+            ]
+        ]
     },
     {
         "id": "ns_say_out",
@@ -50,13 +58,21 @@
         "type": "inject",
         "z": "ns_tab",
         "name": "Flash-MP3 (doorbell.mp3)",
-        "props": [{ "p": "payload" }],
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
         "payload": "doorbell.mp3",
         "payloadType": "str",
         "once": false,
         "x": 160,
         "y": 120,
-        "wires": [["ns_file_out"]]
+        "wires": [
+            [
+                "ns_file_out"
+            ]
+        ]
     },
     {
         "id": "ns_file_out",
@@ -76,13 +92,21 @@
         "type": "inject",
         "z": "ns_tab",
         "name": "Sender BR3",
-        "props": [{ "p": "payload" }],
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
         "payload": "BR3",
         "payloadType": "str",
         "once": false,
         "x": 140,
         "y": 180,
-        "wires": [["ns_station_out"]]
+        "wires": [
+            [
+                "ns_station_out"
+            ]
+        ]
     },
     {
         "id": "ns_station_out",
@@ -102,13 +126,21 @@
         "type": "inject",
         "z": "ns_tab",
         "name": "Lautstärke 40",
-        "props": [{ "p": "payload" }],
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
         "payload": "40",
         "payloadType": "str",
         "once": false,
         "x": 150,
         "y": 240,
-        "wires": [["ns_vol_out"]]
+        "wires": [
+            [
+                "ns_vol_out"
+            ]
+        ]
     },
     {
         "id": "ns_vol_out",
@@ -128,13 +160,21 @@
         "type": "inject",
         "z": "ns_tab",
         "name": "Stopp",
-        "props": [{ "p": "payload" }],
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
         "payload": "",
         "payloadType": "str",
         "once": false,
         "x": 120,
         "y": 300,
-        "wires": [["ns_stop_out"]]
+        "wires": [
+            [
+                "ns_stop_out"
+            ]
+        ]
     },
     {
         "id": "ns_stop_out",
@@ -154,13 +194,21 @@
         "type": "inject",
         "z": "ns_tab",
         "name": "Alle Geräte stoppen (Gruppen-Topic)",
-        "props": [{ "p": "payload" }],
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
         "payload": "",
         "payloadType": "str",
         "once": false,
         "x": 190,
         "y": 360,
-        "wires": [["ns_all_out"]]
+        "wires": [
+            [
+                "ns_all_out"
+            ]
+        ]
     },
     {
         "id": "ns_all_out",
@@ -173,6 +221,40 @@
         "broker": "ns_broker",
         "x": 440,
         "y": 360,
+        "wires": []
+    },
+    {
+        "id": "ns_mute_in",
+        "type": "inject",
+        "z": "ns_tab",
+        "name": "Stumm umschalten",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "payload": "toggle",
+        "payloadType": "str",
+        "once": false,
+        "x": 150,
+        "y": 400,
+        "wires": [
+            [
+                "ns_mute_out"
+            ]
+        ]
+    },
+    {
+        "id": "ns_mute_out",
+        "type": "mqtt out",
+        "z": "ns_tab",
+        "name": "mute",
+        "topic": "netspeaker/netspeaker-az/mute",
+        "qos": "0",
+        "retain": "false",
+        "broker": "ns_broker",
+        "x": 400,
+        "y": 400,
         "wires": []
     },
     {
@@ -190,7 +272,11 @@
         "inputs": 0,
         "x": 140,
         "y": 440,
-        "wires": [["ns_debug"]]
+        "wires": [
+            [
+                "ns_debug"
+            ]
+        ]
     },
     {
         "id": "ns_debug",

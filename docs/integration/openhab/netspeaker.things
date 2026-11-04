@@ -12,4 +12,5 @@ Thing mqtt:topic:netspeaker "NetSpeaker" (mqtt:broker:mosquitto) {
         Type string : file      "MP3-Datei"     [ commandTopic="netspeaker/netspeaker-az/file" ]
         Type string : station   "Sender"        [ commandTopic="netspeaker/netspeaker-az/station" ]
         Type string : stop      "Stopp"         [ commandTopic="netspeaker/netspeaker-az/stop" ]
+        Type switch : mute      "Stumm"         [ stateTopic="netspeaker/netspeaker-az/muted", commandTopic="netspeaker/netspeaker-az/mute", on="on", off="off" ]
 }

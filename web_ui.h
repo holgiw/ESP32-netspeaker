@@ -302,7 +302,7 @@ void storageRefresh() {
 String panelRadio() {
     String h = volumeRow() + nowPlayingRow();
     h += "<details id='radioInfoBox' style='display:none;max-width:500px;margin:0 auto 10px;text-align:left'><summary style='cursor:pointer;color:var(--muted)'>Stream-Info</summary><table id='radioInfo' style='width:100%;margin-top:6px'></table></details>";
-    h += "<div class='card' id='favCard' style='max-width:900px'><h3>Favoriten " + infoTip("Eigene Liste mit deinen Lieblingssendern, unabh&auml;ngig von der Senderliste (bis zu 40). Sender lassen sich aus der gespeicherten Senderliste und aus jeder fertigen Liste von GitHub &uuml;bernehmen, direkt anh&ouml;ren und wieder entfernen") + "</h3><small id='favInfo'></small><div id='favList'></div>";
+    h += "<div class='card' id='favCard' style='max-width:900px'><h3>Favoriten " + infoTip("Eigene Liste mit deinen Lieblingssendern, unabh&auml;ngig von der Senderliste (bis zu 40). Sender lassen sich aus der gespeicherten Senderliste und aus jeder fertigen Liste von GitHub &uuml;bernehmen, direkt anh&ouml;ren und wieder entfernen") + "</h3><small id='favInfo'></small><div class='row' style='justify-content:flex-start;gap:8px'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='favDelOk' onchange='favRender()' style='width:auto;margin:0;'>L&ouml;schen freigeben</label> " + infoTip("Schutz vor versehentlichem L&ouml;schen: Die &#10006;-Kn&ouml;pfe der Favoriten sind erst nach dem Haken bedienbar; nach jedem gel&ouml;schten Favoriten springt der Haken zur&uuml;ck") + "</div><div id='favList'></div>";
     h += "<div class='row' style='justify-content:flex-start;gap:8px'><button type='button' onclick='favToList()' style='width:auto;padding:8px 14px'>Als Senderliste &uuml;bernehmen</button> " + infoTip("Ersetzt die gespeicherte Senderliste durch die Favoriten (RSA steht danach auf Platz 1)") + "</div>";
     h += "<div class='row' style='justify-content:flex-start;gap:8px'><button type='button' onclick=\"location.href='/favorites.txt'\" style='width:auto;padding:8px 14px'>Favoriten speichern</button> " + infoTip("Speichert die Favoriten als Textdatei auf deinem Rechner; sie steht auch im Export der Einstellungen") + " ";
     h += "<button type='button' onclick=\"document.getElementById('favFile').click()\" style='width:auto;padding:8px 14px'>Favoriten laden</button><input type='file' id='favFile' accept='.txt' style='display:none' onchange='loadFavorites(this)'> " + infoTip("Ersetzt die Favoriten durch eine zuvor gespeicherte Datei") + "</div>";
@@ -344,7 +344,8 @@ String panelRadio() {
     h += "<div style='margin-top:18px;padding-top:12px;border-top:1px solid var(--panel-border)'><h3 style='margin:0 0 6px'>Senderlisten</h3>";
     h += "<div class='row' style='justify-content:flex-start;gap:8px'><span style='min-width:110px;text-align:left'>Eigene Liste</span><button type='button' onclick=\"location.href='/stations.txt'\" style='width:auto;padding:8px 14px'>Liste speichern</button> " + infoTip("Speichert die Senderliste (Name, URL, Lautst&auml;rke) als Textdatei auf deinem Rechner") + " ";
     h += "<button type='button' onclick=\"document.getElementById('stFile').click()\" style='width:auto;padding:8px 14px'>Liste laden</button><input type='file' id='stFile' accept='.txt' style='display:none' onchange='loadStations(this)'> " + infoTip("Ersetzt die gespeicherte Senderliste durch eine zuvor gespeicherte Datei") + "</div>";
-    h += "<div class='row' style='justify-content:flex-start;gap:8px'><span style='min-width:110px;text-align:left'>Fertige Liste</span><select id='stList' style='width:auto'><option>aac-auswahl</option><option>mp3-auswahl</option><option>rock</option><option>entspannung</option><option>schlager</option><option>country</option><option>folk</option><option>jazz</option><option>klassik</option><option>pop-charts</option><option>jahrzehnte</option><option>dance</option><option>hiphop</option><option>irland</option><option>usa</option><option>australien</option><option>grossbritannien</option><option>frankreich</option></select><button type='button' onclick='listFetch()' style='width:auto;padding:8px 14px'>Von GitHub laden</button> " + infoTip("L&auml;dt eine fertige Senderliste aus dem Ordner stations des Projekts auf GitHub und ersetzt die gespeicherte Liste; das Ger&auml;t braucht dazu Internet") + "</div><div id='stListResult'></div></div></div>";
+    h += "<div class='row' style='justify-content:flex-start;gap:8px'><span style='min-width:110px;text-align:left'>Fertige Liste</span><select id='stList' style='width:auto'><option>aac-auswahl</option><option>mp3-auswahl</option><option>rock</option><option>entspannung</option><option>schlager</option><option>country</option><option>folk</option><option>jazz</option><option>klassik</option><option>pop-charts</option><option>jahrzehnte</option><option>dance</option><option>hiphop</option><option>irland</option><option>usa</option><option>australien</option><option>grossbritannien</option><option>frankreich</option></select><button type='button' onclick='listFetch()' style='width:auto;padding:8px 14px'>Von GitHub laden</button> " + infoTip("L&auml;dt eine fertige Senderliste aus dem Ordner stations des Projekts auf GitHub und ersetzt die gespeicherte Liste; das Ger&auml;t braucht dazu Internet") + "</div>";
+    h += "<div class='row' style='justify-content:flex-start;gap:8px'><span style='min-width:110px;text-align:left'>Sender meines Landes</span><select id='rbCountry' style='width:auto'></select><select id='rbGenre' style='width:auto'><option value=''>Alle Genres</option><option>pop</option><option>rock</option><option>jazz</option><option>classical</option><option>country</option><option>folk</option><option>electronic</option><option>dance</option><option>hip hop</option><option>oldies</option><option>80s</option><option>90s</option><option>schlager</option><option>lounge</option><option>reggae</option><option>latin</option><option>world</option><option>metal</option><option>blues</option><option>soul</option></select><button type='button' onclick='rbLoad()' style='width:auto;padding:8px 14px'>Von radio-browser laden</button> " + infoTip("Holt die beliebtesten Sender des gew&auml;hlten Landes (optional eines Genres) aus dem offenen Verzeichnis radio-browser.info und ersetzt die gespeicherte Senderliste; nur Sender mit MP3 oder AAC, die zuletzt erreichbar waren, h&ouml;chstens 30. Der Browser ruft das Verzeichnis ab, das Ger&auml;t braucht dazu nichts. RSA und die Favoriten stehen danach vorn") + "</div><div id='stListResult'></div></div></div>";
     return h;
 }
 
@@ -871,7 +872,7 @@ function favRow(name,url,btns){var r=document.createElement('div'),s=document.cr
 function favMarkNow(){var u=window.NOWURL||'',rs=document.querySelectorAll('#favList .row[data-url]'),i,r,s,on;for(i=0;i<rs.length;i++){r=rs[i];s=r.querySelector('span');if(!s)continue;on=u!==''&&r.getAttribute('data-url')===u;s.style.fontWeight=on?'700':'';s.style.color=on?'var(--accent,#2a9d4a)':'';s.textContent=(on?'\u266A ':'')+s.getAttribute('data-n');}}
 function favHas(u){for(var i=0;i<FAVS.length;i++)if(FAVS[i].url===u)return true;return false;}
 function favRender(){var b=document.getElementById('favList'),inf=document.getElementById('favInfo');if(!b)return;b.textContent='';if(inf)inf.textContent=FAVS.length+' Favoriten';
-  FAVS.forEach(function(f){b.appendChild(favRow(f.name,f.url,[favBtn('▶',function(){postApi('/api/play',{url:f.url},'favResult');}),favBtn('API',function(){favCall(f,this);}),favBtn('✕',function(){favDel(f.n);})]));});
+  FAVS.forEach(function(f){b.appendChild(favRow(f.name,f.url,[favBtn('▶',function(){postApi('/api/play',{url:f.url},'favResult');}),favBtn('API',function(){favCall(f,this);}),favDelBtn(f)]));});
   favMarkNow();}
 function favLoad(){fetch('/api/favorites',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){FAVS=j.favorites||[];favRender();}).catch(function(){});}
 function loadFavorites(inp){var f=inp.files[0];if(!f)return;if(!confirm('Die Favoriten werden durch die Datei ersetzt. Fortfahren?')){inp.value='';return;}
@@ -879,7 +880,8 @@ function loadFavorites(inp){var f=inp.files[0];if(!f)return;if(!confirm('Die Fav
     showRes('favResult',t.indexOf('OK|')===0?{ok:true,msg:t.substring(3)}:{ok:false,error:t.substring(5)});inp.value='';favLoad();});};rd.readAsText(f);}
 function favAddStation(n){var a=document.querySelector("input[name='rn"+n+"']"),u=document.querySelector("input[name='ru"+n+"']");if(u&&u.value)favAdd(a?a.value:"",u.value);}
 function favAdd(name,url){postApi('/api/favoriteadd',{name:name,url:url},'favResult').then(favLoad);}
-function favDel(n){postApi('/api/favoritedelete',{n:n},'favResult').then(favLoad);}
+function favDelBtn(f){var c=document.getElementById('favDelOk'),b=favBtn('✕',function(){favDel(f.n);});b.disabled=!(c&&c.checked);return b;}
+function favDel(n){var c=document.getElementById('favDelOk');if(!c||!c.checked)return;postApi('/api/favoritedelete',{n:n},'favResult').then(function(){c.checked=false;favLoad();});}
 function favToList(){if(!confirm('Die gespeicherte Senderliste wird durch die Favoriten ersetzt. Fortfahren?'))return;postApi('/api/favoritestolist',{},'favResult').then(function(j){if(j&&j.ok)setTimeout(function(){location.href='/?tab=radio';},1200);});}
 function listFill(t,en){var s=document.getElementById('stList'),ls=(t||'').split(/\r?\n/),opts=[],i,p,o,keep;if(!s)return 0;
   for(i=0;i<ls.length;i++){p=ls[i].split('|');if(!/^[a-z0-9-]+$/.test(p[0]||''))continue;opts.push([p[0],p[0]+' – '+((en?p[2]:p[1])||'')]);}
@@ -891,6 +893,36 @@ function listIndex(tryNo){tryNo=tryNo||0;var c='',cached='';try{c=localStorage.g
   if(!tryNo){try{cached=localStorage.getItem('stidx')||'';}catch(e){}if(cached)listFill(cached,en);}
   fetch('https://raw.githubusercontent.com/holgiw/ESP32-netspeaker/main/stations/index.txt',{cache:'no-store'}).then(function(r){return r.ok?r.text():'';}).then(function(t){
     if(t&&listFill(t,en)){try{localStorage.setItem('stidx',t);}catch(e){}}else again();}).catch(again);}
+var RB_CODES=['DE','AT','CH','LI','LU','BE','NL','FR','IT','ES','PT','GB','IE','IS','NO','SE','DK','FI','EE','LV','LT','PL','CZ','SK','HU','SI','HR','BA','RS','ME','MK','AL','BG','RO','MD','UA','BY','RU','GR','CY','MT','TR','IL','EG','MA','TN','DZ','ZA','NG','KE','AE','SA','IN','PK','BD','LK','TH','VN','MY','SG','ID','PH','JP','KR','CN','TW','HK','AU','NZ','US','CA','MX','CO','VE','PE','CL','AR','UY','BR','CU','DO','PR','CR','PA'];
+var RB_SERVERS=['https://de1.api.radio-browser.info','https://de2.api.radio-browser.info','https://fi1.api.radio-browser.info','https://nl1.api.radio-browser.info'];
+var RB_BAD=/news|nachricht|noticias|actualit|cnn|bbc world|quran|koran|bible|gospel|church|kirche|jesus|islam|christmas|weihnacht|halloween|sport|parliament|parlament/i;
+function rbInit(){var s=document.getElementById('rbCountry');if(!s)return;var lang=navigator.language||'de-DE',reg=(lang.split('-')[1]||'').toUpperCase(),dn=null,i,o,arr=[];
+  try{dn=new Intl.DisplayNames([lang],{type:'region'});}catch(e){}
+  for(i=0;i<RB_CODES.length;i++){var nm=RB_CODES[i];try{if(dn)nm=dn.of(RB_CODES[i])||nm;}catch(e){}arr.push([RB_CODES[i],nm]);}
+  arr.sort(function(a,b){return a[1].localeCompare(b[1],lang);});
+  for(i=0;i<arr.length;i++){o=document.createElement('option');o.value=arr[i][0];o.textContent=arr[i][1]+' ('+arr[i][0]+')';s.appendChild(o);}
+  s.value=RB_CODES.indexOf(reg)>=0?reg:'DE';}
+function rbCut(s,max){var b=new TextEncoder().encode(s);if(b.length<=max)return s;var cut=max;while(cut>0&&(b[cut]&192)===128)cut--;var t=new TextDecoder('utf-8').decode(b.slice(0,cut)),m=t.match(/^(.+)\s\S*$/);return(m&&m[1].length>=8?m[1]:t).trim();}
+function rbName(n,u){var h='Radio';try{h=new URL(u).hostname;}catch(e){}n=(n||'').replace(/[\x00-\x1f=]+/g,' ').replace(/^[-_\s*#.]+|[-_\s*]+$/g,'').replace(/\s+/g,' ').trim();if(n.length<3)n=h;return rbCut(n,24).replace(/[-_\s*|(\[]+$/,'');}
+function rbBuild(list){var su={},sn={},out=[],i,s,u,n,k;
+  for(i=0;i<list.length&&out.length<30;i++){s=list[i];if(!s||s.lastcheckok!==1)continue;u=s.url_resolved||s.url||'';
+    if(!/^https?:\/\//i.test(u)||u.length>200||/\.(m3u8?|pls)(\?|$)|token=|[?&]time=|sid=|cid=|\.php/i.test(u))continue;
+    if(!/^(mp3|aac\+?)$/i.test(s.codec||''))continue;n=rbName(s.name,u);if(RB_BAD.test(n))continue;
+    k=n.toLowerCase().replace(/[^a-z0-9]/g,'')||n;if(su[u]||sn[k])continue;su[u]=1;sn[k]=1;out.push([n,u]);}
+  return out;}
+function rbFetch(q,i){if(i>=RB_SERVERS.length)return Promise.reject(new Error('radio-browser'));
+  return fetch(RB_SERVERS[i]+'/json/stations/search?'+q,{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.json();}).catch(function(){return rbFetch(q,i+1);});}
+function rbLoad(){var c=document.getElementById('rbCountry').value,g=document.getElementById('rbGenre').value;if(!c)return;
+  if(!confirm('Die gespeicherte Senderliste wird durch Sender aus radio-browser ersetzt. Fortfahren?'))return;
+  showRes('stListResult',{ok:true,msg:'Lade von radio-browser &hellip;'});
+  rbFetch('countrycode='+encodeURIComponent(c)+(g?'&tag='+encodeURIComponent(g):'')+'&hidebroken=true&order=clickcount&reverse=true&limit=300',0).then(function(list){
+    var st=rbBuild(list),t='# netspeaker stations\n',i;
+    if(!st.length){showRes('stListResult',{ok:false,error:'Keine passenden Sender gefunden'});return;}
+    for(i=0;i<st.length;i++)t+='rn'+(i+1)+'='+st[i][0]+'\nru'+(i+1)+'='+st[i][1]+'\nrv'+(i+1)+'=\n';
+    return fetch('/importstations',{method:'POST',headers:{'Content-Type':'text/plain'},body:t}).then(function(r){return r.text();}).then(function(x){
+      if(x.indexOf('OK|')===0){showRes('stListResult',{ok:true,msg:x.substring(3)});setTimeout(function(){location.href='/?tab=radio';},1500);}
+      else showRes('stListResult',{ok:false,error:x.substring(5)});});
+  }).catch(function(){showRes('stListResult',{ok:false,error:'radio-browser nicht erreichbar'});});}
 function listFetch(){var n=(document.getElementById('stList').value||'').trim();if(!n)return;if(!confirm('Die gespeicherte Senderliste wird durch die Liste von GitHub ersetzt. Fortfahren?'))return;showRes('stListResult',{ok:true,msg:'Lade von GitHub &hellip;'});postApi('/api/stationlist',{list:n},'stListResult').then(function(j){if(j&&j.ok)setTimeout(function(){location.href='/?tab=radio';},1200);});}
 function sayNow(){postApi('/api/say',{text:document.getElementById('sayText').value,lang:document.getElementById('sayLang').value,voice:document.getElementById('sayVoice').value},'sayResult');}
 function clearLog(){if(!confirm('Log l\u00f6schen?'))return;postApi('/api/log',{clear:'1'},'logResult').then(function(){var p=document.getElementById('logContent');if(p)p.textContent='';});}
@@ -1046,7 +1078,7 @@ function testNtp(n){var box=document.getElementById('ntpTestResult'+n);var v=doc
 fillVoiceSel('sayVoice',document.getElementById('sayLang').value,true);fillVoiceSel('cfgVoice',(document.getElementById('cfgLang')||{}).value,true);
 document.querySelectorAll('.codehost').forEach(function(p){p.textContent=p.textContent.replace(/@HOST@/g,location.host);});
 (function(){var m=location.search.match(/[?&]tab=([a-zA-Z0-9]+)/);if(m){var el=document.getElementById('tab-'+m[1]);if(el)el.checked=true;}
-  listIndex();favLoad();loadFiles();sdLoad('/');pollPlay();checkPins();setInterval(pollPlay,3000);if(location.search.indexOf('tab=wlan')>=0)scanWifi();})();
+  rbInit();listIndex();favLoad();loadFiles();sdLoad('/');pollPlay();checkPins();setInterval(pollPlay,3000);if(location.search.indexOf('tab=wlan')>=0)scanWifi();})();
 (function(){
   var cb=document.getElementById('logAutoRefresh');var pre=document.getElementById('logContent');
   var errEl=document.getElementById('logErrorHint');var btn=document.getElementById('logRefreshNow');var timer=null;
@@ -1071,8 +1103,8 @@ String flashText(const String& code) {
 }
 
 
-// Favoritenliste: eigene Liste, unabhaengig von der Senderliste; Sender lassen sich aus der gespeicherten Senderliste und aus jeder Liste auf GitHub uebernehmen.
-// Favorites list: a list of its own, independent of the station list; stations can be taken from the stored station list and from any list on GitHub.
+// Favoritenliste: eigene Liste, unabhaengig von der Senderliste; Sender kommen mit dem Knopf + aus der Senderliste hinein und stehen nach dem Laden einer Liste vorn.
+// Favorites list: a list of its own, independent of the station list; stations get in with the + button of the station list and are at the front after a list is loaded.
 
 #define FAV_SLOTS 40
 
@@ -1883,7 +1915,7 @@ String stationsApply(String body) {
 
     favEnsure();
     for (int f = 0; f < FAV_SLOTS && k < RADIO_SLOTS; f++) {
-        if (favUrl[f].isEmpty() || favUrl[f] == RSA_URL) continue;
+        if (favUrl[f].isEmpty() || (!gone && favUrl[f] == RSA_URL)) continue;
         bool dup = false;
         for (int j = 0; j < k; j++) {
             if (ou[j] == favUrl[f]) dup = true;

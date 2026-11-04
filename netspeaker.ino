@@ -1835,6 +1835,11 @@ volatile bool muteMain = true;
 void muteWatch() {
     bool flash = nowKind == "speech" || (nowKind == "file" && !nowFile.startsWith("sd:"));
     muteMain = !flash;
+
+    // Solange Sprache oder Flash-MP3 laeuft, wird die Verstaerkung nicht mitgefuehrt: sie springt auf den Zielwert, damit das Radio danach nicht erst ein- oder ausblendet.
+    // While speech or flash MP3 plays the gain is not followed: it jumps to the target so the radio does not fade in or out afterwards.
+
+    if (flash) muteGainQ15 = muted ? 0 : 32768;
 }
 
 void muteApply(int32_t* buf, int16_t words) {
@@ -3216,7 +3221,7 @@ String commandMute(const String& arg) {
     else if (a == "0" || a == "false" || a == "off" || a == "no" || a == "unmute") on = false;
     else return "mute: on, off oder toggle angeben";
     muted = on;
-    if (playState == PS_IDLE) muteGainQ15 = on ? 0 : 32768;
+    if (playState != PS_PLAYING) muteGainQ15 = on ? 0 : 32768;
     logLine(String("[VOL] mute ") + (on ? "on" : "off"));
     publishMute();
     return String();

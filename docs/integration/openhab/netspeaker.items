@@ -8,6 +8,7 @@ String NetSpeaker_Say     "Ansage"             { channel="mqtt:topic:netspeaker:
 String NetSpeaker_File    "MP3-Datei"          { channel="mqtt:topic:netspeaker:file" }
 String NetSpeaker_Station "Sender"             { channel="mqtt:topic:netspeaker:station" }
 String NetSpeaker_Stop    "Stopp"              { channel="mqtt:topic:netspeaker:stop" }
+Switch NetSpeaker_Mute    "Stumm"              { channel="mqtt:topic:netspeaker:mute" }
 
 // Beispiel einer Regel: sendCommand(NetSpeaker_Say, "Es klingelt an der Tür")
 // Example of a rule: sendCommand(NetSpeaker_Say, "Someone is at the door")
