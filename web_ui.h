@@ -252,7 +252,7 @@ String nowPlayingRow();
 // Volume slider at the very top of the tabs MP3, Sprechen, SD-Karte and Webradio; all sliders show the same value.
 
 String volumeRow() {
-    return "<div class='row volrow'><label>Lautst&auml;rke <input type='range' class='volrange' min='0' max='" + String(VOLUME_MAX) + "' value='" + String(cfg.vol) + "' style='width:200px' oninput='volShow(this.value)' onchange='setVol(this.value)'> <span class='volshow' style='display:inline-block;min-width:76px'>" + String(cfg.vol) + " / " + String(VOLUME_MAX) + "</span></label><button type='button' class='stopbtn' onclick='stopNow()' style='width:auto;padding:6px 16px;margin:0 4px 0 12px' disabled>&#9632; Stopp</button><button type='button' class='mutebtn' onclick='muteToggle()' style='width:auto;padding:6px 16px;margin:0 8px 0 4px'>Stumm</button> " + infoTip("Lautst&auml;rke 0 bis 100; wird sofort &uuml;bernommen und gespeichert. Stopp: beendet die Wiedergabe sofort, auch ein Webradio, ohne Fortsetzung. Stumm: blendet den Ton sanft aus und wieder ein, die eingestellte Lautst&auml;rke bleibt unver&auml;ndert") + "</div>";
+    return "<div class='row volrow'><label>Lautst&auml;rke <input type='range' class='volrange' min='0' max='" + String(VOLUME_MAX) + "' value='" + String(cfg.vol) + "' style='width:200px' oninput='volShow(this.value)' onchange='setVol(this.value)'> <span class='volshow' style='display:inline-block;min-width:76px'>" + String(cfg.vol) + " / " + String(VOLUME_MAX) + "</span></label><button type='button' class='stopbtn' onclick='stopNow()' style='width:auto;padding:6px 16px;margin:0 4px 0 12px' disabled>&#9632; Stopp</button><button type='button' class='mutebtn' onclick='muteToggle()' style='width:auto;padding:6px 16px;margin:0 8px 0 4px'>Stumm</button> " + infoTip("Lautst&auml;rke 0 bis 100; wird sofort &uuml;bernommen und gespeichert. Stopp: beendet die Wiedergabe sofort, auch ein Webradio, ohne Fortsetzung. Stumm: blendet den Ton sanft aus und wieder ein, die eingestellte Lautst&auml;rke bleibt unver&auml;ndert. Stumm gilt f&uuml;r Webradio und MP3 von der SD-Karte; Ansagen und MP3 aus dem Flash bleiben h&ouml;rbar") + "</div>";
 }
 
 String panelSpeak() {
@@ -701,6 +701,7 @@ curl -d "n=3" http://@HOST@/api/stationdelete)d");
 curl "http://@HOST@/api/file?file=glocke.mp3&vol=15"
 curl http://@HOST@/api/files
 curl -d "file=glocke.mp3" http://@HOST@/api/delete
+curl -d "file=glocke.mp3&to=gong.mp3" http://@HOST@/api/rename
 curl -F "file=@glocke.mp3" http://@HOST@/upload)d");
     h += docCard("Stopp, Lautst&auml;rke, Status",
         "<code>v</code> ist 0-100 und wird gespeichert; die Lautst&auml;rke wandert sanft zum neuen Wert, die Dauer in Millisekunden steht im Tab Audio und l&auml;sst sich je Aufruf mit <code>ms</code> &uuml;berschreiben. Ohne <code>v</code> meldet <code>/api/volume</code> nur: <code>volume</code> (allgemein) und <code>playVolume</code> (gerade wirkend). <code>/api/status</code> liefert <code>state</code> (idle, loading, playing), <code>error</code>, <code>queue</code> (wartende Ansagen und Dateien), <code>volume</code> (allgemein), <code>playVolume</code> (die gerade wirkende Lautst&auml;rke), den freien Speicher und was gerade l&auml;uft: <code>source</code> (radio, file, speech), <code>name</code> (Sendername oder Dateiname), <code>title</code> (aktueller Titel, wenn der Sender ihn meldet) und <code>url</code>. Bei einer laufenden Datei kommen <code>pos</code> und <code>dur</code> (Sekunden), <code>pm</code> (Fortschritt in Promille) und <code>rate</code> (Promille je Sekunde) dazu, bei einem Webradio <code>genre</code>, <code>desc</code>, <code>web</code>, <code>logo</code>, <code>host</code>, <code>bitrate</code>, <code>codec</code>, <code>rate</code> (Abtastrate in Hz), <code>ch</code> und <code>bits</code>, und mit der Lautst&auml;rke-Angleichung <code>gainDb</code>.",
@@ -974,10 +975,11 @@ function sdUploadNow(){var fs=Array.prototype.slice.call(document.getElementById
   next();}
 function playFile(n,res,ex){var p={file:n};if(ex)for(var k in ex)p[k]=ex[k];postApi('/api/play',p,res||'upResult');}
 function sdLoopOn(){var c=document.getElementById('sdLoop');return c&&c.checked?'1':'0';}
+function renFile(n){var x=prompt('Neuer Name:',n);if(!x||x===n)return;postApi('/api/rename',{file:n,to:x},'upResult').then(function(){loadFiles();});}
 function delFile(n){if(!confirm('Datei '+n+' löschen?'))return;postApi('/api/delete',{file:n},'upResult').then(loadFiles);}
 function loadFiles(){fetch('/api/files',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
   var h='<table style="width:100%">';
-  j.files.forEach(function(f){h+='<tr><td>'+f.name+'</td><td>'+Math.round(f.size/1024)+' KB</td><td><a href="#" onclick="playFile(\''+f.name+'\');return false;" title="Abspielen">&#9654;</a> <a href="#" onclick="delFile(\''+f.name+'\');return false;" title="L\u00f6schen">&#10006;</a></td><td><button type="button" class="copy-btn" style="position:static;margin:2px" title="'+apiLink(f.name)+'" onclick="copyText(apiLink(\''+f.name+'\'),this)">URL</button><button type="button" class="copy-btn" style="position:static;margin:2px" title="curl-Aufruf kopieren" onclick="copyText(\'curl &quot;\'+apiLink(\''+f.name+'\')+\'&quot;\',this)">curl</button></td></tr>';});
+  j.files.forEach(function(f){h+='<tr><td>'+f.name+'</td><td>'+Math.round(f.size/1024)+' KB</td><td><a href="#" onclick="playFile(\''+f.name+'\');return false;" title="Abspielen">&#9654;</a> <a href="#" onclick="renFile(\''+f.name+'\');return false;" title="Umbenennen">&#9998;</a> <a href="#" onclick="delFile(\''+f.name+'\');return false;" title="L\u00f6schen">&#10006;</a></td><td><button type="button" class="copy-btn" style="position:static;margin:2px" title="'+apiLink(f.name)+'" onclick="copyText(apiLink(\''+f.name+'\'),this)">URL</button><button type="button" class="copy-btn" style="position:static;margin:2px" title="curl-Aufruf kopieren" onclick="copyText(\'curl &quot;\'+apiLink(\''+f.name+'\')+\'&quot;\',this)">curl</button></td></tr>';});
   if(!j.files.length)h+='<tr><td>Keine Dateien</td></tr>';
   document.getElementById('fileList').innerHTML=h+'</table>';
   memShow('fsMem',j.used,j.total);
@@ -2181,6 +2183,35 @@ void handleApiFiles() {
     sendJson(200, j);
 }
 
+// MP3-Datei im Geraet umbenennen: file = alter Name, to = neuer Name (".mp3" wird bei Bedarf angehaengt). Pins, die diese Datei abspielen, folgen dem neuen Namen.
+// Rename an MP3 file in the device: file = old name, to = new name (".mp3" is appended if missing). Pins that play this file follow the new name.
+
+void handleApiRename() {
+    String oldName = cleanFileName(apiArg("file"));
+    String to = apiArg("to");
+    to.trim();
+    String lower = to;
+    lower.toLowerCase();
+    if (!to.isEmpty() && !lower.endsWith(".mp3")) to += ".mp3";
+    String newName = cleanFileName(to);
+    String oldPath = String(MP3_DIR) + "/" + oldName;
+    String newPath = String(MP3_DIR) + "/" + newName;
+    if (oldName.isEmpty() || !LittleFS.exists(oldPath)) return sendErr(404, "Datei nicht gefunden");
+    if (newName.isEmpty()) return sendErr(400, "Neuer Name nicht erlaubt (Dateien enden auf .mp3)");
+    if (newName == oldName) return sendErr(400, "Der neue Name ist gleich dem alten");
+    if (LittleFS.exists(newPath)) return sendErr(400, "Der neue Name existiert schon");
+    stopIfUsing(oldName);
+    if (!LittleFS.rename(oldPath, newPath)) return sendErr(400, "Umbenennen fehlgeschlagen");
+    for (int pin = 1; pin <= 48; pin++) {
+        if (pinType[pin] == "file" && pinText[pin] == oldName) {
+            pinText[pin] = newName;
+            prefs.putString(("px" + String(pin)).c_str(), newName);
+        }
+    }
+    logLine("[FILES] renamed " + oldPath + " -> " + newPath);
+    sendOk("Umbenannt");
+}
+
 void handleApiDelete() {
     String name = cleanFileName(webserver.arg("file"));
     String path = String(MP3_DIR) + "/" + name;
@@ -2848,6 +2879,7 @@ void setupWeb() {
     webserver.on("/api/sdrename", handleApiSdRename);
     webserver.on("/api/sdfile", HTTP_GET, handleApiSdFile);
     webserver.on("/api/delete", handleApiDelete);
+    webserver.on("/api/rename", handleApiRename);
     webserver.on("/api/scan", HTTP_GET, handleApiScan);
     webserver.on("/api/testNtp", HTTP_GET, handleTestNtp);
     webserver.on("/api/mqtt", handleApiMqtt);

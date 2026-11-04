@@ -101,6 +101,7 @@ curl -d "text=Hallo Welt" http://<ip>/api/say              # optional lang=, voi
 curl -H "Content-Type: application/json" -d "{\"text\":\"Hallo\",\"vol\":12}" http://<ip>/api/say
 curl -d "url=https://example.com/a.mp3" http://<ip>/api/play    # Webradio-URL oder MP3-URL
 curl -d "file=gong.mp3" http://<ip>/api/play                    # Datei aus dem Tab MP3 (Flash)
+curl -d "file=gong.mp3&to=glocke.mp3" http://<ip>/api/rename           # MP3 im Gerät umbenennen (.mp3 wird bei Bedarf angehängt)
 curl -d "url=http://stream.example.com/radio" http://<ip>/api/url
 curl -d "file=gong.mp3" http://<ip>/api/file                    # ohne sd: zuerst Flash, dann SD-Karte; sd:/Pfad.mp3 nur Karte
 curl -d "n=3" http://<ip>/api/station                          # gespeicherter Platz 1-30, oder name=Radio%20Eins
@@ -110,7 +111,7 @@ curl --data-binary @stations.txt -H "Content-Type: text/plain" http://<ip>/impor
 curl -d "list=aac-auswahl" http://<ip>/api/stationlist    # fertige Liste aus stations/ auf GitHub laden (ersetzt die ganze Liste)
 curl -d "n=3" http://<ip>/api/stationdelete                    # Platz löschen (Name und URL); die folgenden Plätze rücken auf
 curl -X POST http://<ip>/api/stop
-curl -d "toggle=1" http://<ip>/api/mute                      # stumm schalten / aufheben (on=1, on=0, toggle=1; ohne Angabe nur Zustand)
+curl -d "toggle=1" http://<ip>/api/mute                      # stumm schalten / aufheben (on=1, on=0, toggle=1; ohne Angabe nur Zustand); gilt für Webradio und SD-MP3, Ansagen und Flash-MP3 bleiben hörbar
 curl -d "v=50" http://<ip>/api/volume                      # 0-100
 curl http://<ip>/api/volume                                # meldet volume (allgemein) und playVolume (gerade wirkend)
 curl http://<ip>/api/status

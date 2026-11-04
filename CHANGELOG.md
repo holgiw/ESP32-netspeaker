@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-04 - Version 1.4.7
+
+**Deutsch**
+
+- Neu: MP3-Dateien im Gerät (Tab *MP3 (Flash)*) lassen sich umbenennen: Knopf ✎ in der Dateiliste, REST `POST /api/rename` (`file`, `to`; ".mp3" wird bei Bedarf angehängt). Pins, die diese Datei abspielen, folgen dem neuen Namen; läuft die Datei gerade, wird sie gestoppt.
+- Geändert: **Stumm** wirkt jetzt nur noch auf Webradio und MP3 von der SD-Karte (auch als Mischspur über dem Radio). Ansagen (Sprache) und MP3-Dateien aus dem Flash bleiben bei Stumm hörbar, z. B. ein Klingelton, während das Radio wegen eines Anrufs stumm ist. Vorher wirkte Stumm als letzte Verstärkung auf alles.
+
+**English**
+
+- New: MP3 files in the device (tab *MP3 (Flash)*) can be renamed: button ✎ in the file list, REST `POST /api/rename` (`file`, `to`; ".mp3" is appended if missing). Pins that play this file follow the new name; if the file is playing it is stopped.
+- Changed: **Mute** now acts only on web radio and MP3 from the SD card (also as a mix track over the radio). Announcements (speech) and MP3 files from the flash stay audible while muted, e.g. a ring tone while the radio is muted because of a phone call. Before, mute acted as a last gain on everything.
+
 ## 2026-11-04 - Version 1.4.6
 
 **Deutsch**

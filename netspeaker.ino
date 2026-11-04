@@ -1822,10 +1822,20 @@ uint32_t nvsFreeEntries() {
     return nvs_get_stats(NULL, &st) == ESP_OK ? st.free_entries : 0;
 }
 
-// Stumm schalten: eine letzte Verstaerkung am Ende des Audiowegs (nach den Mischspuren), die sanft auf 0 faellt und wieder auf 1 steigt; die
-// eingestellte Lautstaerke bleibt unveraendert. Die Dauer ist die Lautstaerke-Rampe (mindestens 300 ms).
-// Mute: a last gain at the end of the audio path (after the mix tracks) that falls gently to 0 and rises to 1 again; the set volume stays
-// unchanged. The duration is the volume ramp (at least 300 ms).
+// Stumm schalten: eine Verstaerkung, die sanft auf 0 faellt und wieder auf 1 steigt; die eingestellte Lautstaerke bleibt unveraendert.
+// Sie wirkt auf Webradio und SD-Dateien (Hauptstrom und Mischspur 0); Ansagen und MP3 aus dem Flash bleiben hoerbar. Dauer: Lautstaerke-Rampe (mind. 300 ms).
+// Mute: a gain that falls gently to 0 and rises to 1 again; the set volume stays unchanged. It acts on web radio and SD files (main stream
+// and mix track 0); announcements and MP3 from the flash stay audible. Duration: the volume ramp (at least 300 ms).
+
+// Gilt der Hauptstrom gerade als stumm schaltbar? Nein bei Sprache und bei MP3 aus dem Flash (nowFile ohne "sd:").
+// Does the mute apply to the main stream right now? No for speech and for MP3 from the flash (nowFile without "sd:").
+
+volatile bool muteMain = true;
+
+void muteWatch() {
+    bool flash = nowKind == "speech" || (nowKind == "file" && !nowFile.startsWith("sd:"));
+    muteMain = !flash;
+}
 
 void muteApply(int32_t* buf, int16_t words) {
     static uint32_t lastUs = 0;
@@ -1868,8 +1878,8 @@ void audio_process_i2s(int32_t* buf, int16_t words, bool* continueI2S) {
         }
     }
     mixAddTrack(mixT[MIX_LAYER], buf, words);
+    if (muteMain) muteApply(buf, words);
     mixAddTrack(mixT[MIX_ANN], buf, words);
-    muteApply(buf, words);
 }
 
 // Lese-Task: MP3 aus dem Dateisystem lesen, mit dem Dekoder der Bibliothek in PCM wandeln und in den Ringpuffer schreiben.
@@ -4073,6 +4083,7 @@ void loop() {
     fileFadeWatch();
     loudWatch();
     agcWatch();
+    muteWatch();
     pinWatch();
     logWatch();
     ntpWatch();
