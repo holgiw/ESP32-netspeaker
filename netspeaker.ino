@@ -3481,6 +3481,7 @@ void mqttConnect() {
         mqttClient.subscribe((base + "/station").c_str());
         mqttClient.subscribe((base + "/list").c_str());
         mqttClient.subscribe((base + "/stop").c_str());
+        mqttClient.subscribe((base + "/mute").c_str());
         mqttClient.subscribe((base + "/volume").c_str());
         mqttClient.subscribe((base + "/restart").c_str());
         for (int i = 0; i < 5; i++) {

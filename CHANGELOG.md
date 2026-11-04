@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-04 - Version 1.4.6
+
+**Deutsch**
+
+- Behoben: Das MQTT-Thema `<Basis>/mute` wurde beim Verbinden nicht abonniert, Stumm-Befehle per MQTT (und der Schalter in Home Assistant oder openHAB) blieben wirkungslos; REST `/api/mute` und die Tasten in der Oberfläche funktionierten schon.
+
+**English**
+
+- Fixed: the MQTT topic `<base>/mute` was not subscribed when connecting, so mute commands via MQTT (and the switch in Home Assistant or openHAB) had no effect; REST `/api/mute` and the buttons in the web UI already worked.
+
 ## 2026-11-04 - Version 1.4.5
 
 **Deutsch**
