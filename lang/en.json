@@ -258,8 +258,6 @@
 "Von GitHub laden":"Load from GitHub",
 "Stimme testen":"Test voice",
 "Spricht einen kurzen Beispielsatz in der gewählten Sprache, Stimme und mit dem eingestellten Tempo, auch ohne vorher zu speichern. Der API-Schlüssel und das Audioformat müssen dazu gespeichert sein.":"Speaks a short example sentence in the chosen language and voice and at the set tempo, even without saving first. The API key and the audio format have to be saved for this.",
-"Löschen freigeben":"Allow delete",
-"Schutz vor versehentlichem Löschen: Die ✖-Knöpfe der Favoriten sind erst nach dem Haken bedienbar; nach jedem gelöschten Favoriten springt der Haken zurück.":"Protection against accidental deletion: the ✖ buttons of the favorites only work after ticking the checkbox; after every deleted favorite the checkbox jumps back.",
 "Sender meines Landes":"Stations of my country",
 "Alle Genres":"All genres",
 "Von radio-browser laden":"Load from radio-browser",

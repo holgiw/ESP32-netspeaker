@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-05 - Version 1.4.11
+
+**Deutsch**
+
+- Favoriten löschen: Statt der Checkbox *Löschen freigeben* fragt jeder ✕-Knopf in der Favoritenliste einzeln nach ("Favorit ... löschen?"). Die REST-Schnittstelle bleibt unverändert.
+
+**English**
+
+- Deleting favorites: instead of the checkbox *Löschen freigeben*, every ✕ button in the favorites list asks individually ("Delete favorite ...?"). The REST interface is unchanged.
+
 ## 2026-11-05 - Version 1.4.10
 
 **Deutsch**
