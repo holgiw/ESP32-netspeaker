@@ -3582,6 +3582,13 @@ int ntpCount() {
     return n;
 }
 
+// Dauerhafte Puffer fuer die NTP-Servernamen: der SNTP-Dienst kopiert die Namen nicht, sondern merkt sich nur den Zeiger. Zeigte er auf lokale
+// Strings, wuerde er spaeter Muell oder einen leeren Namen im DNS abfragen (alle paar Sekunden Abfragen ohne Domain).
+// Persistent buffers for the NTP server names: the SNTP service does not copy the names, it keeps only the pointer. If it pointed to local
+// Strings it would later ask the DNS for garbage or an empty name (queries without a domain every few seconds).
+
+static char ntpNameBuf[3][64];
+
 void ntpApply() {
     String list[5];
     int n = 0;
@@ -3590,9 +3597,11 @@ void ntpApply() {
     }
     if (n == 0) list[n++] = "pool.ntp.org";
     int m = n < 3 ? n : 3;
-    String s[3];
-    for (int i = 0; i < m; i++) s[i] = list[(ntpOffset + i) % n];
-    configTzTime(cfg.tz.c_str(), s[0].c_str(), m > 1 ? s[1].c_str() : nullptr, m > 2 ? s[2].c_str() : nullptr);
+    for (int i = 0; i < m; i++) {
+        strncpy(ntpNameBuf[i], list[(ntpOffset + i) % n].c_str(), sizeof(ntpNameBuf[i]) - 1);
+        ntpNameBuf[i][sizeof(ntpNameBuf[i]) - 1] = 0;
+    }
+    configTzTime(cfg.tz.c_str(), ntpNameBuf[0], m > 1 ? ntpNameBuf[1] : nullptr, m > 2 ? ntpNameBuf[2] : nullptr);
 }
 
 void setupTime() {

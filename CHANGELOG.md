@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-06 - Version 1.4.12
+
+**Deutsch**
+
+- Behoben: Die NTP-Servernamen standen nur in lokalen Variablen, der SNTP-Dienst merkt sich aber nur den Zeiger. Dadurch fragte das Gerät später Müll oder einen leeren Namen im DNS ab (Abfragen ohne Domain im Pi-hole, etwa alle 22 Sekunden) und die Zeitsynchronisation war unzuverlässig. Die Namen liegen jetzt in dauerhaften Puffern.
+
+**English**
+
+- Fixed: the NTP server names only lived in local variables, but the SNTP service keeps just the pointer. As a result the device later asked the DNS for garbage or an empty name (queries without a domain in Pi-hole, about every 22 seconds) and time synchronisation was unreliable. The names now live in persistent buffers.
+
 ## 2026-11-05 - Version 1.4.11
 
 **Deutsch**
