@@ -119,7 +119,7 @@ curl -d "broker=192.168.0.70&port=1883" http://<ip>/api/mqtt
 curl -d "group1=netspeaker/all&group2=netspeaker/haus" http://<ip>/api/mqtt   # Gruppen-Topics 1 bis 5 (leer = entfernt); GET liefert sie als groups
 curl -d "file=sd:/Musik/&shuffle=1&loop=1" http://<ip>/api/play   # Ordner der SD-Karte, zufällig und endlos
 curl http://<ip>/api/pins                                  # freie Pins mit Zustand und Aktion
-curl -d "pin=5&type=say&text=Die Tür ist offen" http://<ip>/api/pins   # type: say, file oder station; leer = keine Aktion
+curl -d "pin=5&type=say&text=Die Tür ist offen" http://<ip>/api/pins   # type: say, file, station, radio, next, prev, volup, voldown, mute, stop; leer = keine Aktion
 curl http://<ip>/api/lang                                  # vorhandene Sprachdateien
 curl -F "file=@lang/en.json" "http://<ip>/upload?target=lang"   # Sprachdatei hochladen
 curl -d "enable=1" http://<ip>/api/log                     # Log ein (Standard: aus); clear=1 leert ihn
