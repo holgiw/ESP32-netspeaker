@@ -255,6 +255,7 @@ unsigned long loadStartMillis = 0;
 // Web radio that should be running: reconnected automatically after a drop (live streams only, not after a stop).
 
 String wantRadioUrl;
+String lastRadioUrl;
 int wantRadioVol = -1;
 bool wantRadioLive = true;
 bool streamWaitingReady = false;
@@ -476,6 +477,8 @@ String commandSay(const String& textIn, const String& lang, const String& voice,
 String commandPlayFile(const String& nameIn, int vol, bool shuffle, bool loop);
 String commandPlayUrl(const String& urlIn, int vol);
 String commandPlayStation(const String& selIn, int vol);
+bool pinTypeIsControl(const String& t);
+String commandPinControl(const String& type, const String& x, int vol);
 
 void pinWatch() {
     static unsigned long lastScan = 0, lowSince[49], lastFire = 0;
@@ -500,7 +503,8 @@ void pinWatch() {
         lastFire = millis();
         String err;
         const String& x = pinText[pin];
-        if (pinType[pin] == "say") err = commandSay(x, "", "", 99, pinVol[pin]);
+        if (pinTypeIsControl(pinType[pin])) err = commandPinControl(pinType[pin], x, pinVol[pin]);
+        else if (pinType[pin] == "say") err = commandSay(x, "", "", 99, pinVol[pin]);
         else if (pinType[pin] == "station") err = commandPlayStation(x, pinVol[pin]);
         else if (x.startsWith("http://") || x.startsWith("https://")) err = commandPlayUrl(x, pinVol[pin]);
         else err = commandPlayFile(x, pinVol[pin], false, false);
@@ -2585,6 +2589,7 @@ void processPending() {
         case PEND_SAY: speakText(p); break;
         case PEND_URL:
             wantRadioUrl = p.text;
+            lastRadioUrl = p.text;
             wantRadioVol = p.vol;
             wantRadioLive = true;
             startUrl(p.text);
@@ -3228,6 +3233,55 @@ String commandMute(const String& arg) {
     return String();
 }
 
+
+// Steuer-Aktionen eines Pins ohne Text: Radio starten, Sender vor/zurueck, lauter/leiser, Stumm, Stopp. Bei lauter/leiser gilt die Zahl
+// als Schrittweite (Standard 5).
+// Control actions of a pin without text: start radio, next/previous station, louder/quieter, mute, stop. For louder/quieter the number is
+// the step size (default 5).
+
+bool pinTypeIsControl(const String& t) {
+    return t == "radio" || t == "next" || t == "prev" || t == "volup" || t == "voldown" || t == "mute" || t == "stop";
+}
+
+String commandPinControl(const String& type, const String& x, int vol) {
+    if (type == "stop") {
+        commandStop();
+        return String();
+    }
+    if (type == "mute") return commandMute("toggle");
+    if (type == "volup" || type == "voldown") {
+        int step = vol > 0 ? vol : 5;
+        commandVolume(cfg.vol + (type == "volup" ? step : -step));
+        return String();
+    }
+    String cur = wantRadioUrl.length() > 0 ? wantRadioUrl : lastRadioUrl;
+    int slot = -1;
+    for (int i = 0; i < RADIO_SLOTS; i++) {
+        if (cfg.radioUrl[i].length() > 0 && cfg.radioUrl[i] == cur) slot = i;
+    }
+    if (type == "radio") {
+        if (playState == PS_PLAYING && wantRadioUrl.length() > 0) return String();
+        if (slot < 0) {
+            for (int i = RADIO_SLOTS - 1; i >= 0; i--) {
+                if (cfg.radioUrl[i].length() > 0) slot = i;
+            }
+        }
+    } else {
+        int dir = type == "next" ? 1 : -1;
+        int start = slot < 0 ? (dir > 0 ? RADIO_SLOTS - 1 : 0) : slot;
+        int found = -1;
+        for (int k = 1; k <= RADIO_SLOTS; k++) {
+            int i = ((start + dir * k) % RADIO_SLOTS + RADIO_SLOTS) % RADIO_SLOTS;
+            if (cfg.radioUrl[i].length() > 0) {
+                found = i;
+                break;
+            }
+        }
+        slot = found;
+    }
+    if (slot < 0) return "Keine Sender gespeichert";
+    return commandPlayUrl(cfg.radioUrl[slot], vol >= 0 ? vol : cfg.radioVol[slot]);
+}
 // Zahl aus Text; leer = Standardwert def.
 // Number from text; empty = default value def.
 

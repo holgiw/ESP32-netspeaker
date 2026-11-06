@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-06 - Version 1.4.13
+
+**Deutsch**
+
+- Neu: Die Pins (Tab Pins) können jetzt auch das Radio steuern: Radio starten (zuletzt gespielter Sender), Sender vor, Sender zurück, Lauter, Leiser (Schrittweite im Feld Lautstärke, Standard 5), Stumm (umschalten) und Stopp. Über REST: `type=radio|next|prev|volup|voldown|mute|stop`.
+- Geändert: Die Tabelle im Tab Pins zeigt nur Pins mit Aktion und darunter eine Zeile mit Auswahl des nächsten freien GPIO. Ein gemeinsamer Speichern-Knopf oben rechts speichert alle Änderungen; danach kann der nächste freie Pin gewählt werden. "Keine Aktion" entfernt einen Pin aus der Liste. Bei "Keine Aktion" und bei Steuer-Aktionen sind nicht benötigte Felder ausgeblendet; bei Lauter/Leiser steht die Schrittweite 5 schon im Feld, mit ⓘ-Hinweis.
+
+**English**
+
+- New: the pins can now also control the radio: start radio (last played station), next station, previous station, louder, quieter (step size in the volume field, default 5), mute (toggle) and stop. Via REST: `type=radio|next|prev|volup|voldown|mute|stop`.
+- Changed: the table in the Pins tab shows only pins with an action, followed by one row to pick the next free GPIO. One common Save button at the top right saves all changes; afterwards the next free pin can be chosen. "No action" removes a pin from the list. Fields that are not needed are hidden for "No action" and for control actions; for Louder/Quieter the step 5 is already in the field, with an ⓘ hint.
+
 ## 2026-11-06 - Version 1.4.12
 
 **Deutsch**

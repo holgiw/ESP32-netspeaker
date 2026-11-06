@@ -358,8 +358,8 @@ String panelSd() {
 }
 
 String panelPins() {
-    String h = "<div class='card' style='max-width:900px'><h3>Eing&auml;nge (Pull-up)</h3>";
-    h += "<p>Alle freien Pins liegen mit Pull-up auf High. Bekommt ein Pin Kontakt nach GND (zum Beispiel durch eine Taste), spielt das Ger&auml;t die gew&auml;hlte Ansage, MP3-Datei oder den gew&auml;hlten Webradio-Sender. Nicht angezeigt werden die Pins von Verst&auml;rker und SD-Karte, die Strapping-Pins und die Status-LED. " + infoTip("Aktion: Ansage = Text, der &uuml;ber VoiceRSS gesprochen wird. MP3-Datei = Dateiname aus dem Tab MP3 (Flash), sd:/Pfad.mp3 oder sd:/Ordner/ von der SD-Karte oder eine URL (http:// oder https://). Webradio = gespeicherter Sender, Name oder Platznummer aus dem Tab Webradio. Die Lautst&auml;rke ist optional (0-100, leer = allgemeine). Der Pin muss etwa 40 ms auf GND bleiben; ausgel&ouml;st wird einmal je Tastendruck") + "</p>";
+    String h = "<div class='card' style='max-width:900px'><div style='display:flex;justify-content:space-between;align-items:center;gap:10px'><h3 style='margin:0'>Eing&auml;nge (Pull-up)</h3><button type='button' id='pinSave' style='width:auto;padding:8px 18px'>Speichern</button></div>";
+    h += "<p>Alle freien Pins liegen mit Pull-up auf High. Bekommt ein Pin Kontakt nach GND (zum Beispiel durch eine Taste), spielt das Ger&auml;t die gew&auml;hlte Ansage, MP3-Datei oder den gew&auml;hlten Webradio-Sender. Nicht angezeigt werden die Pins von Verst&auml;rker und SD-Karte, die Strapping-Pins und die Status-LED. " + infoTip("Aktion: Ansage = Text, der &uuml;ber VoiceRSS gesprochen wird. MP3-Datei = Dateiname aus dem Tab MP3 (Flash), sd:/Pfad.mp3 oder sd:/Ordner/ von der SD-Karte oder eine URL (http:// oder https://). Webradio = gespeicherter Sender, Name oder Platznummer aus dem Tab Webradio. Radio starten = spielt den zuletzt gespielten Sender (sonst den ersten gespeicherten), Sender vor/zur&uuml;ck = n&auml;chster/vorheriger gespeicherter Sender, Lauter/Leiser = Schrittweite im Feld Lautst&auml;rke (Standard 5), Stumm schaltet um, Stopp beendet die Wiedergabe. Die Lautst&auml;rke ist optional (0-100, leer = allgemeine). Der Pin muss etwa 40 ms auf GND bleiben; ausgel&ouml;st wird einmal je Tastendruck") + "</p>";
     h += "<table id='pinTable' style='width:100%'></table><div id='pinResult'></div></div>";
     return h;
 }
@@ -729,7 +729,7 @@ curl -d "group1=netspeaker/all&group2=netspeaker/haus" http://@HOST@/api/mqtt
 curl -d "ha=1" http://@HOST@/api/mqtt
 curl http://@HOST@/api/mqtt)d");
     h += docCard("Eing&auml;nge (Pins)",
-        "<code>GET /api/pins</code> liefert die freien Pins: <code>p</code> (Nummer), <code>l</code> (Zustand, 1 = High, 0 = Low), <code>t</code> (Aktion), <code>x</code> (Text) und <code>v</code> (Lautst&auml;rke, -1 = allgemeine). <code>POST /api/pins</code> mit <code>pin</code>, <code>type</code> (<code>say</code>, <code>file</code>, <code>station</code> oder leer = keine Aktion), <code>text</code> (Ansage, Dateiname, <code>sd:</code>-Pfad, URL oder Sender) und optional <code>vol</code> (0-100) speichert die Aktion eines Pins. Sie l&ouml;st aus, sobald der Pin etwa 40 ms Kontakt nach GND hat.",
+        "<code>GET /api/pins</code> liefert die freien Pins: <code>p</code> (Nummer), <code>l</code> (Zustand, 1 = High, 0 = Low), <code>t</code> (Aktion), <code>x</code> (Text) und <code>v</code> (Lautst&auml;rke, -1 = allgemeine). <code>POST /api/pins</code> mit <code>pin</code>, <code>type</code> (<code>say</code>, <code>file</code>, <code>station</code>, <code>radio</code>, <code>next</code>, <code>prev</code>, <code>volup</code>, <code>voldown</code>, <code>mute</code>, <code>stop</code> oder leer = keine Aktion; die letzten sieben brauchen keinen Text, bei <code>volup</code>/<code>voldown</code> gilt <code>vol</code> als Schrittweite, Standard 5), <code>text</code> (Ansage, Dateiname, <code>sd:</code>-Pfad, URL oder Sender) und optional <code>vol</code> (0-100) speichert die Aktion eines Pins. Sie l&ouml;st aus, sobald der Pin etwa 40 ms Kontakt nach GND hat.",
         R"d(curl http://@HOST@/api/pins
 curl -d "pin=5&type=say&text=Die Tür ist offen" http://@HOST@/api/pins
 curl -d "pin=6&type=file&text=gong.mp3&vol=60" http://@HOST@/api/pins
@@ -767,9 +767,8 @@ curl -X POST http://@HOST@/restart)d");
 }
 static const char PINS_JS[] PROGMEM = R"js(
 (function(){
-  var picks=[],spicks=[],fl=[],sdl=[],stl=[];
+  var picks=[],spicks=[],fl=[],sdl=[],stl=[],rows=[];
   function el(n,c){var e=document.createElement(n);if(c)e.className=c;return e;}
-  function lvl(j){var s=document.getElementById('pinlvl'+j.p);if(!s)return;s.textContent=j.l?'High':'Low (GND)';s.style.color=j.l?'var(--muted)':'var(--ok)';s.style.fontWeight=j.l?'normal':'bold';}
   function fillPick(p){
     p.textContent='';var o=el('option');o.value='';o.textContent='Datei w\u00e4hlen \u2026';p.appendChild(o);
     if(fl.length){var g=el('optgroup');g.label='Flash';fl.forEach(function(f){var x=el('option');x.value=f;x.textContent=f;g.appendChild(x);});p.appendChild(g);}
@@ -789,29 +788,51 @@ static const char PINS_JS[] PROGMEM = R"js(
       picks.forEach(fillPick);spicks.forEach(fillSta);if(cb)cb();
     });
   }
+  var LV={};
   function build(list){
-    var tb=document.getElementById('pinTable');if(!tb)return;tb.textContent='';picks=[];spicks=[];
-    var h=el('tr');['GPIO','Zustand','Aktion','Text oder Datei','Lautst\u00e4rke',''].forEach(function(t){var c=el('th');c.textContent=t;h.appendChild(c);});tb.appendChild(h);
-    list.forEach(function(j){
-      var tr=el('tr'),c1=el('td'),c2=el('td'),c3=el('td'),c4=el('td'),c5=el('td'),c6=el('td');
-      c1.textContent='GPIO '+j.p;c1.style.whiteSpace='nowrap';c2.style.whiteSpace='nowrap';
-      var st=el('span');st.id='pinlvl'+j.p;c2.appendChild(st);
-      var sel=el('select');sel.style.cssText='width:auto;margin:2px';[['','Keine Aktion'],['say','Ansage (VoiceRSS)'],['file','MP3-Datei / URL'],['station','Webradio']].forEach(function(o){var op=el('option');op.value=o[0];op.textContent=o[1];sel.appendChild(op);});sel.value=j.t||'';c3.appendChild(sel);
-      var tx=el('input');tx.type='text';tx.maxLength=300;tx.value=j.x||'';tx.placeholder='z. B. Die T\u00fcr ist offen / gong.mp3';tx.style.cssText='width:95%;margin:2px';c4.appendChild(tx);
+    var tb=document.getElementById('pinTable');if(!tb)return;tb.textContent='';picks=[];spicks=[];rows=[];LV={};
+    list.forEach(function(j){LV[j.p]=j.l;});
+    var h=el('tr');['GPIO','Zustand','Aktion','Text oder Datei','Lautst\u00e4rke'].forEach(function(t){var c=el('th');c.textContent=t;h.appendChild(c);});tb.appendChild(h);
+    function addRow(j,free){
+      var tr=el('tr'),c1=el('td'),c2=el('td'),c3=el('td'),c4=el('td'),c5=el('td'),gp=null;
+      if(free){gp=el('select');gp.style.cssText='width:auto;margin:2px';free.forEach(function(q){var o=el('option');o.value=q.p;o.textContent='GPIO '+q.p;gp.appendChild(o);});c1.appendChild(gp);}
+      else c1.textContent='GPIO '+j.p;
+      c1.style.whiteSpace='nowrap';c2.style.whiteSpace='nowrap';
+      var st=el('span');c2.appendChild(st);
+      var sel=el('select');sel.style.cssText='width:auto;margin:2px';[['','Keine Aktion'],['say','Ansage (VoiceRSS)'],['file','MP3-Datei / URL'],['station','Webradio'],['radio','Radio starten'],['next','Sender vor'],['prev','Sender zur\u00e4ck'],['volup','Lauter'],['voldown','Leiser'],['mute','Stumm (umschalten)'],['stop','Stopp']].forEach(function(o){var op=el('option');op.value=o[0];op.textContent=o[1];sel.appendChild(op);});sel.value=j.t||'';c3.appendChild(sel);
+      var tx=el('input');tx.type='text';tx.maxLength=300;tx.value=j.x||'';tx.placeholder='z. B. Die T\u00e4r ist offen / gong.mp3';tx.style.cssText='width:95%;margin:2px';c4.appendChild(tx);
       var pk=el('select');pk.style.cssText='width:95%;margin:2px';fillPick(pk);picks.push(pk);c4.appendChild(pk);
       pk.onchange=function(){if(pk.value){tx.value=pk.value;pk.value='';}};
       var ps=el('select');ps.style.cssText='width:95%;margin:2px';fillSta(ps);spicks.push(ps);c4.appendChild(ps);
       ps.onchange=function(){if(ps.value){tx.value=ps.value;ps.value='';}};
-      function vis(){pk.style.display=sel.value==='file'?'':'none';ps.style.display=sel.value==='station'?'':'none';}
-      sel.onchange=vis;vis();
-      var vo=el('input');vo.type='number';vo.min=0;vo.max=100;vo.value=j.v>=0?j.v:'';vo.placeholder='Std';vo.style.cssText='width:64px;margin:2px';c5.appendChild(vo);
-      var bt=el('button');bt.type='button';bt.className='copy-btn';bt.style.cssText='position:static;margin:2px';bt.textContent='Speichern';
-      bt.onclick=function(){postApi('/api/pins',{pin:j.p,type:sel.value,text:tx.value,vol:vo.value},'pinResult');};c6.appendChild(bt);
-      [c1,c2,c3,c4,c5,c6].forEach(function(c){tr.appendChild(c);});tb.appendChild(tr);lvl(j);
-    });
-    if(!list.length){var r=el('tr'),c=el('td');c.textContent='Keine freien Pins';r.appendChild(c);tb.appendChild(r);}
+      function vis(){var v=sel.value,ctl=['radio','next','prev','mute','stop','volup','voldown'].indexOf(v)>=0,stp=v==='volup'||v==='voldown';pk.style.display=v==='file'?'':'none';ps.style.display=v==='station'?'':'none';tx.style.display=(ctl||v==='')?'none':'';if(vo){vo.style.display=(v===''||v==='mute'||v==='stop')?'none':'';vo.placeholder=stp?'Schritt 5':'Std';if(stp){if(vo.value===''){vo.value='5';vo.dataset.auto='1';}}else if(vo.dataset.auto==='1'){if(vo.value==='5')vo.value='';vo.dataset.auto='';}}if(tip)tip.style.display=stp?'':'none';}
+      sel.onchange=vis;
+      var vo=el('input');vo.type='number';vo.min=0;vo.max=100;vo.value=j.v>=0?j.v:'';vo.style.cssText='width:64px;margin:2px';c5.appendChild(vo);
+      var tip=el('span');tip.textContent='\u24d8';tip.style.cssText='cursor:help;margin-left:4px';tip.title='Schrittweite: Um wie viele Lautst\u00e4rke-Stufen (0-100) sich die Lautst\u00e4rke mit jedem Tastendruck \u00e4ndert. Standard 5.';c5.appendChild(tip);
+      vis();
+      var row={sel:sel,tx:tx,vo:vo};
+      row.pin=function(){return gp?gp.value:String(j.p);};
+      row.cur=function(){return JSON.stringify([sel.value,tx.value,vo.value]);};
+      row.orig=row.cur();
+      row.dirty=function(){return gp?sel.value!=='':row.cur()!==row.orig;};
+      row.upd=function(){var l=LV[row.pin()];st.textContent=l?'High':'Low (GND)';st.style.color=l?'var(--muted)':'var(--ok)';st.style.fontWeight=l?'normal':'bold';};
+      if(gp)gp.onchange=row.upd;
+      rows.push(row);row.upd();
+      [c1,c2,c3,c4,c5].forEach(function(c){tr.appendChild(c);});tb.appendChild(tr);
+    }
+    var used=list.filter(function(j){return j.t;}),free=list.filter(function(j){return !j.t;});
+    used.forEach(function(j){addRow(j,null);});
+    if(free.length)addRow({t:'',x:'',v:-1},free);
+    else if(!used.length){var r=el('tr'),c=el('td');c.textContent='Keine freien Pins';r.appendChild(c);tb.appendChild(r);}
   }
-  function load(first){fetch('/api/pins',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){if(first)build(j.pins||[]);else(j.pins||[]).forEach(lvl);}).catch(function(){});}
+  function saveAll(){
+    var todo=rows.filter(function(r){return r.dirty();}),n=0,bad='';
+    if(!todo.length){showRes('pinResult',{ok:true,msg:'Keine \u00c4nderungen'});return;}
+    todo.reduce(function(pr,r){return pr.then(function(){return fetch('/api/pins',{method:'POST',body:new URLSearchParams({pin:r.pin(),type:r.sel.value,text:r.tx.value,vol:r.vo.value})}).then(function(x){return x.json();}).then(function(j){if(j.ok)n++;else bad=bad||(j.error||'Fehler');}).catch(function(){bad=bad||'Keine Antwort vom Ger\u00e4t';});});},Promise.resolve())
+    .then(function(){showRes('pinResult',bad?{ok:false,error:bad}:{ok:true,msg:n+(n===1?' Pin gespeichert':' Pins gespeichert')});if(n>0)load(true);});
+  }
+  var sv=document.getElementById('pinSave');if(sv)sv.onclick=saveAll;
+  function load(first){fetch('/api/pins',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){var l=j.pins||[];if(first)build(l);else{l.forEach(function(q){LV[q.p]=q.l;});rows.forEach(function(r){r.upd();});}}).catch(function(){});}
   lists(function(){load(true);});
   var tab=document.getElementById('tab-pins');if(tab)tab.addEventListener('change',function(){if(tab.checked)lists();});
   setInterval(function(){var t=document.getElementById('tab-pins');if(document.hidden||!t||!t.checked)return;load(false);},1000);
@@ -2261,11 +2282,12 @@ void handleApiPins() {
         int pin = pinArg.toInt();
         if (pin < 1 || pin > 48 || !pinIdle(pin)) return sendErr(400, "Pin nicht verf\xC3\xBCgbar");
         String type = apiArg("type");
-        if (type != "say" && type != "file" && type != "station") type = "";
+        bool control = pinTypeIsControl(type);
+        if (type != "say" && type != "file" && type != "station" && !control) type = "";
         String text = apiArg("text");
         text.trim();
         if (text.length() > 300) return sendErr(400, "Text zu lang (max. 300 Zeichen)");
-        if (text.isEmpty()) type = "";
+        if (text.isEmpty() && !control) type = "";
         int vol = apiArg("vol").length() > 0 ? constrain(apiArg("vol").toInt(), 0, VOLUME_MAX) : -1;
         pinType[pin] = type;
         pinText[pin] = text;
