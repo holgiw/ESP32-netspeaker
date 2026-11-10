@@ -33,8 +33,6 @@ Die Links sind nur Beispiele; andere Module mit denselben Anschlüssen funktioni
 
 ### SD-Kartenleser (optional)
 
-> **Hinweis:** Die SD-Karten-Unterstützung ist erst kurz getestet: Das Modul wird mit einer FAT32-Karte erkannt und eingebunden. Dauerbetrieb, Tempo, Dateimanager und Zufallswiedergabe sind noch nicht ausführlich geprüft.
-
 Das Modul arbeitet mit 3,3 V über SPI und braucht keinen Pegelwandler. Es nimmt Micro-SD-Karten bis 2 GB und Micro-SDHC-Karten bis 32 GB, formatiert als FAT32.
 
 | SD-Modul | ESP32-S3 (Standard) |
