@@ -74,6 +74,7 @@ struct Settings {
     bool loudNorm;
     bool radioAgc;
     int agcDb;
+    int prebufSec;
     int duckPct;
     int volRampMs;
     bool resumeLast;
@@ -129,6 +130,7 @@ struct MixTrack {
     int32_t baseGainQ15 = 0;
     String path;
     bool onSd = false;
+    volatile bool muteIt = false;
     bool pending = false;
     unsigned long activateAt = 0;
     uint32_t lastRd = 0;
@@ -599,6 +601,7 @@ void loadSettings() {
     cfg.loudNorm = prefs.getBool("loud", true);
     cfg.radioAgc = prefs.getBool("agc", false);
     cfg.agcDb = constrain(prefs.getInt("agcdb", -18), -30, -10);
+    cfg.prebufSec = constrain(prefs.getInt("prebuf", 5), 0, 30);
     cfg.duckPct = constrain(prefs.getInt("duck", 35), 0, 100);
     cfg.volRampMs = constrain(prefs.getInt("vramp", VOLUME_RAMP_DEFAULT_MS), 0, VOLUME_RAMP_MAX_MS);
     cfg.resumeLast = prefs.getBool("rlast", false);
@@ -735,6 +738,7 @@ void ensureAudio() {
     audio->setPinout(pinAllowed(cfg.bclk) ? cfg.bclk : DEFAULT_PIN_BCLK, pinAllowed(cfg.lrc) ? cfg.lrc : DEFAULT_PIN_LRC, pinAllowed(cfg.din) ? cfg.din : DEFAULT_PIN_DIN);
     audio->setVolumeSteps(VOLUME_MAX * VOL_FINE);
     audio->setVolume(currentVolume * VOL_FINE);
+    audio->setPrebufferSec(cfg.prebufSec);
     volRamp.on = false;
     volRamp.now = currentVolume * VOL_FINE;
     logLine("[AUDIO] created, free heap " + String(ESP.getFreeHeap()));
@@ -1704,6 +1708,11 @@ static void mixAddTrack(MixTrack& m, int32_t* buf, int16_t words) {
     uint32_t wr = m.wr.load(std::memory_order_acquire);
     uint32_t phase = m.phase;
     int32_t g = m.gainQ15;
+
+    // Spur 0 liegt vor der Stumm-Verstaerkung im Hauptstrom; die Ansage-Spur bekommt sie hier, wenn sie stumm geschaltet werden darf.
+    // Track 0 lies before the mute gain in the main stream; the announcement track gets it here if it may be muted.
+
+    if (&m != &mixT[MIX_LAYER] && m.muteIt) g = (int32_t)(((int64_t)g * muteGainQ15) >> 15);
     int frames = words / 2;
     for (int i = 0; i < frames; i++) {
         if (wr - rd < 2) {
@@ -1828,21 +1837,21 @@ uint32_t nvsFreeEntries() {
 }
 
 // Stumm schalten: eine Verstaerkung, die sanft auf 0 faellt und wieder auf 1 steigt; die eingestellte Lautstaerke bleibt unveraendert.
-// Sie wirkt auf Webradio und SD-Dateien (Hauptstrom und Mischspur 0); Ansagen und MP3 aus dem Flash bleiben hoerbar. Dauer: Lautstaerke-Rampe (mind. 300 ms).
-// Mute: a gain that falls gently to 0 and rises to 1 again; the set volume stays unchanged. It acts on web radio and SD files (main stream
-// and mix track 0); announcements and MP3 from the flash stay audible. Duration: the volume ramp (at least 300 ms).
+// Sie wirkt auf Webradio, Text-Ansagen (Uhrzeit, Mail ...) und Dateien der SD-Karte; MP3 aus dem Flash bleiben hoerbar. Dauer: Lautstaerke-Rampe (mind. 300 ms).
+// Mute: a gain that falls gently to 0 and rises to 1 again; the set volume stays unchanged. It acts on web radio, text announcements
+// (time, mail ...) and files of the SD card; MP3 from the flash stay audible. Duration: the volume ramp (at least 300 ms).
 
-// Gilt der Hauptstrom gerade als stumm schaltbar? Nein bei Sprache und bei MP3 aus dem Flash (nowFile ohne "sd:").
-// Does the mute apply to the main stream right now? No for speech and for MP3 from the flash (nowFile without "sd:").
+// Gilt der Hauptstrom gerade als stumm schaltbar? Nur nicht bei MP3 aus dem Flash (nowFile ohne "sd:"); Sprache und Radio schon.
+// Does the mute apply to the main stream right now? Only not for MP3 from the flash (nowFile without "sd:"); speech and radio do.
 
 volatile bool muteMain = true;
 
 void muteWatch() {
-    bool flash = nowKind == "speech" || (nowKind == "file" && !nowFile.startsWith("sd:"));
+    bool flash = nowKind == "file" && !nowFile.startsWith("sd:");
     muteMain = !flash;
 
-    // Solange Sprache oder Flash-MP3 laeuft, wird die Verstaerkung nicht mitgefuehrt: sie springt auf den Zielwert, damit das Radio danach nicht erst ein- oder ausblendet.
-    // While speech or flash MP3 plays the gain is not followed: it jumps to the target so the radio does not fade in or out afterwards.
+    // Solange eine Flash-MP3 laeuft, wird die Verstaerkung nicht mitgefuehrt: sie springt auf den Zielwert, damit es danach nicht erst ein- oder ausblendet.
+    // While a flash MP3 plays the gain is not followed: it jumps to the target so nothing fades in or out afterwards.
 
     if (flash) muteGainQ15 = muted ? 0 : 32768;
 }
@@ -2101,6 +2110,11 @@ bool mixStart(int t, const String& path, int vol, bool sd = false) {
     m.inUse = true;
     m.path = path;
     m.onSd = sd;
+
+    // Stumm gilt fuer Text-Ansagen und SD-Dateien, nicht fuer MP3 aus dem Flash.
+    // Mute applies to text announcements and SD files, not to MP3 from the flash.
+
+    m.muteIt = sd || path == TTS_FILE;
     m.wr = 0;
     m.rd = 0;
     m.phase = 0;
@@ -4133,30 +4147,39 @@ void loop() {
         diagDecErr = audio->getDecodeErrors();
         if (bf < bMin) bMin = bf;
     }
-    audioEventPump();
-    titleWatch();
-    fadeInStep();
-    webserver.handleClient();
-    dirFeed();
-    processQueue();
-    processPending();
-    playbackWatch();
-    radioKeepAlive();
-    wifiWatch();
-    mqttWatch();
-    restartWatch();
-    healthWatch();
-    ledWatch();
-    autostartWatch();
-    mixWatch();
-    fileFadeWatch();
-    loudWatch();
-    agcWatch();
-    muteWatch();
-    pinWatch();
-    logWatch();
-    ntpWatch();
-    resumeStateWatch();
+    // Dauert ein Schritt der Schleife ueber 500 ms, steht sein Name im Log (Suche nach Blockaden).
+    // If a step of the loop takes over 500 ms, its name goes to the log (hunting for blockades).
+
+    uint32_t tk = t0, tkMax = 0;
+    const char* tkName = "";
+#define TICK(name) do { uint32_t tn = micros(); if (tn - tk > tkMax) { tkMax = tn - tk; tkName = name; } tk = tn; } while (0)
+    TICK("audio");
+    audioEventPump(); TICK("audioEventPump");
+    titleWatch(); TICK("titleWatch");
+    fadeInStep(); TICK("fadeInStep");
+    webserver.handleClient(); TICK("webserver");
+    dirFeed(); TICK("dirFeed");
+    processQueue(); TICK("processQueue");
+    processPending(); TICK("processPending");
+    playbackWatch(); TICK("playbackWatch");
+    radioKeepAlive(); TICK("radioKeepAlive");
+    wifiWatch(); TICK("wifiWatch");
+    mqttWatch(); TICK("mqttWatch");
+    restartWatch(); TICK("restartWatch");
+    healthWatch(); TICK("healthWatch");
+    ledWatch(); TICK("ledWatch");
+    autostartWatch(); TICK("autostartWatch");
+    mixWatch(); TICK("mixWatch");
+    fileFadeWatch(); TICK("fileFadeWatch");
+    loudWatch(); TICK("loudWatch");
+    agcWatch(); TICK("agcWatch");
+    muteWatch(); TICK("muteWatch");
+    pinWatch(); TICK("pinWatch");
+    logWatch(); TICK("logWatch");
+    ntpWatch(); TICK("ntpWatch");
+    resumeStateWatch(); TICK("resumeStateWatch");
+#undef TICK
+    if (tkMax > 500000UL) logLine("[LOOP] stall " + String(tkMax / 1000) + " ms in " + tkName);
     uint32_t t2 = micros();
     if (t2 - t0 > lMax) lMax = t2 - t0;
     if (millis() - winStart > 5000) {

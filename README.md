@@ -46,6 +46,10 @@ Das Modul arbeitet mit 3,3 V über SPI und braucht keinen Pegelwandler. Es nimmt
 
 Die Pins sind im Tab *Audio* änderbar (wirkt sofort). Das Verkabelungsbild ([verkabelung.svg](verkabelung.svg)) steht auch im Tab *Doku* der Weboberfläche. Leitungen kurz halten (unter 10 cm). Ohne Karte läuft alles andere unverändert.
 
+**Verkabelung als Ansicht** (Bauteile, links Verstärker und Lautsprecher, rechts SD-Leser, in der Mitte der Waveshare ESP32-S3-Zero; steht ebenfalls im Tab *Doku*; [verkabelung_ansicht.svg](verkabelung_ansicht.svg)):
+
+![Verkabelung als Ansicht](verkabelung_ansicht.svg)
+
 ## Fertige Firmware flashen
 
 Ohne Arduino IDE und ohne das Repository klonen zu müssen. Es gibt zwei Wege:
@@ -109,7 +113,7 @@ curl --data-binary @stations.txt -H "Content-Type: text/plain" http://<ip>/impor
 curl -d "list=aac-auswahl" http://<ip>/api/stationlist    # fertige Liste aus stations/ auf GitHub laden (ersetzt die ganze Liste)
 curl -d "n=3" http://<ip>/api/stationdelete                    # Platz löschen (Name und URL); die folgenden Plätze rücken auf
 curl -X POST http://<ip>/api/stop
-curl -d "toggle=1" http://<ip>/api/mute                      # stumm schalten / aufheben (on=1, on=0, toggle=1; ohne Angabe nur Zustand); gilt für Webradio und SD-MP3, Ansagen und Flash-MP3 bleiben hörbar
+curl -d "toggle=1" http://<ip>/api/mute                      # stumm schalten / aufheben (on=1, on=0, toggle=1; ohne Angabe nur Zustand); gilt für Webradio, Text-Ansagen (Uhrzeit, Mail ...) und SD-MP3; MP3 aus dem Flash bleiben hörbar
 curl -d "v=50" http://<ip>/api/volume                      # 0-100
 curl http://<ip>/api/volume                                # meldet volume (allgemein) und playVolume (gerade wirkend)
 curl http://<ip>/api/status
@@ -189,7 +193,7 @@ Das Projekt steht unter der **GNU General Public License v3.0** (Datei `LICENSE`
 
 | Komponente | Lizenz | Hinweis |
 |---|---|---|
-| [ESP32-audioI2S](https://github.com/schreibfaul1/ESP32-audioI2S) 4.0.0 (schreibfaul1) | GPL-3.0 | Geändert in `lib/ESP32-audioI2S`: nur MP3-, AAC- und Vorbis-Decoder werden angelegt (WAV, FLAC, Opus ausgebaut), dazu ein Einsprung für das Mischen. Die Dekoderquellen für AAC und FLAC liegen unverändert im Ordner, werden aber nicht verwendet. |
+| [ESP32-audioI2S](https://github.com/schreibfaul1/ESP32-audioI2S) 4.0.0 (schreibfaul1) | GPL-3.0 | Geändert in `lib/ESP32-audioI2S`: nur MP3-, AAC- und Vorbis-Decoder werden angelegt (WAV, FLAC, Opus ausgebaut), dazu ein Einsprung für das Mischen und eine Einstellung für den Vorpuffer (Wiedergabe beginnt erst nach einigen Sekunden im Eingangspuffer). Die Dekoderquellen für AAC und FLAC liegen unverändert im Ordner, werden aber nicht verwendet. |
 | Vorbis-Decoder (Xiph.Org) in der Bibliothek | BSD-Stil | Lizenztext in den Quelldateien |
 | Arduino-ESP32 (Espressif) | LGPL-2.1 | wird beim Bauen eingebunden, nicht mitgeliefert |
 | PubSubClient (Nick O'Leary) | MIT | wird beim Bauen eingebunden, nicht mitgeliefert |
@@ -249,6 +253,10 @@ The module works at 3.3 V over SPI and needs no level shifter. It takes micro SD
 | CS | GPIO 13 |
 
 The pins can be changed in the *Audio* tab (applies immediately). The wiring picture ([verkabelung.svg](verkabelung.svg)) is also in the *Doku* tab of the web interface. Keep the wires short (under 10 cm). Without a card everything else works unchanged.
+
+**Wiring as a view** (components, amplifier and speaker on the left, SD reader on the right, the Waveshare ESP32-S3-Zero in the middle; also in the *Doku* tab; [verkabelung_ansicht.svg](verkabelung_ansicht.svg)):
+
+![Wiring as a view](verkabelung_ansicht.svg)
 
 ### Flashing the finished firmware
 
@@ -352,7 +360,7 @@ The project is licensed under the **GNU General Public License v3.0** (file `LIC
 
 | Component | License | Note |
 |---|---|---|
-| [ESP32-audioI2S](https://github.com/schreibfaul1/ESP32-audioI2S) 4.0.0 (schreibfaul1) | GPL-3.0 | Modified in `lib/ESP32-audioI2S`: only MP3, AAC and Vorbis decoders are created (WAV, FLAC, Opus removed), plus a hook for mixing. The AAC and FLAC decoder sources remain unchanged in the folder but are not used. |
+| [ESP32-audioI2S](https://github.com/schreibfaul1/ESP32-audioI2S) 4.0.0 (schreibfaul1) | GPL-3.0 | Modified in `lib/ESP32-audioI2S`: only MP3, AAC and Vorbis decoders are created (WAV, FLAC, Opus removed), plus a hook for mixing and a setting for the prebuffer (playback starts only after some seconds are in the input buffer). The AAC and FLAC decoder sources remain unchanged in the folder but are not used. |
 | Vorbis decoder (Xiph.Org) inside the library | BSD-style | license text in the source files |
 | Arduino-ESP32 (Espressif) | LGPL-2.1 | pulled in at build time, not shipped |
 | PubSubClient (Nick O'Leary) | MIT | pulled in at build time, not shipped |

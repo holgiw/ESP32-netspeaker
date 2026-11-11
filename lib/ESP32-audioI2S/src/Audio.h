@@ -321,6 +321,7 @@ class Audio {
     uint32_t         getDecodeErrors() const { return m_decodeErrors; } // number of decoder errors since the start (project addition)
     uint32_t         inBufferFree();    // returns the number of free bytes in the inputbuffer
     uint32_t         getInBufferSize(); // returns the size of the inputbuffer in bytes
+    void             setPrebufferSec(uint8_t sec) { m_prebufSec = sec; } // web streams: seconds in the input buffer before playback starts
     void             inBufferStatus() { InBuff.showStatus(); }
     void             samplesBufferStatus() { SamplesBuff.showStatus(); }
     void             setTone(float gainLowPass, float gainBandPass, float gainHighPass);
@@ -635,6 +636,7 @@ class Audio {
     bool           m_f_audioTaskIsRunning = false;    //
     bool           m_f_allDataReceived = false;       //
     bool           m_f_stream = false;                // stream ready for output?
+    uint8_t        m_prebufSec = 0;                   // prebuffer in seconds (0 = one frame block)
     bool           m_f_decode_ready = false;          // if true data for decode are ready
     bool           m_f_eof = false;                   // end of file
     bool           m_f_lockInBuffer = false;          // lock inBuffer for manipulation

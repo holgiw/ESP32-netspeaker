@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-11-11 - Version 1.5.0
+
+**Deutsch**
+
+- Neu: Einstellung *Vorpuffer Webradio* (Tab *Audio*, 0 bis 30 Sekunden, Standard 5): Das Radio beginnt erst zu spielen, wenn so viele Sekunden Ton im Puffer liegen. Ein größerer Wert überbrückt kurze Aussetzer des Streams (Meldung `slow stream` im Log); dafür kommt der Ton nach dem Start eines Senders entsprechend später. Der Wert gilt sofort und steht im Export (`prebuf`).
+- Behoben: Ein Webzugriff konnte die Hauptschleife und damit das Nachladen des Tons mehrere Sekunden anhalten (hörbar als `slow stream`). Log, Export, Favoriten- und Sender-Download und große JSON-Antworten werden jetzt in Stücken zu 1 KB gesendet; dazwischen lädt die Firmware den Audio-Puffer nach.
+- Neu: Dauert ein Durchlauf der Hauptschleife länger als 500 ms, steht im Log `[LOOP] stall ... ms in <Schritt>` (Suche nach Blockaden).
+- Geändert: Der Tab *WLAN* ist wie bei der Uhr aufgebaut: Status "Verbunden mit", Hostname mit eigenem Speichern-Knopf, `Netzwerke neu scannen` (die Suche läuft im Hintergrund und blockiert den Ton nicht; die Auswahllisten zeigen Signalstärke und Verschlüsselung), alle belegten Plätze plus ein leerer, je Platz `Verbinden` (bringt das Netz an die erste Stelle, Neustart) und `Löschen`, beides mit Rückfrage und nur aus dem lokalen Netz, Hinweis im Access-Point-Modus. Leere Plätze rücken beim Speichern nach oben. Neue Routen: `/sethostname`, `/deletewifi`, `/api/connectWifi`, `/api/scanwifi`, `/api/rescanwifi`.
+- Geändert: **Stumm** (REST, MQTT, Pin) gilt jetzt für Webradio, Text-Ansagen (Uhrzeit, Mail ...) und MP3 von der SD-Karte. MP3 aus dem Flash bleiben hörbar. Vorher blieben auch Text-Ansagen hörbar.
+- Neu: Im Tab *Doku* und in der README steht zusätzlich eine Verkabelungsansicht mit den Bauteilen (`verkabelung_ansicht.svg`): links Verstärker und Lautsprecher, rechts SD-Kartenleser, in der Mitte der Waveshare ESP32-S3-Zero.
+
+**English**
+
+- New: setting *Web radio prebuffer* (*Audio* tab, 0 to 30 seconds, default 5): the radio only starts playing when this many seconds of sound are in the buffer. A larger value bridges short dropouts of the stream (message `slow stream` in the log); the sound comes correspondingly later after a station starts. The value applies at once and is part of the export (`prebuf`).
+- Fixed: a web request could hold the main loop, and with it the refilling of the sound, for several seconds (audible as `slow stream`). Log, export, favorites and station downloads and large JSON answers are now sent in pieces of 1 KB; in between the firmware refills the audio buffer.
+- New: if one pass of the main loop takes longer than 500 ms, the log shows `[LOOP] stall ... ms in <step>` (hunting for blockades).
+- Changed: the *WiFi* tab is built like the one of the clock: status "Connected to", hostname with its own Save button, `Rescan networks` (the scan runs in the background and does not block the sound; the selection lists show signal strength and encryption), all used slots plus one empty one, per slot `Connect` (moves the network to the first place, restart) and `Delete`, both with a prompt and only from the local network, a hint in access point mode. Empty slots move up when saving. New routes: `/sethostname`, `/deletewifi`, `/api/connectWifi`, `/api/scanwifi`, `/api/rescanwifi`.
+- Changed: **mute** (REST, MQTT, pin) now applies to web radio, text announcements (time, mail ...) and MP3 from the SD card. MP3 from the flash stay audible. Before, text announcements stayed audible as well.
+- New: the *Doku* tab and the README now also show a wiring view with the components (`verkabelung_ansicht.svg`): amplifier and speaker on the left, SD card reader on the right, the Waveshare ESP32-S3-Zero in the middle.
+
 ## 2026-11-06 - Version 1.4.13
 
 **Deutsch**

@@ -84,6 +84,7 @@ select.pinsel.dup{outline:2px solid var(--bad);}
 .mqtt .kind{display:inline-block;padding:1px 8px;border-radius:10px;font-size:.8rem;border:1px solid var(--panel-border);color:var(--muted);}
 .mqtt .kind.cmd{color:var(--accent);border-color:var(--accent-dim);}
 .mqtt .kind.msg{color:var(--ok);border-color:var(--ok);}
+.flash.warn{background:#fff3cd;color:#856404;border-color:#ffeeba;}
 .res-ok{background:#d4edda;color:#155724;border:1px solid #c3e6cb;border-radius:6px;padding:8px 12px;margin:10px auto;max-width:400px;}
 .res-bad{background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;border-radius:6px;padding:8px 12px;margin:10px auto;max-width:400px;}
 textarea{height:110px;resize:vertical;}
@@ -91,6 +92,7 @@ pre.code{text-align:left;white-space:pre-wrap;word-break:break-all;font-family:v
 )css";
 
 #include "wiring_svg.h"
+#include "wiring_view_svg.h"
 
 static const char TAB_KEYS[][12] = {"mp3", "sprechen", "sd", "radio", "pins", "audio", "mqtt", "wlan", "zeit", "status", "log", "doku"};
 static const char* const TAB_LABELS[] = {"MP3 (Flash)", "Sprechen", "SD-Karte", "Webradio", "Eing&auml;nge", "Audio", "MQTT", "WLAN", "Zeit", "Status", "Log", "Doku"};
@@ -252,7 +254,7 @@ String nowPlayingRow();
 // Volume slider at the very top of the tabs MP3, Sprechen, SD-Karte and Webradio; all sliders show the same value.
 
 String volumeRow() {
-    return "<div class='row volrow'><label>Lautst&auml;rke <input type='range' class='volrange' min='0' max='" + String(VOLUME_MAX) + "' value='" + String(cfg.vol) + "' style='width:200px' oninput='volShow(this.value)' onchange='setVol(this.value)'> <span class='volshow' style='display:inline-block;min-width:76px'>" + String(cfg.vol) + " / " + String(VOLUME_MAX) + "</span></label><button type='button' class='stopbtn' onclick='stopNow()' style='width:auto;padding:6px 16px;margin:0 4px 0 12px' disabled>&#9632; Stopp</button><button type='button' class='mutebtn' onclick='muteToggle()' style='width:auto;padding:6px 16px;margin:0 8px 0 4px'>Stumm</button> " + infoTip("Lautst&auml;rke 0 bis 100; wird sofort &uuml;bernommen und gespeichert. Stopp: beendet die Wiedergabe sofort, auch ein Webradio, ohne Fortsetzung. Stumm: blendet den Ton sanft aus und wieder ein, die eingestellte Lautst&auml;rke bleibt unver&auml;ndert. Stumm gilt f&uuml;r Webradio und MP3 von der SD-Karte; Ansagen und MP3 aus dem Flash bleiben h&ouml;rbar") + "</div>";
+    return "<div class='row volrow'><label>Lautst&auml;rke <input type='range' class='volrange' min='0' max='" + String(VOLUME_MAX) + "' value='" + String(cfg.vol) + "' style='width:200px' oninput='volShow(this.value)' onchange='setVol(this.value)'> <span class='volshow' style='display:inline-block;min-width:76px'>" + String(cfg.vol) + " / " + String(VOLUME_MAX) + "</span></label><button type='button' class='stopbtn' onclick='stopNow()' style='width:auto;padding:6px 16px;margin:0 4px 0 12px' disabled>&#9632; Stopp</button><button type='button' class='mutebtn' onclick='muteToggle()' style='width:auto;padding:6px 16px;margin:0 8px 0 4px'>Stumm</button> " + infoTip("Lautst&auml;rke 0 bis 100; wird sofort &uuml;bernommen und gespeichert. Stopp: beendet die Wiedergabe sofort, auch ein Webradio, ohne Fortsetzung. Stumm: blendet den Ton sanft aus und wieder ein, die eingestellte Lautst&auml;rke bleibt unver&auml;ndert. Stumm gilt f&uuml;r Webradio, Text-Ansagen (Uhrzeit, Mail ...) und MP3 von der SD-Karte; MP3 aus dem Flash bleiben h&ouml;rbar") + "</div>";
 }
 
 String panelSpeak() {
@@ -424,6 +426,7 @@ String panelAudio() {
     h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' name='loud' value='1'" + String(cfg.loudNorm ? " checked" : "") + " style='width:auto;margin:0;'>MP3-Lautst&auml;rke angleichen</label> " + infoTip("Beim ersten Abspielen einer MP3-Datei misst das Ger&auml;t im Hintergrund ihre Lautst&auml;rke und gleicht sie auf einen einheitlichen Pegel an; der Ausgleich wird gespeichert, die Datei selbst bleibt unver&auml;ndert. W&auml;hrend der Messung (einige Sekunden bis eine Minute) l&auml;uft die Datei noch unver&auml;ndert und wird dann sanft angepasst. Ansagen und Radio bleiben unver&auml;ndert") + "</div>";
     h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' name='agc' value='1'" + String(cfg.radioAgc ? " checked" : "") + " style='width:auto;margin:0;'>Webradio-Lautst&auml;rke angleichen</label> " + infoTip("Misst laufend den Pegel des Webradios und f&uuml;hrt die Verst&auml;rkung langsam auf den Zielpegel nach (hoch in etwa 5 s, runter in etwa 1 s, h&ouml;chstens 12 dB), so klingen laute und leise Sender &auml;hnlich; Spitzen bleiben unter -1 dBFS. Wirkt nur auf Webradio, nicht auf Ansagen und Dateien. Die Lautst&auml;rke je Sender in der Senderliste bleibt zus&auml;tzlich wirksam") + "</div>";
     h += "<div class='row'>Zielpegel Webradio (dBFS) " + infoTip("Mittlerer Pegel, auf den die Angleichung zielt: -30 (leise) bis -10 (laut); -18 ist ein guter Anfang. Gilt nur mit dem Haken oben") + " <input type='number' name='agcdb' min='-30' max='-10' value='" + String(cfg.agcDb) + "' style='width:70px'></div>";
+    h += "<div class='row'>Vorpuffer Webradio (Sekunden) " + infoTip("Das Radio beginnt erst zu spielen, wenn so viele Sekunden Ton im Puffer liegen. Ein gr&ouml;&szlig;erer Wert &uuml;berbr&uuml;ckt kurze Aussetzer des Streams (Meldung slow stream), der Ton kommt nach dem Start eines Senders aber entsprechend später. 0 bis 30, Standard 5") + " <input type='number' name='prebuf' min='0' max='30' value='" + String(cfg.prebufSec) + "' style='width:70px'></div>";
     h += "</div><div class='sub'><h4>Titelregel</h4>";
     h += "<div class='row'>Titelregel: Titel enth&auml;lt " + infoTip("Stichworte der Titelregel:&#10;&#8226; Mehrere Stichworte mit Komma oder Semikolon trennen.&#10;&#8226; Gro&szlig;-/Kleinschreibung ist egal; es gen&uuml;gt, wenn der Titel das Stichwort enth&auml;lt.&#10;&#8226; Mit =Wert (0-100) bekommt ein Stichwort eine eigene Lautst&auml;rke, zum Beispiel: Cambodia=90, Thunder&#10;&#8226; Leer = Regel aus") + " <input name='tmatch' maxlength='120' value='" + htmlEsc(cfg.titleMatch) + "' placeholder='z. B. Cambodia, Thunder=90' style='width:280px'> Lautst&auml;rke <input type='number' name='tvol' min='0' max='" + String(VOLUME_MAX) + "' value='" + String(cfg.titleVol) + "' style='width:64px'> " + infoTip("Lautst&auml;rke (0-100) f&uuml;r Stichworte ohne eigenen Wert; sie gilt, solange der Titel l&auml;uft, danach wieder die vorherige") + " h&ouml;chstens <input type='number' name='tmax' min='0' max='3600' value='" + String(cfg.titleMaxS) + "' style='width:70px'> s " + infoTip("Ein Sender meldet das Ende eines Titels nicht. Mit einem Wert gr&ouml;&szlig;er als 0 endet die Titelregel nach so vielen Sekunden (zum Beispiel 210 f&uuml;r einen Titel von 3:30), damit Werbung nach dem Titel nicht laut bleibt; 0 = bis zum n&auml;chsten Titel") + "</div>";
     h += "</div></div>";
@@ -516,21 +519,59 @@ String panelMqtt() {
     h += "</table><p><small style='font-size:.9rem'>Fertige <code>mosquitto_pub</code>-Aufrufe zum Kopieren stehen im Tab <strong>Doku</strong>.</small></p></div>";
     return h;
 }
+// Text fuer ein JavaScript-Zeichenfolge in einem HTML-Attribut (confirm-Rueckfrage): \ ' " als Escape, dann HTML-sicher.
+// Text for a JavaScript string inside an HTML attribute (confirm prompt): \ ' " escaped, then HTML-safe.
+
+String jsAttrEsc(String s) {
+    s.replace("\\", "\\\\");
+    s.replace("'", "\\x27");
+    s.replace("\"", "\\x22");
+    return htmlEsc(s);
+}
+
+// Tab WLAN wie bei der Uhr: Status, Hostname, Neu scannen, Netz-Plaetze (belegte plus ein leerer), Speichern.
+// WiFi tab as on the clock: status, hostname, rescan, network slots (used ones plus one empty), save.
+
 String panelWlan() {
-    String h = "<div class='card'><h3>WLAN und Hostname</h3><form method='POST' action='/save'><input type='hidden' name='sect' value='wlan'>";
-    h += "<div class='row'><input name='host' maxlength='31' placeholder='Hostname' value='" + htmlEsc(cfg.host) + "' style='width:260px'> " + infoTip("Name im Netzwerk (http://Name.local/); nur a-z, 0-9, Bindestrich; wirkt nach einem Neustart") + "</div>";
-    h += "<small>Name im Netzwerk (http://Hostname.local/, OTA, MQTT-Standardtopics). Erlaubt: a-z, 0-9, Bindestrich. Wirkt nach einem Neustart.</small><hr>";
-    h += "<div class='row'><button type='button' onclick='scanWifi()' style='width:200px'>Netzwerke suchen</button> " + infoTip("Sucht Funknetze in der N&auml;he und bietet sie in den Listen an") + "</div><div class='row'><strong>Gespeicherte Netzwerke</strong> " + infoTip("Bis zu drei Netze; sie werden in dieser Reihenfolge probiert. Links ein gefundenes Netz ausw&auml;hlen, es wird in das Feld SSID &uuml;bernommen. Ein leeres Passwortfeld beh&auml;lt das gespeicherte Passwort") + "</div><small id='scanInfo'></small>";
+    String h = "<div class='card' style='text-align:center'>";
+    if (apActive && WiFi.status() != WL_CONNECTED) {
+        h += "<div class='flash warn'>Noch kein WLAN eingerichtet oder das zuletzt bekannte Netz ist nicht erreichbar - das Ger&auml;t hat ein eigenes WLAN aufgemacht. Zugangsdaten des Heim-WLANs unten eintragen und speichern, dann verbindet sich das Ger&auml;t.</div>";
+    }
+    if (WiFi.status() == WL_CONNECTED) {
+        h += "<div style='margin:10px auto'>Verbunden mit: <strong>" + htmlEsc(WiFi.SSID()) + "</strong></div>";
+    } else if (!apActive) {
+        h += "<div style='margin:10px auto;color:#856404'>Nicht verbunden</div>";
+    }
+    h += "<form method='POST' action='/sethostname'><div style='display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap'>";
+    h += "<label>Hostname:</label> " + infoTip("Das Ger&auml;t ist auch unter http://Hostname.local erreichbar statt &uuml;ber die IP-Adresse (auch f&uuml;r OTA und die MQTT-Standardtopics). Nach einer &Auml;nderung ist ein Neustart n&ouml;tig. Nicht jeder Router l&ouml;st Hostnamen auf. Erlaubt: a-z, 0-9, Bindestrich");
+    h += "<input name='host' maxlength='30' value='" + htmlEsc(cfg.host) + "' style='width:170px'>";
+    h += "<button type='submit' style='width:140px'>Speichern</button></div></form><br>";
+    h += "<div style='display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap'>";
+    h += "<button id='rescanBtn' type='button' onclick='rescanWifi()' style='width:200px'>Netzwerke neu scannen</button> " + infoTip("Sucht die WLAN-Netze in der N&auml;he erneut und f&uuml;llt die Auswahllisten unten neu") + "</div><br>";
+    int saved = 0;
+    for (int i = 0; i < 3; i++) {
+        if (cfg.ssid[i].length() > 0) saved++;
+    }
+    h += "<form method='POST' action='/save'><input type='hidden' name='sect' value='wlan'>";
     for (int i = 0; i < 3; i++) {
         String n = String(i + 1);
-        h += "<div class='row'><select id='ssid_select" + n + "' onchange=\"document.getElementById('ssid" + n + "').value=this.value\" style='max-width:180px;width:180px'></select>";
-        h += "<input name='ssid" + n + "' id='ssid" + n + "' placeholder='SSID " + n + "' value='" + htmlEsc(cfg.ssid[i]) + "' style='width:110px'>";
-        h += "<input name='pass" + n + "' type='password' placeholder='Passwort' value='' style='width:110px'>";
-        if (WiFi.status() == WL_CONNECTED && WiFi.SSID() == cfg.ssid[i] && cfg.ssid[i].length() > 0) h += "<small>aktiv verbunden</small>";
-        h += "</div>";
+        h += "<hr><h3 style='display:flex;align-items:center;justify-content:center;gap:6px'>SSID" + n;
+        if (i == 0) h += " " + infoTip("Bis zu 3 WLAN-Netze k&ouml;nnen gespeichert werden; sie werden in dieser Reihenfolge probiert");
+        h += "</h3><div style='display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center'>";
+        h += "<select id='ssid_select" + n + "' onchange=\"document.getElementById('ssid" + n + "').value=this.value\" style='max-width:180px'></select>";
+        h += "<input name='ssid" + n + "' id='ssid" + n + "' placeholder='SSID" + n + "' value='" + htmlEsc(cfg.ssid[i]) + "' style='width:110px'>";
+        h += "<input name='pass" + n + "' type='password' placeholder='Password' value='' style='width:110px'>";
+        if (cfg.ssid[i].length() > 0) {
+            String q = jsAttrEsc(cfg.ssid[i]);
+            if (saved > 1) h += " <a href='/api/connectWifi?index=" + String(i) + "' onclick=\"return confirm('Verbinden " + q + "?')\">Verbinden</a>";
+            h += " <a href='/deletewifi?index=" + String(i) + "' onclick=\"return confirm('L&ouml;schen " + q + "?')\">L&ouml;schen</a>";
+        }
+        h += "</div><small>Sie k&ouml;nnen auch eine SSID manuell eingeben.";
+        if (cfg.ssid[i].length() > 0) h += " Das Passwort ist ausgeblendet. Lassen Sie das Feld leer, um das aktuelle Passwort beizubehalten.";
+        h += "</small>";
+        if (cfg.ssid[i].isEmpty()) break;
     }
-    h += "<small>Das Passwort wird nicht angezeigt. Leer lassen, um das gespeicherte zu behalten.</small><br>";
-    h += "<button type='submit'>Speichern</button></form></div>";
+    h += "<br><br><button type='submit'>WLAN Einstellungen speichern</button></form><hr></div>";
     return h;
 }
 
@@ -666,6 +707,11 @@ String panelDoc() {
         svg.replace("GPIO 13 (CS)", "GPIO " + String(cfg.sdCs) + " (CS)");
         h += "<div class='card doc' style='max-width:900px'><h3>Verkabelung</h3><p>Anschl&uuml;sse von ESP32-S3, MAX98357A-Verst&auml;rker und SD-Kartenleser (optional). Die GPIO-Nummern im Bild sind die im Tab Audio eingestellten Pins.</p>";
         h += "<div style='background:#fff;border-radius:8px;padding:6px;overflow-x:auto'>" + svg + "</div></div>";
+
+        // Hier wird die Ansicht (WIRING_VIEW_SVG) eingefuegt; sie wird direkt aus dem Flash gesendet, nicht in einen String kopiert.
+        // The view (WIRING_VIEW_SVG) is inserted here; it is sent straight from flash, not copied into a string.
+
+        h += "<!--WIRING_VIEW-->";
     }
     h += docCard("Text ansagen (VoiceRSS)",
         "<code>text</code> (Pflicht, h&ouml;chstens 500 Zeichen), optional <code>lang</code> (z. B. de-de, en-gb), <code>voice</code> (z. B. Hanna), <code>rate</code> (-10 bis 10), <code>vol</code> (0-100). Ohne Angabe gelten die Werte aus dem Tab VoiceRSS. Der API-Schl&uuml;ssel muss gespeichert sein.",
@@ -743,7 +789,7 @@ curl -d "fetch=en" http://@HOST@/api/lang
 curl -d "delete=en" http://@HOST@/api/lang
 curl "http://@HOST@/lang.json?l=en")d");
     h += docCard("Weitere Aufrufe",
-        "<code>/api/scan</code> (WLAN-Suche), <code>/api/testNtp?server=...</code> (NTP-Test, nur im Tab Zeit n&ouml;tig), <code>/api/topbarStatus</code> (Statusleiste), <code>/api/version</code> (Firmware-Stand), <code>/export</code> und <code>/import</code> (Einstellungen ohne WLAN-Passw&ouml;rter, mit API-Schl&uuml;ssel), <code>/restart</code> (POST, Neustart).",
+        "<code>/api/scan</code> (WLAN-Suche), <code>/api/scanwifi</code> (Suche im Hintergrund mit Signalst&auml;rke, Ergebnis aus dem Zwischenspeicher) und <code>/api/rescanwifi</code> (POST, neu suchen),<code>/api/testNtp?server=...</code> (NTP-Test, nur im Tab Zeit n&ouml;tig), <code>/api/topbarStatus</code> (Statusleiste), <code>/api/version</code> (Firmware-Stand), <code>/export</code> und <code>/import</code> (Einstellungen ohne WLAN-Passw&ouml;rter, mit API-Schl&uuml;ssel), <code>/restart</code> (POST, Neustart).",
         R"d(curl http://@HOST@/api/version
 curl -o netspeaker-settings.txt http://@HOST@/export
 curl -X POST http://@HOST@/restart)d");
@@ -1086,11 +1132,17 @@ function pollPlay(){if(document.hidden)return;fetch('/api/status',{cache:'no-sto
       if(on){b.innerHTML='&#9632;';b.title='Stopp';b.onclick=function(){stopNow();};}
       else{b.innerHTML='&#9654;';b.title='Abspielen';b.onclick=function(){playStation(num);};}}});
     document.querySelectorAll('.stopbtn').forEach(function(sb){sb.disabled=(j.state==='idle');});}}).catch(function(){});}
-function scanWifi(){var info=document.getElementById('scanInfo');info.textContent='Suche läuft …';
-  fetch('/api/scan',{cache:'no-store'}).then(function(r){return r.json();}).then(function(list){
-    for(var i=1;i<=3;i++){var s=document.getElementById('ssid_select'+i);s.innerHTML='<option value="">-</option>';
-      list.forEach(function(n){var o=document.createElement('option');o.value=n;o.textContent=n;s.appendChild(o);});}
-    info.textContent=list.length+' Netzwerke gefunden';}).catch(function(){info.textContent='Suche fehlgeschlagen';});}
+function wifiFill(list){
+  for(var i=1;i<=3;i++){var s=document.getElementById('ssid_select'+i),t=document.getElementById('ssid'+i);if(!s||!t)continue;
+    s.innerHTML='';var o0=document.createElement('option');o0.value='';o0.textContent='Netzwerk auswählen';s.appendChild(o0);
+    list.forEach(function(n){var o=document.createElement('option');o.value=n.ssid;o.textContent=n.ssid+' ('+n.rssi+' dBm, '+(n.enc===0?'Offen':'Gesichert')+')';if(n.ssid===t.value)o.selected=true;s.appendChild(o);});}}
+function wifiSelText(txt){for(var i=1;i<=3;i++){var s=document.getElementById('ssid_select'+i);if(s)s.innerHTML='<option>'+txt+'</option>';}}
+function scanWifi(tries){tries=tries||0;if(!document.getElementById('ssid_select1'))return;wifiSelText('WLAN-Scan läuft …');
+  fetch('/api/scanwifi',{cache:'no-store'}).then(function(r){return r.json();}).then(function(list){
+    if(!list.length&&tries<6){setTimeout(function(){scanWifi(tries+1);},3000);return;}wifiFill(list);}).catch(function(){wifiSelText('Scan fehlgeschlagen');});}
+function rescanWifi(){var b=document.getElementById('rescanBtn');if(!b)return;b.disabled=true;
+  var h=document.createElement('div');h.className='flash';h.textContent='Suche nach WLAN-Netzen – die Seite lädt in 10 Sekunden neu';b.parentNode.parentNode.insertBefore(h,b.parentNode);
+  fetch('/api/rescanwifi',{method:'POST'}).catch(function(){}).finally(function(){setTimeout(function(){location.href=location.pathname+'?tab=wlan';},10000);});}
 function grpGrow(n){var v=document.getElementById('mq_g'+n).value.trim(),r=document.getElementById('grpRow'+(n+1));if(v&&r)r.style.display='';}
 function ntpGrow(n){var v=document.getElementById('ntpServerInput'+n).value.trim(),r=document.getElementById('ntpRow'+(n+1));if(v&&r)r.style.display='';}
 function testNtp(n){var box=document.getElementById('ntpTestResult'+n);var v=document.getElementById('ntpServerInput'+n).value;
@@ -1123,6 +1175,10 @@ String flashText(const String& code) {
     if (code == "saved") return "Gespeichert";
     if (code == "pinserr") return "Pins nicht gespeichert: ein Pin ist doppelt vergeben oder nicht erlaubt (alles andere wurde gespeichert)";
     if (code == "restart") return "Gespeichert - Neustart n&ouml;tig (Hostname oder Pins)";
+    if (code == "hostbad") return "Hostname ung&uuml;ltig (erlaubt: a-z, 0-9, Bindestrich)";
+    if (code == "wifideleted") return "Netzwerk gel&ouml;scht";
+    if (code == "wifiswitch") return "Verbinde mit dem gew&auml;hlten Netz - das Ger&auml;t startet neu";
+    if (code == "wifiprivate") return "Nur aus dem lokalen Netz m&ouml;glich";
     return "";
 }
 
@@ -1225,6 +1281,30 @@ void sendChunk(const String& s) {
     audioPump();
 }
 
+// Lange Antworten (Log, Export, Listen) in 1-KB-Stuecken senden und dazwischen den Audio-Puffer nachladen: ein einziges send() haelt die
+// Hauptschleife an, bis der Client alles abgeholt hat (bis zu mehreren Sekunden, hoerbar als slow stream).
+// Send long responses (log, export, lists) in 1 KB pieces and refill the audio buffer in between: a single send() holds the main loop
+// until the client has taken everything (up to several seconds, audible as slow stream).
+
+void sendPumped(int code, const char* type, const String& s) {
+    if (s.length() <= 1400) {
+        webserver.send(code, type, s);
+        return;
+    }
+    webserver.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    webserver.send(code, type, "");
+    const char* p = s.c_str();
+    size_t left = s.length();
+    while (left > 0) {
+        size_t n = left > 1024 ? 1024 : left;
+        webserver.sendContent(p, n);
+        p += n;
+        left -= n;
+        audioPump();
+    }
+    webserver.sendContent("");
+}
+
 void handleRoot() {
     webserver.setContentLength(CONTENT_LENGTH_UNKNOWN);
     webserver.sendHeader("Cache-Control", "no-store");
@@ -1268,7 +1348,28 @@ void handleRoot() {
     sendChunk("<div class='tabpanel panel-zeit'>" + panelTime() + "</div>");
     sendChunk("<div class='tabpanel panel-status'>" + panelStatus() + "</div>");
     sendChunk("<div class='tabpanel panel-log'>" + panelLog() + "</div>");
-    sendChunk("<div class='tabpanel panel-doku'>" + panelDoc() + "</div></div>");
+    {
+        String doc = panelDoc();
+        int wv = doc.indexOf("<!--WIRING_VIEW-->");
+        if (wv < 0) {
+            sendChunk("<div class='tabpanel panel-doku'>" + doc + "</div></div>");
+        } else {
+            sendChunk("<div class='tabpanel panel-doku'>" + doc.substring(0, wv));
+            doc.remove(0, wv + 18);
+            sendChunk("<div class='card doc' style='max-width:1200px'><h3>Verkabelung (Ansicht)</h3><p>Dieselben Anschl&uuml;sse als Ansicht mit den Bauteilen: Verst&auml;rker und Lautsprecher links, SD-Kartenleser rechts vom Waveshare ESP32-S3-Zero. Das Bild zeigt die Standard-Pins; die Pins im Tab Audio sind &auml;nderbar (das Schaltbild oben passt sich an).</p><div style='background:#fff;border-radius:8px;padding:6px;overflow-x:auto'>");
+            const char* s = WIRING_VIEW_SVG;
+            size_t left = strlen(s);
+            while (left > 0) {
+                size_t n = left > 1024 ? 1024 : left;
+                webserver.sendContent(s, n);
+                s += n;
+                left -= n;
+                audioPump();
+            }
+            sendChunk("</div></div>");
+            sendChunk(doc + "</div></div>");
+        }
+    }
     sendChunk("<script>");
     sendChunk("var DEF_LANG='" + jsonEscape(cfg.vlang) + "';");
     sendChunk("var UI_HOST='" + jsonEscape(cfg.host) + "';");
@@ -1322,12 +1423,22 @@ void handleSave() {
     bool restart = false;
     bool pinsBad = false;
     if (sect == "wlan") {
-        String host = cleanHost(webserver.arg("host"));
-        if (host != cfg.host) restart = true;
-        cfg.host = host;
-        prefs.putString("host", host);
+        if (webserver.hasArg("host")) {
+            String host = cleanHost(webserver.arg("host"));
+            if (host != cfg.host) restart = true;
+            cfg.host = host;
+            prefs.putString("host", host);
+        }
+
+        // Nur Plaetze, die im Formular standen (belegte plus ein leerer), werden gelesen; danach rueckt alles ohne Luecken nach oben.
+        // Only slots that were in the form (used plus one empty) are read; afterwards everything moves up without gaps.
+
+        String ns[3], np[3];
         for (int i = 0; i < 3; i++) {
             String n = String(i + 1);
+            ns[i] = cfg.ssid[i];
+            np[i] = cfg.pass[i];
+            if (!webserver.hasArg("ssid" + n)) continue;
             String ssid = webserver.arg("ssid" + n);
             ssid.trim();
             String pass = webserver.arg("pass" + n);
@@ -1337,10 +1448,27 @@ void handleSave() {
 
             if (pass.isEmpty() && ssid == cfg.ssid[i]) pass = cfg.pass[i];
             if (ssid.isEmpty()) pass = "";
-            cfg.ssid[i] = ssid;
-            cfg.pass[i] = pass;
-            prefs.putString(("ssid" + n).c_str(), ssid);
-            prefs.putString(("pass" + n).c_str(), pass);
+            ns[i] = ssid;
+            np[i] = pass;
+        }
+        int dst = 0;
+        for (int i = 0; i < 3; i++) {
+            if (ns[i].isEmpty()) continue;
+            if (dst != i) {
+                ns[dst] = ns[i];
+                np[dst] = np[i];
+            }
+            dst++;
+        }
+        for (int i = dst; i < 3; i++) {
+            ns[i] = "";
+            np[i] = "";
+        }
+        for (int i = 0; i < 3; i++) {
+            cfg.ssid[i] = ns[i];
+            cfg.pass[i] = np[i];
+            prefs.putString(("ssid" + String(i + 1)).c_str(), ns[i]);
+            prefs.putString(("pass" + String(i + 1)).c_str(), np[i]);
         }
         wifiRetryNow();
     } else if (sect == "voice") {
@@ -1407,6 +1535,9 @@ void handleSave() {
         prefs.putBool("agc", cfg.radioAgc);
         cfg.agcDb = constrain(webserver.arg("agcdb").toInt(), -30, -10);
         prefs.putInt("agcdb", cfg.agcDb);
+        cfg.prebufSec = constrain(webserver.arg("prebuf").toInt(), 0, 30);
+        prefs.putInt("prebuf", cfg.prebufSec);
+        if (audio) audio->setPrebufferSec(cfg.prebufSec);
         agcResetReq = true;
         cfg.duckPct = constrain(webserver.arg("duck").toInt(), 0, 100);
         prefs.putBool("mix", cfg.mixAnn);
@@ -1573,7 +1704,7 @@ void handleFavoritesExport() {
     String t = "# " PROJECT_NAME " favorites\n" + favExportText();
     webserver.sendHeader("Content-Disposition", "attachment; filename=" + cfg.host + "-favorites.txt");
     webserver.sendHeader("Cache-Control", "no-store");
-    webserver.send(200, "text/plain; charset=utf-8", t);
+    sendPumped(200, "text/plain; charset=utf-8", t);
 }
 
 void handleFavoritesImport() {
@@ -1624,13 +1755,13 @@ void handleExport() {
     t += "mq_srv=" + cfg.mqttServer + "\nmq_port=" + String(cfg.mqttPort) + "\nmq_user=" + cfg.mqttUser + "\nmq_base=" + cfg.mqttBase + "\n";
     for (int i = 0; i < 5; i++) t += "mq_g" + String(i + 1) + "=" + cfg.mqttGroup[i] + "\n";
     t += "mq_ha=" + String(cfg.haDisc ? 1 : 0) + "\n";
-    t += "fade=" + String(cfg.fadeMs) + "\nswfade=" + String(cfg.switchFadeMs) + "\nautostart=" + String(cfg.autoStart ? 1 : 0) + "\nbtone=" + String(cfg.bootTone ? 1 : 0) + "\nresume=" + String(cfg.resumeLast ? 1 : 0) + "\nsdon=" + String(cfg.sdOn ? 1 : 0) + "\nsdcs=" + String(cfg.sdCs) + "\nsdsck=" + String(cfg.sdSck) + "\nsdmosi=" + String(cfg.sdMosi) + "\nsdmiso=" + String(cfg.sdMiso) + "\nvolmax=" + String(VOLUME_MAX) + "\nvramp=" + String(cfg.volRampMs) + "\nmix=" + String(cfg.mixAnn ? 1 : 0) + "\nloud=" + String(cfg.loudNorm ? 1 : 0) + "\nagc=" + String(cfg.radioAgc ? 1 : 0) + "\nagcdb=" + String(cfg.agcDb) + "\nduck=" + String(cfg.duckPct) + "\ntmatch=" + cfg.titleMatch + "\ntvol=" + String(cfg.titleVol) + "\ntmax=" + String(cfg.titleMaxS) + "\n";
+    t += "fade=" + String(cfg.fadeMs) + "\nswfade=" + String(cfg.switchFadeMs) + "\nautostart=" + String(cfg.autoStart ? 1 : 0) + "\nbtone=" + String(cfg.bootTone ? 1 : 0) + "\nresume=" + String(cfg.resumeLast ? 1 : 0) + "\nsdon=" + String(cfg.sdOn ? 1 : 0) + "\nsdcs=" + String(cfg.sdCs) + "\nsdsck=" + String(cfg.sdSck) + "\nsdmosi=" + String(cfg.sdMosi) + "\nsdmiso=" + String(cfg.sdMiso) + "\nvolmax=" + String(VOLUME_MAX) + "\nvramp=" + String(cfg.volRampMs) + "\nmix=" + String(cfg.mixAnn ? 1 : 0) + "\nloud=" + String(cfg.loudNorm ? 1 : 0) + "\nagc=" + String(cfg.radioAgc ? 1 : 0) + "\nagcdb=" + String(cfg.agcDb) + "\nprebuf=" + String(cfg.prebufSec) + "\nduck=" + String(cfg.duckPct) + "\ntmatch=" + cfg.titleMatch + "\ntvol=" + String(cfg.titleVol) + "\ntmax=" + String(cfg.titleMaxS) + "\n";
     t += "log=" + String(cfg.logEnabled ? 1 : 0) + "\nlogmin=" + String(cfg.logAutoMin) + "\n";
     for (int i = 0; i < RADIO_SLOTS; i++) t += "rn" + String(i + 1) + "=" + cfg.radioName[i] + "\nru" + String(i + 1) + "=" + cfg.radioUrl[i] + "\nrv" + String(i + 1) + "=" + (cfg.radioVol[i] >= 0 ? String(cfg.radioVol[i]) : String()) + "\n";
     webserver.sendHeader("Content-Disposition", "attachment; filename=" + cfg.host + "-settings.txt");
     webserver.sendHeader("Cache-Control", "no-store");
     t += favExportText();
-    webserver.send(200, "text/plain; charset=utf-8", t);
+    sendPumped(200, "text/plain; charset=utf-8", t);
 }
 
 // Importierte Lautstaerken: Dateien ohne volmax=100 stammen von der alten Skala 0 bis 21 und werden umgerechnet.
@@ -1717,6 +1848,7 @@ void handleImport() {
         } else if (k == "loud") { cfg.loudNorm = v.toInt() != 0; prefs.putBool("loud", cfg.loudNorm);
         } else if (k == "agc") { cfg.radioAgc = v.toInt() != 0; prefs.putBool("agc", cfg.radioAgc);
         } else if (k == "agcdb") { cfg.agcDb = constrain(v.toInt(), -30, -10); prefs.putInt("agcdb", cfg.agcDb);
+        } else if (k == "prebuf") { cfg.prebufSec = constrain(v.toInt(), 0, 30); prefs.putInt("prebuf", cfg.prebufSec);
         } else if (favImportLine(k, v)) {
             // Favoriten (favcount, favn1, favu1 ...) sind in favImportLine erledigt.
             // Favorites (favcount, favn1, favu1 ...) are handled in favImportLine.
@@ -1761,7 +1893,7 @@ void handleImport() {
 
 void sendJson(int code, const String& json) {
     webserver.sendHeader("Cache-Control", "no-store");
-    webserver.send(code, "application/json", json);
+    sendPumped(code, "application/json", json);
 }
 
 void sendOk(const String& msg) {
@@ -1847,7 +1979,7 @@ void handleStationsExport() {
     }
     webserver.sendHeader("Content-Disposition", "attachment; filename=" + cfg.host + "-stations.txt");
     webserver.sendHeader("Cache-Control", "no-store");
-    webserver.send(200, "text/plain; charset=utf-8", t);
+    sendPumped(200, "text/plain; charset=utf-8", t);
 }
 
 String stationsApply(String body) {
@@ -2718,6 +2850,142 @@ void handleApiScan() {
     sendJson(200, j + "]");
 }
 
+// WLAN-Tab: Hostname, Plaetze loeschen / nach vorn holen, nicht blockierende Suche mit Zwischenspeicher.
+// WiFi tab: hostname, delete slots / move to front, non-blocking scan with a cache.
+
+bool isPrivateClient() {
+    IPAddress ip = webserver.client().remoteIP();
+    return ip[0] == 10 || ip[0] == 127 || (ip[0] == 172 && ip[1] >= 16 && ip[1] <= 31) || (ip[0] == 192 && ip[1] == 168) || (ip[0] == 169 && ip[1] == 254);
+}
+
+void saveWifiSlots() {
+    for (int i = 0; i < 3; i++) {
+        prefs.putString(("ssid" + String(i + 1)).c_str(), cfg.ssid[i]);
+        prefs.putString(("pass" + String(i + 1)).c_str(), cfg.pass[i]);
+    }
+}
+
+void handleSetHostname() {
+    String host = cleanHost(webserver.arg("host"));
+    if (host.isEmpty()) {
+        redirectTab("wlan", "hostbad");
+        return;
+    }
+    bool changed = host != cfg.host;
+    cfg.host = host;
+    prefs.putString("host", host);
+    logLine("[WEB] hostname set: " + host);
+    redirectTab("wlan", changed ? "restart" : "saved");
+}
+
+void handleDeleteWifi() {
+    int idx = webserver.arg("index").toInt();
+    if (idx < 0 || idx > 2 || cfg.ssid[idx].isEmpty()) {
+        redirectTab("wlan", "saved");
+        return;
+    }
+    if (!isPrivateClient()) {
+        redirectTab("wlan", "wifiprivate");
+        return;
+    }
+    bool wasActive = WiFi.status() == WL_CONNECTED && WiFi.SSID() == cfg.ssid[idx];
+    for (int k = idx; k < 2; k++) {
+        cfg.ssid[k] = cfg.ssid[k + 1];
+        cfg.pass[k] = cfg.pass[k + 1];
+    }
+    cfg.ssid[2] = "";
+    cfg.pass[2] = "";
+    saveWifiSlots();
+    logLine("[WEB] WiFi slot " + String(idx + 1) + " deleted");
+    if (wasActive) restartAt = millis() + 500;
+    else wifiRetryNow();
+    redirectTab("wlan", "wifideleted");
+}
+
+// "Verbinden": das gewaehlte Netz rueckt an die erste Stelle und das Geraet startet neu (Verbinden blockiert bis zu 30 s).
+// "Connect": the chosen network moves to the first place and the device restarts (connecting blocks for up to 30 s).
+
+void handleConnectWifi() {
+    int idx = webserver.arg("index").toInt();
+    if (idx < 0 || idx > 2 || cfg.ssid[idx].isEmpty()) {
+        redirectTab("wlan", "saved");
+        return;
+    }
+    if (!isPrivateClient()) {
+        redirectTab("wlan", "wifiprivate");
+        return;
+    }
+    if (idx > 0) {
+        String s = cfg.ssid[idx], p = cfg.pass[idx];
+        for (int k = idx; k > 0; k--) {
+            cfg.ssid[k] = cfg.ssid[k - 1];
+            cfg.pass[k] = cfg.pass[k - 1];
+        }
+        cfg.ssid[0] = s;
+        cfg.pass[0] = p;
+        saveWifiSlots();
+    }
+    logLine("[WEB] WiFi connect to slot " + String(idx + 1));
+    restartAt = millis() + 500;
+    redirectTab("wlan", "wifiswitch");
+}
+
+String scanJson = "[]";
+bool scanHave = false;
+
+// Die Suche laeuft im Hintergrund (scanNetworks(true)); die Seite fragt das Ergebnis ab und bekommt bis dahin den letzten Stand.
+// The scan runs in the background (scanNetworks(true)); the page asks for the result and gets the last state until then.
+
+void handleApiScanWifi() {
+    int c = WiFi.scanComplete();
+    if (c >= 0) {
+        String names[24];
+        int rssi[24], enc[24];
+        int count = 0;
+        for (int i = 0; i < c && count < 24; i++) {
+            String s = WiFi.SSID(i);
+            if (s.isEmpty()) continue;
+            bool dup = false;
+            for (int k = 0; k < count; k++) {
+                if (names[k] == s) {
+                    dup = true;
+                    if (WiFi.RSSI(i) > rssi[k]) rssi[k] = WiFi.RSSI(i);
+                }
+            }
+            if (dup) continue;
+            names[count] = s;
+            rssi[count] = WiFi.RSSI(i);
+            enc[count] = WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? 0 : 1;
+            count++;
+        }
+        WiFi.scanDelete();
+        for (int a = 0; a < count; a++) {
+            for (int b = a + 1; b < count; b++) {
+                if (rssi[b] > rssi[a]) {
+                    String t = names[a]; names[a] = names[b]; names[b] = t;
+                    int r = rssi[a]; rssi[a] = rssi[b]; rssi[b] = r;
+                    int e = enc[a]; enc[a] = enc[b]; enc[b] = e;
+                }
+            }
+        }
+        String j = "[";
+        for (int i = 0; i < count; i++) j += String(i ? "," : "") + "{\"ssid\":\"" + jsonEscape(names[i]) + "\",\"rssi\":" + String(rssi[i]) + ",\"enc\":" + String(enc[i]) + "}";
+        scanJson = j + "]";
+        scanHave = true;
+    } else if (c == WIFI_SCAN_FAILED && !scanHave) {
+        WiFi.scanNetworks(true);
+    }
+    sendJson(200, scanJson);
+}
+
+void handleApiRescanWifi() {
+    if (WiFi.scanComplete() != WIFI_SCAN_RUNNING) {
+        WiFi.scanDelete();
+        WiFi.scanNetworks(true);
+    }
+    sendOk("Scan gestartet");
+}
+
 // Eigene NTP-Abfrage, unabhaengig von der eingestellten Systemzeit; Antwort "OK|<UTC-Zeit>" oder "FAILED".
 // Own NTP query, independent of the configured system time; answer "OK|<UTC time>" or "FAILED".
 
@@ -2850,7 +3118,7 @@ void handleLog() {
         }
     }
     if (!cfg.logEnabled) out = "[Logging ist ausgeschaltet - Schalter oben im Tab Log]\n" + out;
-    webserver.send(200, "text/plain; charset=utf-8", out);
+    sendPumped(200, "text/plain; charset=utf-8", out);
 }
 
 void handleRestart() {
@@ -2907,6 +3175,11 @@ void setupWeb() {
     webserver.on("/api/delete", handleApiDelete);
     webserver.on("/api/rename", handleApiRename);
     webserver.on("/api/scan", HTTP_GET, handleApiScan);
+    webserver.on("/api/scanwifi", HTTP_GET, handleApiScanWifi);
+    webserver.on("/api/rescanwifi", HTTP_POST, handleApiRescanWifi);
+    webserver.on("/sethostname", HTTP_POST, handleSetHostname);
+    webserver.on("/deletewifi", HTTP_GET, handleDeleteWifi);
+    webserver.on("/api/connectWifi", HTTP_GET, handleConnectWifi);
     webserver.on("/api/testNtp", HTTP_GET, handleTestNtp);
     webserver.on("/api/mqtt", handleApiMqtt);
     webserver.on("/api/topbarStatus", HTTP_GET, handleTopbarStatus);

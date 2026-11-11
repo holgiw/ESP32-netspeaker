@@ -4760,7 +4760,17 @@ void Audio::processWebStream() {
     }
 
     // start audio decoding - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    if (((InBuff.bufferFilled() > m_pwst.maxFrameSize) || (m_f_allDataReceived)) && !m_f_stream) { // waiting for buffer filled
+    // Vorpuffer: die Wiedergabe beginnt erst, wenn m_prebufSec Sekunden im Eingangspuffer liegen (Bitrate aus icy-br, sonst 192 kbit/s).
+    // Prebuffer: playback starts only when m_prebufSec seconds are in the input buffer (bit rate from icy-br, else 192 kbit/s).
+
+    uint32_t startFill = m_pwst.maxFrameSize;
+    if (m_prebufSec) {
+        uint32_t bps = m_nominal_bitrate ? m_nominal_bitrate / 8 : 24000;
+        uint32_t want = (uint32_t)m_prebufSec * bps;
+        if (want > 600000UL) want = 600000UL;
+        if (want > startFill) startFill = want;
+    }
+    if (((InBuff.bufferFilled() > startFill) || (m_f_allDataReceived)) && !m_f_stream) { // waiting for buffer filled
         info(*this, evt_info, "stream ready");
         m_f_stream = true; // ready to play the audio data
     }
