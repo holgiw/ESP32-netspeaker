@@ -845,8 +845,8 @@ static const char PINS_JS[] PROGMEM = R"js(
       else c1.textContent='GPIO '+j.p;
       c1.style.whiteSpace='nowrap';c2.style.whiteSpace='nowrap';
       var st=el('span');c2.appendChild(st);
-      var sel=el('select');sel.style.cssText='width:auto;margin:2px';[['','Keine Aktion'],['say','Ansage (VoiceRSS)'],['file','MP3-Datei / URL'],['station','Webradio'],['radio','Radio starten'],['next','Sender vor'],['prev','Sender zur\u00e4ck'],['volup','Lauter'],['voldown','Leiser'],['mute','Stumm (umschalten)'],['stop','Stopp']].forEach(function(o){var op=el('option');op.value=o[0];op.textContent=o[1];sel.appendChild(op);});sel.value=j.t||'';c3.appendChild(sel);
-      var tx=el('input');tx.type='text';tx.maxLength=300;tx.value=j.x||'';tx.placeholder='z. B. Die T\u00e4r ist offen / gong.mp3';tx.style.cssText='width:95%;margin:2px';c4.appendChild(tx);
+      var sel=el('select');sel.style.cssText='width:auto;margin:2px';[['','Keine Aktion'],['say','Ansage (VoiceRSS)'],['file','MP3-Datei / URL'],['station','Webradio'],['radio','Radio starten'],['next','Sender vor'],['prev','Sender zur\u00fcck'],['volup','Lauter'],['voldown','Leiser'],['mute','Stumm (umschalten)'],['stop','Stopp']].forEach(function(o){var op=el('option');op.value=o[0];op.textContent=o[1];sel.appendChild(op);});sel.value=j.t||'';c3.appendChild(sel);
+      var tx=el('input');tx.type='text';tx.maxLength=300;tx.value=j.x||'';tx.placeholder='z. B. Die T\u00fcr ist offen / gong.mp3';tx.style.cssText='width:95%;margin:2px';c4.appendChild(tx);
       var pk=el('select');pk.style.cssText='width:95%;margin:2px';fillPick(pk);picks.push(pk);c4.appendChild(pk);
       pk.onchange=function(){if(pk.value){tx.value=pk.value;pk.value='';}};
       var ps=el('select');ps.style.cssText='width:95%;margin:2px';fillSta(ps);spicks.push(ps);c4.appendChild(ps);

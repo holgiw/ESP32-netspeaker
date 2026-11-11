@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-11-11 - Version 1.5.2
+
+**Deutsch**
+
+- Behoben: Die englische Übersetzung (`en.json`) war im Tab *WLAN* und in der Karte *More calls* des Tabs *Doku* teilweise beschädigt (falsche Umlaute) und lückenhaft. Repariert; neu übersetzt sind "Verbunden mit", der Hinweis zu SSID und Passwort und die Länderliste.
+- Behoben: Im Tab *Eingänge* stand "Sender zuräck" statt "Sender zurück" und im Platzhalter "Die Tär ist offen" statt "Die Tür ist offen".
+- Hinweis: Die Sprachdatei wird beim Flashen nicht erneuert. Im Tab *Status* in der Karte *Sprache / Language* mit **Von GitHub laden** die neue `en.json` holen.
+
+**English**
+
+- Fixed: the English translation (`en.json`) was partly damaged (wrong umlauts) and incomplete in the *WiFi* tab and in the *More calls* card of the *Docs* tab. Repaired; newly translated are "Connected to", the hint about SSID and password and the list of countries.
+- Fixed: in the *Inputs* tab "Sender zuräck" was shown instead of "Sender zurück" and the placeholder said "Die Tär ist offen" instead of "Die Tür ist offen".
+- Note: flashing does not renew the language file. In the *Status* tab, card *Sprache / Language*, use **Von GitHub laden** to get the new `en.json`.
+
 ## 2026-11-11 - Version 1.5.1
 
 **Deutsch**
