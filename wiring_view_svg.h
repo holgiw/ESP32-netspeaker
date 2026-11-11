@@ -98,18 +98,16 @@ static const char WIRING_VIEW_SVG[] PROGMEM = R"svg(<svg xmlns="http://www.w3.or
 <circle cx="276" cy="479" r="13" fill="url(#wv_silver)" stroke="#6b747d"/><path d="M267 477 l18 4" stroke="#59626b" stroke-width="3" stroke-linecap="round"/>
 <circle cx="326" cy="479" r="13" fill="url(#wv_silver)" stroke="#6b747d"/><path d="M317 477 l18 4" stroke="#59626b" stroke-width="3" stroke-linecap="round"/>
 <text x="276" y="451" text-anchor="middle" font-size="13" font-weight="bold" fill="#dfe9f7">+</text><text x="326" y="451" text-anchor="middle" font-size="15" font-weight="bold" fill="#dfe9f7">&#8722;</text>
-<g filter="url(#wv_sh)"><rect x="1066" y="157" width="230" height="290" rx="8" fill="url(#wv_pcbBlue)" stroke="#0a2c66" stroke-width="2"/></g>
-<rect x="1186" y="191" width="132" height="200" rx="4" fill="url(#wv_silver)" stroke="#6b747d" stroke-width="1.5"/>
-<rect x="1308" y="213" width="70" height="156" rx="6" fill="#161616" stroke="#000"/><rect x="1314" y="227" width="52" height="128" rx="3" fill="#2a2f3a"/><text x="1346" y="291" text-anchor="middle" font-size="11" font-weight="bold" fill="#c9d3de" transform="rotate(-90 1346 287)">microSD</text>
-<text x="1306" y="469" text-anchor="middle" font-size="11" fill="#5b6773">microSD-Karte, FAT32</text>
-<rect x="1162" y="203" width="46" height="26" rx="2" fill="url(#wv_chip)"/><text x="1185" y="220" text-anchor="middle" font-size="7" fill="#aab2ba">74LVC125</text>
-<rect x="1164" y="257" width="16" height="8" rx="1" fill="#2a2a2a"/><rect x="1164" y="277" width="16" height="8" rx="1" fill="#2a2a2a"/><rect x="1164" y="297" width="16" height="8" rx="1" fill="#2a2a2a"/>
-<text x="1180" y="435" text-anchor="middle" font-size="13" font-weight="bold" fill="#dfe9f7">Micro-SD-Leser</text>
-<rect x="1066" y="173" width="28" height="236" rx="3" fill="#161616"/>
-<use href="#wv_pin" x="1080" y="191"/>
-<text x="1100" y="195" font-size="12" font-weight="bold" fill="#ffffff">3V3</text>
+<g filter="url(#wv_sh)"><rect x="1066" y="197" width="230" height="290" rx="8" fill="url(#wv_pcbBlue)" stroke="#0a2c66" stroke-width="2"/></g>
+<rect x="1186" y="231" width="132" height="200" rx="4" fill="url(#wv_silver)" stroke="#6b747d" stroke-width="1.5"/>
+<rect x="1308" y="253" width="70" height="156" rx="6" fill="#161616" stroke="#000"/><rect x="1314" y="267" width="52" height="128" rx="3" fill="#2a2f3a"/><text x="1346" y="331" text-anchor="middle" font-size="11" font-weight="bold" fill="#c9d3de" transform="rotate(-90 1346 327)">microSD</text>
+<text x="1306" y="509" text-anchor="middle" font-size="11" fill="#5b6773">microSD-Karte, FAT32</text>
+<rect x="1162" y="243" width="46" height="26" rx="2" fill="url(#wv_chip)"/><text x="1185" y="260" text-anchor="middle" font-size="7" fill="#aab2ba">74LVC125</text>
+<rect x="1164" y="297" width="16" height="8" rx="1" fill="#2a2a2a"/><rect x="1164" y="317" width="16" height="8" rx="1" fill="#2a2a2a"/><rect x="1164" y="337" width="16" height="8" rx="1" fill="#2a2a2a"/>
+<text x="1180" y="475" text-anchor="middle" font-size="13" font-weight="bold" fill="#dfe9f7">Micro-SD-Leser</text>
+<rect x="1066" y="213" width="28" height="236" rx="3" fill="#161616"/>
 <use href="#wv_pin" x="1080" y="231"/>
-<text x="1100" y="235" font-size="12" font-weight="bold" fill="#ffffff">GND</text>
+<text x="1100" y="235" font-size="12" font-weight="bold" fill="#ffffff">3V3</text>
 <use href="#wv_pin" x="1080" y="271"/>
 <text x="1100" y="275" font-size="12" font-weight="bold" fill="#ffffff">CS</text>
 <use href="#wv_pin" x="1080" y="311"/>
@@ -118,19 +116,21 @@ static const char WIRING_VIEW_SVG[] PROGMEM = R"svg(<svg xmlns="http://www.w3.or
 <text x="1100" y="355" font-size="12" font-weight="bold" fill="#ffffff">SCK</text>
 <use href="#wv_pin" x="1080" y="391"/>
 <text x="1100" y="395" font-size="12" font-weight="bold" fill="#ffffff">MISO</text>
+<use href="#wv_pin" x="1080" y="431"/>
+<text x="1100" y="435" font-size="12" font-weight="bold" fill="#ffffff">GND</text>
 <path d="M482 172 V191" stroke="#9aa4ae" stroke-width="3" fill="none"/><path d="M506 172 V231" stroke="#9aa4ae" stroke-width="3" fill="none"/>
 <g filter="url(#wv_sh)"><rect x="466" y="98" width="52" height="74" rx="5" fill="url(#wv_capBody)" stroke="#000"/></g>
 <rect x="500" y="98" width="18" height="74" rx="3" fill="#c9d3de" opacity=".9"/><text x="509" y="140" text-anchor="middle" font-size="14" font-weight="bold" fill="#222">&#8722;</text>
 <text x="484" y="132" text-anchor="middle" font-size="9" fill="#e6ebf0" transform="rotate(-90 484 132)">470 &#181;F</text>
 <text x="492" y="90" text-anchor="middle" font-size="12" fill="#1a2129" font-weight="bold">Elko 100&#8211;470 &#181;F</text>
-<path d="M606 271 H552 V104 H1030 V191 H1054" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>
-<path d="M606 271 H552 V104 H1030 V191 H1054" fill="none" stroke="#e67e22" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M606 271 H552 V104 H1030 V191 H1054" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".3" transform="translate(0,-1.2)"/>
-<path d="M578 231 V126 H1008 V231 H1054" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>
-<path d="M578 231 V126 H1008 V231 H1054" fill="none" stroke="#222222" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M578 231 V126 H1008 V231 H1054" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".3" transform="translate(0,-1.2)"/>
-<rect x="1038" y="182" width="24" height="18" rx="3" fill="#1b1b1b" stroke="#000"/><rect x="1044" y="185" width="12" height="3" rx="1" fill="#555"/>
+<path d="M606 271 H552 V104 H1030 V231 H1054" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>
+<path d="M606 271 H552 V104 H1030 V231 H1054" fill="none" stroke="#e67e22" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M606 271 H552 V104 H1030 V231 H1054" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".3" transform="translate(0,-1.2)"/>
+<path d="M578 231 V126 H1008 V431 H1054" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>
+<path d="M578 231 V126 H1008 V431 H1054" fill="none" stroke="#222222" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M578 231 V126 H1008 V431 H1054" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".3" transform="translate(0,-1.2)"/>
 <rect x="1038" y="222" width="24" height="18" rx="3" fill="#1b1b1b" stroke="#000"/><rect x="1044" y="225" width="12" height="3" rx="1" fill="#555"/>
+<rect x="1038" y="422" width="24" height="18" rx="3" fill="#1b1b1b" stroke="#000"/><rect x="1044" y="425" width="12" height="3" rx="1" fill="#555"/>
 <rect x="590" y="262" width="24" height="18" rx="3" fill="#1b1b1b" stroke="#000"/><rect x="596" y="265" width="12" height="3" rx="1" fill="#555"/>
 <path d="M446 191 C495.2 185, 560.8 197, 610 191" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>
 <path d="M446 191 C495.2 185, 560.8 197, 610 191" fill="none" stroke="#d62828" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -159,24 +159,24 @@ static const char WIRING_VIEW_SVG[] PROGMEM = R"svg(<svg xmlns="http://www.w3.or
 <rect x="590" y="422" width="24" height="18" rx="3" fill="#1b1b1b" stroke="#000"/><rect x="596" y="425" width="12" height="3" rx="1" fill="#555"/>
 <circle cx="578" cy="231" r="6" fill="#cfd5db" stroke="#59626b"/>
 <circle cx="482" cy="191" r="5.5" fill="#cfd5db" stroke="#59626b"/><circle cx="506" cy="231" r="5.5" fill="#cfd5db" stroke="#59626b"/>
-<path d="M906 271 C951.6 265, 1012.4 277, 1058 271" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>
-<path d="M906 271 C951.6 265, 1012.4 277, 1058 271" fill="none" stroke="#8d6e63" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M906 271 C951.6 265, 1012.4 277, 1058 271" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".3" transform="translate(0,-1.2)"/>
+<path d="M906 271 C951.6 271, 1012.4 271, 1058 271" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>
+<path d="M906 271 C951.6 271, 1012.4 271, 1058 271" fill="none" stroke="#8d6e63" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M906 271 C951.6 271, 1012.4 271, 1058 271" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".3" transform="translate(0,-1.2)"/>
 <rect x="902" y="262" width="24" height="18" rx="3" fill="#1b1b1b" stroke="#000"/><rect x="908" y="265" width="12" height="3" rx="1" fill="#555"/>
 <rect x="1038" y="262" width="24" height="18" rx="3" fill="#1b1b1b" stroke="#000"/><rect x="1044" y="265" width="12" height="3" rx="1" fill="#555"/>
-<path d="M906 311 C951.6 317, 1012.4 305, 1058 311" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>
-<path d="M906 311 C951.6 317, 1012.4 305, 1058 311" fill="none" stroke="#e91e8c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M906 311 C951.6 317, 1012.4 305, 1058 311" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".3" transform="translate(0,-1.2)"/>
+<path d="M906 311 C951.6 311, 1012.4 311, 1058 311" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>
+<path d="M906 311 C951.6 311, 1012.4 311, 1058 311" fill="none" stroke="#e91e8c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M906 311 C951.6 311, 1012.4 311, 1058 311" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".3" transform="translate(0,-1.2)"/>
 <rect x="902" y="302" width="24" height="18" rx="3" fill="#1b1b1b" stroke="#000"/><rect x="908" y="305" width="12" height="3" rx="1" fill="#555"/>
 <rect x="1038" y="302" width="24" height="18" rx="3" fill="#1b1b1b" stroke="#000"/><rect x="1044" y="305" width="12" height="3" rx="1" fill="#555"/>
-<path d="M906 351 C951.6 345, 1012.4 357, 1058 351" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>
-<path d="M906 351 C951.6 345, 1012.4 357, 1058 351" fill="none" stroke="#00a5b8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M906 351 C951.6 345, 1012.4 357, 1058 351" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".3" transform="translate(0,-1.2)"/>
+<path d="M906 351 C951.6 351, 1012.4 351, 1058 351" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>
+<path d="M906 351 C951.6 351, 1012.4 351, 1058 351" fill="none" stroke="#00a5b8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M906 351 C951.6 351, 1012.4 351, 1058 351" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".3" transform="translate(0,-1.2)"/>
 <rect x="902" y="342" width="24" height="18" rx="3" fill="#1b1b1b" stroke="#000"/><rect x="908" y="345" width="12" height="3" rx="1" fill="#555"/>
 <rect x="1038" y="342" width="24" height="18" rx="3" fill="#1b1b1b" stroke="#000"/><rect x="1044" y="345" width="12" height="3" rx="1" fill="#555"/>
-<path d="M906 391 C951.6 397, 1012.4 385, 1058 391" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>
-<path d="M906 391 C951.6 397, 1012.4 385, 1058 391" fill="none" stroke="#1f77b4" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M906 391 C951.6 397, 1012.4 385, 1058 391" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".3" transform="translate(0,-1.2)"/>
+<path d="M906 391 C951.6 391, 1012.4 391, 1058 391" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/>
+<path d="M906 391 C951.6 391, 1012.4 391, 1058 391" fill="none" stroke="#1f77b4" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M906 391 C951.6 391, 1012.4 391, 1058 391" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".3" transform="translate(0,-1.2)"/>
 <rect x="902" y="382" width="24" height="18" rx="3" fill="#1b1b1b" stroke="#000"/><rect x="908" y="385" width="12" height="3" rx="1" fill="#555"/>
 <rect x="1038" y="382" width="24" height="18" rx="3" fill="#1b1b1b" stroke="#000"/><rect x="1044" y="385" width="12" height="3" rx="1" fill="#555"/>
 <text x="528" y="183" text-anchor="middle" font-size="12" fill="#1a2129">+5 V</text>
@@ -184,10 +184,6 @@ static const char WIRING_VIEW_SVG[] PROGMEM = R"svg(<svg xmlns="http://www.w3.or
 <text x="550" y="342" text-anchor="middle" font-size="12" fill="#1a2129">DIN (GPIO 2)</text>
 <text x="550" y="382" text-anchor="middle" font-size="12" fill="#1a2129">BCLK (GPIO 3)</text>
 <text x="550" y="422" text-anchor="middle" font-size="12" fill="#1a2129">LRC (GPIO 4)</text>
-<text x="982" y="262" text-anchor="middle" font-size="12" fill="#1a2129">CS (GPIO 13)</text>
-<text x="982" y="302" text-anchor="middle" font-size="12" fill="#1a2129">MOSI (GPIO 12)</text>
-<text x="982" y="342" text-anchor="middle" font-size="12" fill="#1a2129">SCK (GPIO 11)</text>
-<text x="982" y="382" text-anchor="middle" font-size="12" fill="#1a2129">MISO (GPIO 10)</text>
 <text x="791" y="96" text-anchor="middle" font-size="12" fill="#1a2129">3,3 V zum SD-Leser (vom Pin 3V3)</text>
 <text x="793" y="146" text-anchor="middle" font-size="12" fill="#1a2129">GND zum SD-Leser (Abzweig vom GND-Pin, Y-Kabel oder Lötstelle)</text>
 <g filter="url(#wv_sh)"><circle cx="301" cy="668" r="100" fill="url(#wv_silver)" stroke="#59626b" stroke-width="2"/></g>

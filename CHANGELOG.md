@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-11 - Version 1.5.1
+
+**Deutsch**
+
+- Behoben: In der Verkabelungsansicht (Tab *Doku*, README) stimmte die Pin-Reihenfolge des SD-Kartenlesers nicht. Jetzt: 3V3, CS, MOSI, SCK, MISO, GND; die vier Signalpins liegen den ESP-Pins GP13, GP12, GP11 und GP10 direkt gegenüber.
+
+**English**
+
+- Fixed: in the wiring view (*Doku* tab, README) the pin order of the SD card reader was wrong. Now: 3V3, CS, MOSI, SCK, MISO, GND; the four signal pins sit directly opposite the ESP pins GP13, GP12, GP11 and GP10.
+
 ## 2026-11-11 - Version 1.5.0
 
 **Deutsch**
