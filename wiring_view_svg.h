@@ -3,7 +3,7 @@
 
 #pragma once
 
-static const char WIRING_VIEW_SVG[] PROGMEM = R"svg(<svg xmlns="http://www.w3.org/2000/svg" style="width:100%;min-width:900px;height:auto;max-width:1500px;display:block;margin:0 auto" viewBox="0 0 1500 960" font-family="Arial,Helvetica,sans-serif">
+static const char WIRING_VIEW_SVG[] PROGMEM = R"svg(<svg xmlns="http://www.w3.org/2000/svg" style="width:100%;min-width:900px;height:auto;max-width:1500px;display:block;margin:0 auto" viewBox="0 0 1500 1002" font-family="Arial,Helvetica,sans-serif">
 <title>NetSpeaker - Verkabelung (Ansicht) ESP32-S3-Zero / MAX98357A / SD-Karte</title>
 <defs>
   <linearGradient id="wv_pcbBlue" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a74dd"/><stop offset="1" stop-color="#0f3f8f"/></linearGradient>
@@ -18,7 +18,7 @@ static const char WIRING_VIEW_SVG[] PROGMEM = R"svg(<svg xmlns="http://www.w3.or
   <filter id="wv_sh" x="-10%" y="-10%" width="125%" height="125%"><feDropShadow dx="3" dy="4" stdDeviation="4" flood-color="#000" flood-opacity=".35"/></filter>
   <g id="wv_pin"><rect x="-4.5" y="-4.5" width="9" height="9" rx="1" fill="url(#wv_gold)" stroke="#8a6a1c" stroke-width=".8"/></g>
 </defs>
-<rect width="1500" height="960" fill="#f4f6f8"/>
+<rect width="1500" height="1002" fill="#f4f6f8"/>
 <text x="750" y="40" text-anchor="middle" font-size="26" font-weight="bold" fill="#1a2129">NetSpeaker - Verkabelung (Ansicht) / wiring (view)</text>
 <text x="750" y="62" text-anchor="middle" font-size="14" fill="#5b6773">Waveshare ESP32-S3-Zero in der Mitte, links Verst&#228;rker mit Lautsprecher (5 V, GND, GPIO 2/3/4), rechts SD-Kartenleser (GPIO 10&#8211;13)</text>
 <g filter="url(#wv_sh)"><rect x="616" y="176" width="284" height="370" rx="10" fill="url(#wv_pcbZero)" stroke="#0c2a63" stroke-width="2"/></g>
@@ -206,11 +206,13 @@ static const char WIRING_VIEW_SVG[] PROGMEM = R"svg(<svg xmlns="http://www.w3.or
 <path d="M326 503 C326 573, 351 494, 351 564" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" opacity=".3" transform="translate(0,-1.2)"/>
 <circle cx="251" cy="565" r="5" fill="#cfd5db" stroke="#59626b"/><circle cx="351" cy="565" r="5" fill="#cfd5db" stroke="#59626b"/>
 <text x="448" y="471" font-size="11" fill="#2e7d32" font-weight="bold">Schraubklemme OUT+ / OUT&#8722;</text><text x="448" y="485" font-size="11" fill="#2e7d32">Lautsprecher nicht an GND!</text>
-<rect x="40" y="822" width="1420" height="128" rx="8" fill="#ffffff" stroke="#c9d3de"/>
+<rect x="40" y="822" width="1420" height="170" rx="8" fill="#ffffff" stroke="#c9d3de"/>
 <text x="64" y="850" font-size="14" font-weight="bold" fill="#1a2129">Hinweise / notes</text>
 <text x="64" y="867" font-size="12.5"  fill="#1a2129">&#8226; Pins 2/3/4 (DIN/BCLK/LRC) und 10/11/12/13 (SD) sind Standard und im Tab Audio &#228;nderbar (Verst&#228;rker wirkt nach Neustart, SD sofort). Das Bild zeigt die Standard-Pins.</text>
 <text x="64" y="884" font-size="12.5"  fill="#1a2129">&#8226; SD-Pin des MAX98357A (Shutdown und Kanalwahl): unter 0,16 V = Verst&#228;rker aus (SD an GND), 0,16&#8211;0,77 V = Mono-Mix L+R, 0,77&#8211;1,4 V = nur rechter Kanal, &#252;ber 1,4 V = nur linker Kanal.</text>
 <text x="64" y="901" font-size="12.5"  fill="#1a2129">&#8226; Adafruit-Modul: SD liegt &#252;ber 1 M&#937; an VIN, offen = Mono-Mix (bei 5 V); ohne diesen Widerstand bleibt der Verst&#228;rker bei offenem SD-Pin aus. GAIN offen = 9 dB, an GND = 12 dB, an VIN = 6 dB.</text>
-<text x="64" y="918" font-size="12.5"  fill="#1a2129">&#8226; Der ESP32-S3-Zero hat nur einen GND- und einen 3V3-Pin (links oben). GND und 3,3 V f&#252;r den SD-Leser laufen deshalb &#252;ber den ESP hinweg nach rechts (Y-Kabel oder Verteilerleiste).</text>
-<text x="64" y="935" font-size="12.5"  fill="#1a2129">&#8226; Elko direkt an VIN und GND des Verst&#228;rkers l&#246;ten (Plus-Bein an VIN, Minus-Streifen an GND). Leitungen kurz halten (unter 10 cm). Pin-Reihenfolge der Module nach der Beschriftung pr&#252;fen.</text>
+<text x="64" y="918" font-size="12.5"  fill="#1a2129">&#8226; Stereo ist m&#246;glich: ein zweites MAX98357A-Modul am selben I2S-Bus (DIN, BCLK, LRC, VIN, GND), je Modul ein Lautsprecher.</text>
+<text x="64" y="935" font-size="12.5"  fill="#1a2129">&#8226; Der SD-Pin w&#228;hlt den Kanal: links = SD direkt an VIN (&#252;ber 1,4 V), rechts = SD &#252;ber etwa 470 k&#937; an VIN (0,77&#8211;1,4 V, bei 5 V); Spannung am SD-Pin nachmessen.</text>
+<text x="64" y="952" font-size="12.5"  fill="#1a2129">&#8226; Der ESP32-S3-Zero hat nur einen GND- und einen 3V3-Pin (links oben). GND und 3,3 V f&#252;r den SD-Leser laufen deshalb &#252;ber den ESP hinweg nach rechts (Y-Kabel oder Verteilerleiste).</text>
+<text x="64" y="969" font-size="12.5"  fill="#1a2129">&#8226; Elko direkt an VIN und GND des Verst&#228;rkers l&#246;ten (Plus-Bein an VIN, Minus-Streifen an GND). Leitungen kurz halten (unter 10 cm). Pin-Reihenfolge der Module nach der Beschriftung pr&#252;fen.</text>
 </svg>)svg";

@@ -4,10 +4,12 @@
 
 **Deutsch**
 
+- Neu: Hinweis zu Stereo in den Verkabelungsbildern und in der README: ein zweites MAX98357A-Modul am selben I2S-Bus, der SD-Pin wählt den Kanal (links direkt an VIN, rechts über etwa 470 kΩ an VIN, bei 5 V).
 - Behoben: Die Hinweise zum SD-Pin des Verstärkers in den Verkabelungsbildern (Doku-Tab und README) waren ungenau. Jetzt steht dort die Pegeltabelle des MAX98357A (unter 0,16 V aus, 0,16–0,77 V Mono-Mix, 0,77–1,4 V rechter, über 1,4 V linker Kanal) und der Hinweis, dass ein offener SD-Pin je nach Modul Mono-Mix (Adafruit, 1 MΩ nach VIN) oder aus bedeutet.
 
 **English**
 
+- New: note about stereo in the wiring pictures and in the README: a second MAX98357A module on the same I2S bus, the SD pin selects the channel (left directly to VIN, right through about 470 kΩ to VIN, at 5 V).
 - Fixed: the notes about the SD pin of the amplifier in the wiring pictures (Docs tab and README) were imprecise. They now give the voltage table of the MAX98357A (below 0.16 V off, 0.16–0.77 V mono mix, 0.77–1.4 V right, above 1.4 V left channel) and the note that an open SD pin means mono mix (Adafruit, 1 MΩ to VIN) or off depending on the module.
 
 ## 2026-11-13 - Version 1.6.2

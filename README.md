@@ -44,7 +44,7 @@ Das Modul arbeitet mit 3,3 V über SPI und braucht keinen Pegelwandler. Es nimmt
 | MOSI | GPIO 12 |
 | CS | GPIO 13 |
 
-Die Pins sind im Tab *Audio* änderbar (wirkt sofort). Das Verkabelungsbild ([verkabelung.svg](verkabelung.svg)) steht auch im Tab *Doku* der Weboberfläche. Leitungen kurz halten (unter 10 cm). Ohne Karte läuft alles andere unverändert.
+Die Pins sind im Tab *Audio* änderbar (wirkt sofort). Das Verkabelungsbild ([verkabelung.svg](verkabelung.svg)) steht auch im Tab *Doku* der Weboberfläche. Leitungen kurz halten (unter 10 cm). Ohne Karte läuft alles andere unverändert. **Stereo** ist möglich: ein zweites MAX98357A-Modul am selben I2S-Bus (DIN, BCLK, LRC, VIN, GND), je Modul ein Lautsprecher. Der SD-Pin des Moduls wählt den Kanal: links = SD direkt an VIN (über 1,4 V), rechts = SD über etwa 470 kΩ an VIN (0,77–1,4 V, bei 5 V; die Spannung am SD-Pin nachmessen). Die Firmware gibt Stereo aus; Ansagen (Mono) liegen auf beiden Kanälen.
 
 **Verkabelung als Ansicht** (Bauteile, links Verstärker und Lautsprecher, rechts SD-Leser, in der Mitte der Waveshare ESP32-S3-Zero; steht ebenfalls im Tab *Doku*; [verkabelung_ansicht.svg](verkabelung_ansicht.svg)):
 
@@ -255,7 +255,7 @@ The module works at 3.3 V over SPI and needs no level shifter. It takes micro SD
 | MOSI | GPIO 12 |
 | CS | GPIO 13 |
 
-The pins can be changed in the *Audio* tab (applies immediately). The wiring picture ([verkabelung.svg](verkabelung.svg)) is also in the *Doku* tab of the web interface. Keep the wires short (under 10 cm). Without a card everything else works unchanged.
+The pins can be changed in the *Audio* tab (applies immediately). The wiring picture ([verkabelung.svg](verkabelung.svg)) is also in the *Doku* tab of the web interface. Keep the wires short (under 10 cm). Without a card everything else works unchanged. **Stereo** is possible: a second MAX98357A module on the same I2S bus (DIN, BCLK, LRC, VIN, GND), one speaker per module. The SD pin of the module selects the channel: left = SD directly to VIN (above 1.4 V), right = SD through about 470 kΩ to VIN (0.77–1.4 V, at 5 V; measure the voltage at the SD pin). The firmware outputs stereo; announcements (mono) are on both channels.
 
 **Wiring as a view** (components, amplifier and speaker on the left, SD reader on the right, the Waveshare ESP32-S3-Zero in the middle; also in the *Doku* tab; [verkabelung_ansicht.svg](verkabelung_ansicht.svg)):
 

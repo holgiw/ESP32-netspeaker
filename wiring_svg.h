@@ -3,9 +3,9 @@
 
 #pragma once
 
-static const char WIRING_SVG[] PROGMEM = R"svg(<svg xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;max-width:960px;display:block;margin:0 auto" viewBox="0 0 960 1100" font-family="Arial,Helvetica,sans-serif">
+static const char WIRING_SVG[] PROGMEM = R"svg(<svg xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;max-width:960px;display:block;margin:0 auto" viewBox="0 0 960 1120" font-family="Arial,Helvetica,sans-serif">
   <title>NetSpeaker - Verkabelung ESP32-S3 / MAX98357A / SD-Karte</title>
-  <rect width="960" height="1100" fill="#ffffff"/>
+  <rect width="960" height="1120" fill="#ffffff"/>
   <text x="480" y="34" text-anchor="middle" font-size="22" font-weight="bold" fill="#1a2129">NetSpeaker - Verkabelung / wiring</text>
 
   <!-- ESP32-S3 -->
@@ -131,6 +131,7 @@ static const char WIRING_SVG[] PROGMEM = R"svg(<svg xmlns="http://www.w3.org/200
     <text x="40" y="1014">&#8226; Gemeinsame Masse zwischen ESP und Verst&#228;rker ist Pflicht.</text>
     <text x="40" y="1034">&#8226; SD-Karte: Pins 10/11/12/13 (MISO/CLK/MOSI/CS) sind Standard, im Tab Audio &#228;nderbar (wirkt sofort).</text>
     <text x="40" y="1054">&#8226; SD-Modul mit 3,3 V betreiben (kein Pegelwandler), Leitungen unter 10 cm, Karte als FAT32 (SD bis 2 GB, SDHC bis 32 GB).</text>
+    <text x="40" y="1094">&#8226; Stereo: zweites MAX98357A am selben I2S-Bus, SD links = direkt an VIN, rechts = &#252;ber etwa 470 k&#937; an VIN (bei 5 V nachmessen).</text>
     <text x="40" y="1074">&#8226; Ohne Karte l&#228;uft alles andere unver&#228;ndert. Verst&#228;rker (5 V) und SD-Modul (3,3 V) teilen sich die Masse (GND) des ESP.</text>
   </g>
 </svg>)svg";
