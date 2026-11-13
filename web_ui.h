@@ -95,10 +95,10 @@ pre.code{text-align:left;white-space:pre-wrap;word-break:break-all;font-family:v
 #include "wiring_svg.h"
 #include "wiring_view_svg.h"
 
-static const char TAB_KEYS[][12] = {"mp3", "sprechen", "sd", "radio", "pins", "audio", "mqtt", "wlan", "zeit", "status", "log", "doku"};
-static const char* const TAB_LABELS[] = {"MP3 (Flash)", "Sprechen", "SD-Karte", "Webradio", "Eing&auml;nge", "Audio", "MQTT", "WLAN", "Zeit", "Status", "Log", "Doku"};
-static const char* const TAB_TIPS[] = {"MP3-Dateien im Ger&auml;t hochladen und abspielen", "Text ansagen, stoppen, Lautst&auml;rke", "Dateien der SD-Karte abspielen, hochladen und verwalten", "Webradio-URL abspielen und bis zu 30 Sender speichern", "Freie Pins mit Pull-up: bei Kontakt nach GND eine Ansage oder MP3-Datei abspielen", "Anschl&uuml;sse (Pins von Verst&auml;rker und SD-Karte), Lautst&auml;rke, &Uuml;berblenden, Start und Sprachausgabe (VoiceRSS)", "MQTT-Broker und Basis-Topic", "Hostname und WLAN-Zugangsdaten", "Zeitserver und Zeitzone", "Zustand des Ger&auml;ts", "Ereignisprotokoll", "Alle REST- und MQTT-Aufrufe zum Kopieren"};
-static const int TAB_COUNT = 12;
+static const char TAB_KEYS[][12] = {"mp3", "sprechen", "sd", "radio", "pins", "audio", "mqtt", "wlan", "zeit", "sicherung", "status", "log", "doku"};
+static const char* const TAB_LABELS[] = {"MP3 (Flash)", "Sprechen", "SD-Karte", "Webradio", "Eing&auml;nge", "Audio", "MQTT", "WLAN", "Zeit", "Sicherung", "Status", "Log", "Doku"};
+static const char* const TAB_TIPS[] = {"MP3-Dateien im Ger&auml;t hochladen und abspielen", "Text ansagen, stoppen, Lautst&auml;rke", "Dateien der SD-Karte abspielen, hochladen und verwalten", "Webradio-URL abspielen und bis zu 30 Sender speichern", "Freie Pins mit Pull-up: bei Kontakt nach GND eine Ansage oder MP3-Datei abspielen", "Anschl&uuml;sse (Pins von Verst&auml;rker und SD-Karte), Lautst&auml;rke, &Uuml;berblenden, Start und Sprachausgabe (VoiceRSS)", "MQTT-Broker und Basis-Topic", "Hostname und WLAN-Zugangsdaten", "Zeitserver und Zeitzone", "Einstellungen sichern und wieder einlesen, wahlweise mit WLAN-Zugangsdaten und Dateien im Flash", "Zustand des Ger&auml;ts", "Ereignisprotokoll", "Alle REST- und MQTT-Aufrufe zum Kopieren"};
+static const int TAB_COUNT = 13;
 
 // ⓘ-Hinweis mit Erklaerung als Tooltip (title) - der Punkt am Satzende kommt hier dazu; im Text keine einfachen Anfuehrungszeichen.
 // ⓘ note with an explanation as tooltip (title) - the full stop at the end is added here; no single quotes in the text.
@@ -177,8 +177,6 @@ String topbarHtml() {
     h += "</div><div id='topbar-datetime' class='datetime'>" + formatNow() + "</div>";
     h += "<span id='topbar-offline-hint' class='offline-hint'>&#9888; Verbindung verloren</span>";
     h += "<a class='refresh-btn' id='langBtn' href='#' style='display:none' title='Sprache / Language'></a>";
-    h += "<a class='refresh-btn' href='/export' title='Einstellungen als Datei exportieren'>&#11123;</a>";
-    h += "<label class='refresh-btn' title='Einstellungen importieren'>&#11121;<input type='file' accept='.txt,text/plain' style='display:none' onchange='importSettings(this)'></label>";
     h += "<button type='button' class='reset-btn' onclick=\"if(confirm('ESP32 jetzt neu starten?')){fetch('/restart',{method:'POST'});setTimeout(function(){location.reload();},5000);}\" title='Neu starten'>&#9211;</button>";
     h += "</header>";
     return h;
@@ -210,14 +208,6 @@ static const char TOPBAR_JS[] PROGMEM = R"js(
   document.addEventListener('visibilitychange',function(){if(document.hidden)stop();else start();});
   if(!document.hidden)start();
 })();
-function importSettings(inp){
-  var f=inp.files[0];if(!f)return;
-  if(!confirm('Bestehende Einstellungen werden ueberschrieben (WLAN-Passwoerter bleiben). Fortfahren?')){inp.value='';return;}
-  var rd=new FileReader();
-  rd.onload=function(){fetch('/import',{method:'POST',headers:{'Content-Type':'text/plain'},body:rd.result}).then(function(r){return r.text();}).then(function(t){
-    alert(t.indexOf('OK|')===0?t.substring(3):('Fehler: '+t.substring(5)));location.reload();});};
-  rd.readAsText(f);
-}
 function loadStations(inp){
   var f=inp.files[0];if(!f)return;
   if(!confirm('Die gespeicherte Senderliste wird durch die Datei ersetzt. Fortfahren?')){inp.value='';return;}
@@ -625,6 +615,7 @@ String panelStatus() {
     String h = "<div class='card'><h3>Status</h3><table>";
     h += statusRow("Chip", String(ESP.getChipModel()));
     h += statusRow("Chip Revision", String(ESP.getChipRevision()));
+    h += "<tr><td>Release</td><td><a href='https://github.com/holgiw/ESP32-netspeaker/releases/tag/v" PROJECT_VERSION "' target='_blank' rel='noopener noreferrer'>v" PROJECT_VERSION "</a></td></tr>";
     h += statusRow("Firmware", String(FIRMWARE_MARKER + FIRMWARE_MARKER_PREFIX_LEN));
     h += statusRow("Uptime", String(up));
     h += statusRow("Free Heap", String(ESP.getFreeHeap()) + " bytes (minimum since boot " + String(ESP.getMinFreeHeap()) + ")");
@@ -666,6 +657,21 @@ String panelStatus() {
     h += "<div class='card'><h3>Sprache / Language</h3><p>Weitere Sprachen kommen als Datei (zum Beispiel <code>en.json</code>) in den Speicher des Ger&auml;ts und werden im Browser angewendet. Mit der Schaltfl&auml;che in der Statuszeile wechselst du die Sprache.</p><div id='langList'></div>";
     h += "<div class='row'><input type='file' id='langFile' accept='.json,application/json' style='width:60%'><button type='button' onclick='langUpload()' style='width:auto;padding:8px 14px'>Hochladen</button></div>";
     h += "<div class='row'><input type='text' id='langCode' value='en.json' maxlength='24' style='width:130px'><button type='button' onclick='langFetch()' style='width:auto;padding:8px 14px'>Von GitHub laden</button> " + infoTip("L&auml;dt die Sprachdatei (zum Beispiel en.json) aus dem Ordner lang des Projekts auf GitHub (holgiw/ESP32-netspeaker) in das Ger&auml;t; dazu braucht das Ger&auml;t Internet. Eine vorhandene Datei gleichen Namens wird ersetzt") + "</div><div id='langResult'></div></div>";
+    return h;
+}
+
+String panelBackup() {
+    String h = "<div class='card' style='max-width:900px'><h3>Sicherung erstellen</h3>";
+    h += "<p>Speichert die Einstellungen (mit Favoriten und Senderliste) als Datei auf deinem Computer. Mit Dateien im Flash entsteht eine ZIP-Datei.</p>";
+    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='bkWifi' style='width:auto;margin:0;'>WLAN-Zugangsdaten einschlie&szlig;en</label> " + infoTip("Nimmt die WLAN-Passw&ouml;rter in die Sicherung auf, im Klartext; die Datei gut aufbewahren. Ohne den Haken enth&auml;lt die Sicherung nur die Namen der Netze. Nur aus dem lokalen Netz m&ouml;glich") + "</div>";
+    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='bkFiles' style='width:auto;margin:0;'>Dateien im Flash einschlie&szlig;en</label> <small id='bkFilesInfo'></small> " + infoTip("Nimmt die MP3-Dateien aus dem Speicher des Ger&auml;ts (Tab MP3 (Flash), auch gespeicherte Texte) in eine ZIP-Datei auf. Die Dateien der SD-Karte sind nie dabei") + "</div>";
+    h += "<div class='row'><button type='button' onclick='bkCreate()' style='width:auto;padding:8px 14px'>Sicherung erstellen</button></div><div id='bkResult'></div></div>";
+    h += "<div class='card' style='max-width:900px'><h3>Sicherung einlesen</h3>";
+    h += "<p>Liest eine Sicherung wieder ein, entweder die Textdatei mit den Einstellungen oder die ZIP-Datei mit Dateien. Bestehende Einstellungen werden &uuml;berschrieben.</p>";
+    h += "<div class='row'><input type='file' id='bkFile' accept='.txt,.zip' onchange='bkPick()'></div><div id='bkInfo'></div>";
+    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='bkImpWifi' disabled style='width:auto;margin:0;'>WLAN-Zugangsdaten &uuml;bernehmen</label> " + infoTip("&Uuml;bernimmt die Netze und Passw&ouml;rter aus der Sicherung. Ohne den Haken bleiben die WLAN-Einstellungen des Ger&auml;ts unver&auml;ndert. Achtung: Passt das Netz nicht, ist das Ger&auml;t danach nicht mehr erreichbar. Nur aus dem lokalen Netz m&ouml;glich") + "</div>";
+    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='bkImpFiles' disabled style='width:auto;margin:0;'>Dateien im Flash &uuml;bernehmen</label> " + infoTip("Spielt die MP3-Dateien aus der ZIP-Datei in den Speicher des Ger&auml;ts ein; Dateien gleichen Namens werden ersetzt") + "</div>";
+    h += "<div class='row'><button type='button' id='bkRestoreBtn' onclick='bkRestore()' disabled style='width:auto;padding:8px 14px'>Einlesen</button></div><div id='bkRestoreResult'></div></div>";
     return h;
 }
 
@@ -810,8 +816,13 @@ curl "http://@HOST@/lang.json?l=en")d");
 curl -d "mode=hall&wet=35" http://@HOST@/api/effect
 curl -d "bass=4&treble=-2" http://@HOST@/api/effect
 curl -d "mode=off" http://@HOST@/api/effect)d");
+    h += docCard("Sicherung",
+        "Im Tab Sicherung entsteht die Sicherung im Browser: <code>GET /export</code> liefert die Einstellungen als Textdatei, mit <code>wifi=1</code> auch die WLAN-Passw&ouml;rter (nur aus dem lokalen Netz). <code>GET /api/files</code> listet die MP3-Dateien im Flash, <code>GET /api/fileget?file=name.mp3</code> l&auml;dt eine herunter. Mit Dateien packt der Browser alles in eine ZIP-Datei (<code>settings.txt</code> und <code>mp3/&lt;Name&gt;</code>). Zum Einlesen sendet er <code>POST /import</code> (Text) und <code>POST /upload</code> je Datei. Die Dateien der SD-Karte sind nie Teil der Sicherung.",
+        R"d(curl -o netspeaker-settings.txt "http://@HOST@/export?wifi=1"
+curl -o glocke.mp3 "http://@HOST@/api/fileget?file=glocke.mp3"
+curl --data-binary @netspeaker-settings.txt -H "Content-Type: text/plain" http://@HOST@/import)d");
     h += docCard("Weitere Aufrufe",
-        "<code>/api/scan</code> (WLAN-Suche), <code>/api/scanwifi</code> (Suche im Hintergrund mit Signalst&auml;rke, Ergebnis aus dem Zwischenspeicher) und <code>/api/rescanwifi</code> (POST, neu suchen),<code>/api/testNtp?server=...</code> (NTP-Test, nur im Tab Zeit n&ouml;tig), <code>/api/topbarStatus</code> (Statusleiste), <code>/api/version</code> (Firmware-Stand), <code>/export</code> und <code>/import</code> (Einstellungen ohne WLAN-Passw&ouml;rter, mit API-Schl&uuml;ssel), <code>/restart</code> (POST, Neustart).",
+        "<code>/api/scan</code> (WLAN-Suche), <code>/api/scanwifi</code> (Suche im Hintergrund mit Signalst&auml;rke, Ergebnis aus dem Zwischenspeicher) und <code>/api/rescanwifi</code> (POST, neu suchen),<code>/api/testNtp?server=...</code> (NTP-Test, nur im Tab Zeit n&ouml;tig), <code>/api/topbarStatus</code> (Statusleiste), <code>/api/version</code> (Firmware-Stand), <code>/export</code> und <code>/import</code> (Einstellungen; WLAN-Passw&ouml;rter nur mit <code>/export?wifi=1</code>, API-Schl&uuml;ssel und MQTT-Passwort nie, siehe Karte Sicherung), <code>/restart</code> (POST, Neustart).",
         R"d(curl http://@HOST@/api/version
 curl -o netspeaker-settings.txt http://@HOST@/export
 curl -X POST http://@HOST@/restart)d");
@@ -1020,6 +1031,65 @@ function ttsInfo(){fetch('/api/ttscache',{cache:'no-store'}).then(function(r){re
 function ttsClear(){if(!confirm('Alle zwischengespeicherten Ansagen von der SD-Karte l\u00f6schen?'))return;postApi('/api/ttscache',{clear:1},'ttsResult').then(ttsInfo);}
 function voiceTest(){var l=document.getElementById('cfgLang').value||DEF_LANG,v=document.getElementById('cfgVoice').value,r=document.querySelector("input[name='vrate']").value;if(v==='__custom__')v='';postApi('/api/say',{text:VOICE_TEXT[l]||VOICE_TEXT['en-gb'],lang:l,voice:v,rate:r},'voiceTestResult');}
 function fxSend(){var g=function(i){return document.getElementById(i);};postApi('/api/effect',{mode:g('fxMode').value,wet:g('fxWet').value,ann:g('fxAnn').checked?1:0,bass:g('eqBass').value,treble:g('eqTreble').value},'fxResult');}
+var BK=null;
+function bkCrcTable(){var t=[],c,n,k;for(n=0;n<256;n++){c=n;for(k=0;k<8;k++)c=c&1?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c>>>0;}return t;}
+var BKCRC=bkCrcTable();
+function bkCrc(b){var c=0xFFFFFFFF,i;for(i=0;i<b.length;i++)c=BKCRC[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function bkZip(entries){var enc=new TextEncoder(),parts=[],cd=[],off=0,d=new Date(),dt=((d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1)),dd=(((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate());
+  function u16(v){return [v&255,(v>>8)&255];}function u32(v){return [v&255,(v>>8)&255,(v>>16)&255,(v>>>24)&255];}
+  entries.forEach(function(e){var nb=enc.encode(e.name),crc=bkCrc(e.data),sz=e.data.length;
+    var lh=[].concat(u32(0x04034b50),u16(20),u16(0x0800),u16(0),u16(dt),u16(dd),u32(crc),u32(sz),u32(sz),u16(nb.length),u16(0));
+    parts.push(new Uint8Array(lh),nb,e.data);
+    cd.push({nb:nb,crc:crc,sz:sz,off:off});off+=lh.length+nb.length+sz;});
+  var cdStart=off,cdSize=0;
+  cd.forEach(function(c){var h=[].concat(u32(0x02014b50),u16(20),u16(20),u16(0x0800),u16(0),u16(dt),u16(dd),u32(c.crc),u32(c.sz),u32(c.sz),u16(c.nb.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(c.off));
+    parts.push(new Uint8Array(h),c.nb);cdSize+=h.length+c.nb.length;});
+  parts.push(new Uint8Array([].concat(u32(0x06054b50),u16(0),u16(0),u16(cd.length),u16(cd.length),u32(cdSize),u32(cdStart),u16(0))));
+  return new Blob(parts,{type:'application/zip'});}
+function bkUnzip(buf){var v=new DataView(buf),u=new Uint8Array(buf),off=0,out=[],dec=new TextDecoder();
+  while(off+30<=buf.byteLength&&v.getUint32(off,true)===0x04034b50){var fl=v.getUint16(off+6,true),me=v.getUint16(off+8,true),cs=v.getUint32(off+18,true),nl=v.getUint16(off+26,true),el=v.getUint16(off+28,true);
+    if(me!==0||(fl&8))throw new Error('zip');
+    var name=dec.decode(u.subarray(off+30,off+30+nl)),st=off+30+nl+el;out.push({name:name,data:u.subarray(st,st+cs)});off=st+cs;}
+  return out;}
+function bkSave(blob,name){var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},2000);}
+function bkChk(id){var e=document.getElementById(id);return !!(e&&e.checked);}
+function bkFilesInfo(){fetch('/api/files',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){var n=(j.files||[]).length,b=0;(j.files||[]).forEach(function(f){b+=f.size;});var e=document.getElementById('bkFilesInfo');if(e)e.textContent='('+n+' Dateien, '+Math.round(b/1024)+' KB)';}).catch(function(){});}
+function bkCreate(){var wifi=bkChk('bkWifi'),files=bkChk('bkFiles'),base=(window.UI_HOST||'netspeaker');
+  showRes('bkResult',{ok:true,msg:'Erstelle Sicherung &hellip;'});
+  fetch('/export'+(wifi?'?wifi=1':''),{cache:'no-store'}).then(function(r){return r.text();}).then(function(txt){
+    if(!files){bkSave(new Blob([txt],{type:'text/plain'}),base+'-settings.txt');showRes('bkResult',{ok:true,msg:'Sicherung erstellt'});return;}
+    var enc=new TextEncoder(),ents=[{name:'settings.txt',data:enc.encode(txt)}];
+    return fetch('/api/files',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){var list=j.files||[];
+      return list.reduce(function(p,f,i){return p.then(function(){showRes('bkResult',{ok:true,msg:'Lade Datei '+(i+1)+' von '+list.length+' &hellip;'});
+        return fetch('/api/fileget?file='+encodeURIComponent(f.name),{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error(f.name);return r.arrayBuffer();}).then(function(ab){ents.push({name:'mp3/'+f.name,data:new Uint8Array(ab)});});});},Promise.resolve())
+      .then(function(){bkSave(bkZip(ents),base+'-backup.zip');showRes('bkResult',{ok:true,msg:'Sicherung erstellt ('+list.length+' Dateien)'});});});
+  }).catch(function(e){showRes('bkResult',{ok:false,error:'Sicherung fehlgeschlagen'});});}
+function bkPick(){var inp=document.getElementById('bkFile'),f=inp.files[0],info=document.getElementById('bkInfo'),btn=document.getElementById('bkRestoreBtn');BK=null;btn.disabled=true;
+  document.getElementById('bkImpWifi').disabled=true;document.getElementById('bkImpFiles').disabled=true;document.getElementById('bkImpWifi').checked=false;document.getElementById('bkImpFiles').checked=false;info.textContent='';
+  if(!f)return;
+  function ready(settings,files){if(settings.indexOf('# netspeaker settings export')!==0){showRes('bkRestoreResult',{ok:false,error:'Das ist keine Sicherung dieses Ger\u00e4ts'});return;}
+    var hasWifi=/^pass[123]=/m.test(settings),n=files.length,b=0;files.forEach(function(x){b+=x.data.length;});BK={settings:settings,files:files};
+    info.textContent='Einstellungen: ja; WLAN-Passw\u00f6rter: '+(hasWifi?'ja':'nein')+'; Dateien im Flash: '+n+(n?' ('+Math.round(b/1024)+' KB)':'');
+    document.getElementById('bkImpWifi').disabled=false;
+    if(n){document.getElementById('bkImpFiles').disabled=false;document.getElementById('bkImpFiles').checked=true;}
+    btn.disabled=false;document.getElementById('bkRestoreResult').innerHTML='';}
+  if(/\.zip$/i.test(f.name)){f.arrayBuffer().then(function(ab){var ents;try{ents=bkUnzip(ab);}catch(e){showRes('bkRestoreResult',{ok:false,error:'ZIP-Datei nicht lesbar (nur unkomprimierte Sicherungen dieses Ger\u00e4ts)'});return;}
+      var st=null,fl=[];ents.forEach(function(e){if(e.name==='settings.txt')st=new TextDecoder().decode(e.data);else if(/^mp3\/[^\/]+\.mp3$/i.test(e.name))fl.push({name:e.name.substring(4),data:e.data});});
+      if(st===null){showRes('bkRestoreResult',{ok:false,error:'Keine Einstellungen in der ZIP-Datei'});return;}ready(st,fl);});}
+  else f.text().then(function(t){ready(t,[]);});}
+function bkRestore(){if(!BK)return;var wifi=bkChk('bkImpWifi'),files=bkChk('bkImpFiles')&&BK.files.length>0,st=BK.settings;
+  if(!confirm('Bestehende Einstellungen werden \u00fcberschrieben'+(files?' und Dateien gleichen Namens ersetzt':'')+'. Fortfahren?'))return;
+  if(!wifi)st=st.split('\n').filter(function(l){return !/^(ssid|pass)[123]=/.test(l);}).join('\n');
+  showRes('bkRestoreResult',{ok:true,msg:'Lese Einstellungen ein &hellip;'});
+  fetch('/import',{method:'POST',headers:{'Content-Type':'text/plain'},body:st}).then(function(r){return r.text();}).then(function(t){
+    if(t.indexOf('OK|')!==0){showRes('bkRestoreResult',{ok:false,error:t.indexOf('FAIL|')===0?t.substring(5):'Fehler'});return;}
+    var msg=t.substring(3),bad=[];
+    if(!files){showRes('bkRestoreResult',{ok:true,msg:msg});return;}
+    return BK.files.reduce(function(p,f,i){return p.then(function(){showRes('bkRestoreResult',{ok:true,msg:'Lade Datei '+(i+1)+' von '+BK.files.length+' hoch &hellip;'});
+      var fd=new FormData();fd.append('file',new Blob([f.data],{type:'audio/mpeg'}),f.name);
+      return fetch('/upload',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(j){if(!j.ok)bad.push(f.name);}).catch(function(){bad.push(f.name);});});},Promise.resolve())
+    .then(function(){showRes('bkRestoreResult',bad.length?{ok:false,error:msg+' Dateien: '+(BK.files.length-bad.length)+' von '+BK.files.length+' eingelesen; Fehler: '+bad.join(', ')}:{ok:true,msg:msg+' '+BK.files.length+' Dateien eingelesen.'});bkFilesInfo();});
+  }).catch(function(){showRes('bkRestoreResult',{ok:false,error:'Keine Antwort vom Ger&auml;t'});});}
 function sayNow(){var sv=document.getElementById('saySave');var want=sv&&sv.checked;postApi('/api/say',{text:document.getElementById('sayText').value,lang:document.getElementById('sayLang').value,voice:document.getElementById('sayVoice').value,save:want?1:0},'sayResult').then(function(j){if(j&&j.ok&&want)saveWait();});}
 function saveWait(){var seq0=SAYSEQ,t0=Date.now(),off=0,started=false,tm=setInterval(function(){if(Date.now()-t0>90000){clearInterval(tm);return;}
   fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
@@ -1200,6 +1270,7 @@ TABINIT.sd=function(){sdLoad('/');};
 TABINIT.pins=function(){checkPins();if(window.pinsInit)pinsInit();};
 TABINIT.wlan=function(){if(location.search.indexOf('tab=wlan')>=0)scanWifi();};
 TABINIT.status=function(){if(window.langList)langList();};
+TABINIT.sicherung=function(){bkFilesInfo();};
 TABINIT.log=function(){if(window.logInit)logInit();};
 function tabInit(k,p){p.querySelectorAll('.codehost').forEach(function(c){c.textContent=c.textContent.replace(/@HOST@/g,location.host);});if(TABINIT[k])TABINIT[k]();pollPlay();}
 function tabLoad(k){var p=document.querySelector('.panel-'+k);if(!p||p.getAttribute('data-lazy')!=='1')return;p.setAttribute('data-lazy','0');
@@ -1377,6 +1448,7 @@ void sendPanelBody(const String& k) {
     else if (k == "zeit") sendChunk(panelTime());
     else if (k == "status") sendChunk(panelStatus());
     else if (k == "log") sendChunk(panelLog());
+    else if (k == "sicherung") sendChunk(panelBackup());
     else if (k == "doku") {
         String doc = panelDoc();
         int wv = doc.indexOf("<!--WIRING_VIEW-->");
@@ -1842,10 +1914,18 @@ void handleFavoritesImport() {
     webserver.send(200, "text/plain", "OK|" + String(n) + " Favoriten geladen.");
 }
 
+bool isPrivateClient();
+
 void handleExport() {
-    String t = "# " PROJECT_NAME " settings export (WiFi passwords, MQTT password and API key omitted)\n";
+    bool withWifi = flagOn(webserver.arg("wifi")) && isPrivateClient();
+    String t = "# " PROJECT_NAME " settings export (";
+    t += withWifi ? "with WiFi passwords" : "WiFi passwords omitted";
+    t += ", MQTT password and API key omitted)\n";
     t += "host=" + cfg.host + "\n";
-    for (int i = 0; i < 3; i++) t += "ssid" + String(i + 1) + "=" + cfg.ssid[i] + "\n";
+    for (int i = 0; i < 3; i++) {
+        t += "ssid" + String(i + 1) + "=" + cfg.ssid[i] + "\n";
+        if (withWifi) t += "pass" + String(i + 1) + "=" + cfg.pass[i] + "\n";
+    }
     for (int i = 0; i < 5; i++) t += "ntp" + String(i + 1) + "=" + cfg.ntp[i] + "\n";
     t += "tz=" + cfg.tz + "\n";
     t += "vlang=" + cfg.vlang + "\nvvoice=" + cfg.vvoice + "\nvfmt=" + cfg.vfmt + "\nvrate=" + String(cfg.vrate) + "\nttsc=" + String(cfg.ttsCache ? 1 : 0) + "\nfxmode=" + String(cfg.fxMode) + "\nfxwet=" + String(cfg.fxWet) + "\nfxann=" + String(cfg.fxAnn ? 1 : 0) + "\neqb=" + String(cfg.eqBass) + "\neqt=" + String(cfg.eqTreble) + "\n";
@@ -1909,6 +1989,15 @@ void handleImport() {
             cfg.pass[i] = (v == oldSsid[i]) ? oldPass[i] : "";
             prefs.putString(k.c_str(), v);
             prefs.putString(("pass" + String(i + 1)).c_str(), cfg.pass[i]);
+        } else if (k == "pass1" || k == "pass2" || k == "pass3") {
+
+            // Passwoerter nur aus dem lokalen Netz; sie stehen in der Sicherung hinter dem Netznamen.
+            // Passwords only from the local network; in the backup they follow the network name.
+
+            if (!isPrivateClient()) continue;
+            int i = k.substring(4).toInt() - 1;
+            cfg.pass[i] = v;
+            prefs.putString(k.c_str(), v);
         } else if (k.length() == 4 && k.startsWith("ntp") && k[3] >= '1' && k[3] <= '5') {
             int i = k[3] - '1';
             cfg.ntp[i] = (i == 0 && v.isEmpty()) ? String("pool.ntp.org") : v;
@@ -1944,9 +2033,9 @@ void handleImport() {
             int pin = v.toInt();
             if (!pinAllowed(pin)) continue;
             int* target = k == "sdcs" ? &cfg.sdCs : (k == "sdsck" ? &cfg.sdSck : (k == "sdmosi" ? &cfg.sdMosi : &cfg.sdMiso));
+            if (*target != pin) needRestart = true;
             *target = pin;
             prefs.putInt(k.c_str(), pin);
-            needRestart = true;
         } else if (k == "vramp") { cfg.volRampMs = constrain(v.toInt(), 0, VOLUME_RAMP_MAX_MS); prefs.putInt("vramp", cfg.volRampMs);
         } else if (k == "mix") { cfg.mixAnn = v.toInt() != 0; prefs.putBool("mix", cfg.mixAnn);
         } else if (k == "loud") { cfg.loudNorm = v.toInt() != 0; prefs.putBool("loud", cfg.loudNorm);
@@ -1989,7 +2078,7 @@ void handleImport() {
     wifiRetryNow();
     publishStations();
     logLine("[WEB] settings imported: " + String(count) + " values");
-    webserver.send(200, "text/plain", "OK|" + String(count) + " Werte \xC3\xBCbernommen." + (needRestart ? " Neustart n\xC3\xB6tig (Hostname oder Pins)." : ""));
+    webserver.send(200, "text/plain", "OK|" + String(count) + " Werte \xC3\xBC" "bernommen." + (needRestart ? " Neustart n\xC3\xB6tig (Hostname oder Pins)." : ""));
 }
 
 // ---------------------------------------------------------------------------
@@ -2238,7 +2327,7 @@ void handleApiLog() {
     sendJson(200, String("{\"enabled\":") + (cfg.logEnabled ? "true" : "false") + "}");
 }
 void handleApiStatus() {
-    String j = "{\"state\":\"" + playStateName() + "\",\"error\":\"" + jsonEscape(lastError) + "\",\"volume\":" + String(cfg.vol) + ",\"playVolume\":" + String(currentVolume) + ",\"muted\":" + (muted ? "true" : "false") + (ttsSaveErrN > 0 ? ",\"saveErr\":\"" + jsonEscape(ttsSaveErr) + "\",\"saveErrN\":" + String(ttsSaveErrN) : String()) + ",\"queue\":" + String(annCount) + ",\"sd\":\"" + sdState + "\",\"sdMounted\":" + (sdReady ? "true" : "false") + ",\"resume\":" + (resumeUrl.length() > 0 ? "true" : "false");
+    String j = "{\"version\":\"" PROJECT_VERSION "\",\"state\":\"" + playStateName() + "\",\"error\":\"" + jsonEscape(lastError) + "\",\"volume\":" + String(cfg.vol) + ",\"playVolume\":" + String(currentVolume) + ",\"muted\":" + (muted ? "true" : "false") + (ttsSaveErrN > 0 ? ",\"saveErr\":\"" + jsonEscape(ttsSaveErr) + "\",\"saveErrN\":" + String(ttsSaveErrN) : String()) + ",\"queue\":" + String(annCount) + ",\"sd\":\"" + sdState + "\",\"sdMounted\":" + (sdReady ? "true" : "false") + ",\"resume\":" + (resumeUrl.length() > 0 ? "true" : "false");
     bool speechOn = (nowKind == "speech" && playState != PS_IDLE) || (mixT[MIX_ANN].inUse && mixT[MIX_ANN].path == TTS_FILE);
     j += ",\"speechSeq\":" + String(speechSeq) + ",\"speechOn\":" + (speechOn ? "true" : "false");
     if (speechOn) j += ",\"speechSrc\":\"" + speechFrom + "\"";
@@ -2533,6 +2622,28 @@ void handleApiRename() {
     }
     logLine("[FILES] renamed " + oldPath + " -> " + newPath);
     sendOk("Umbenannt");
+}
+
+// Liefert eine MP3-Datei aus dem Flash zum Herunterladen (fuer die Sicherung); in Stuecken, der Audio-Puffer wird zwischendurch nachgeladen.
+// Delivers an MP3 file from flash for download (for the backup); in pieces, the audio buffer is refilled in between.
+
+void handleApiFileGet() {
+    String name = cleanFileName(webserver.arg("file"));
+    String path = String(MP3_DIR) + "/" + name;
+    if (name.isEmpty() || !LittleFS.exists(path)) return sendErr(404, "Datei nicht gefunden");
+    File f = LittleFS.open(path, FILE_READ);
+    if (!f) return sendErr(404, "Datei nicht gefunden");
+    webserver.sendHeader("Cache-Control", "no-store");
+    webserver.setContentLength(f.size());
+    webserver.send(200, "audio/mpeg", "");
+    uint8_t buf[1024];
+    while (f.available()) {
+        int n = f.read(buf, sizeof(buf));
+        if (n <= 0) break;
+        webserver.sendContent((const char*)buf, n);
+        audioPump();
+    }
+    f.close();
 }
 
 void handleApiDelete() {
@@ -3341,6 +3452,7 @@ void setupWeb() {
     webserver.on("/api/sddelete", handleApiSdDelete);
     webserver.on("/api/sdrename", handleApiSdRename);
     webserver.on("/api/sdfile", HTTP_GET, handleApiSdFile);
+    webserver.on("/api/fileget", HTTP_GET, handleApiFileGet);
     webserver.on("/api/delete", handleApiDelete);
     webserver.on("/api/rename", handleApiRename);
     webserver.on("/api/scan", HTTP_GET, handleApiScan);

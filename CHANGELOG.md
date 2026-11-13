@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-11-13 - Version 1.6.2
+
+**Deutsch**
+
+- Neu: Tab *Sicherung*: Die Einstellungen (mit Favoriten und Senderliste) lassen sich als Datei sichern und wieder einlesen, wahlweise mit WLAN-Passwörtern (nur aus dem lokalen Netz) und mit den Dateien im Flash (MP3, auch gespeicherte Texte) als ZIP-Datei; die SD-Karte ist nie dabei. Beim Einlesen lassen sich WLAN und Dateien getrennt abwählen. Neue Routen: `GET /export?wifi=1`, `GET /api/fileget?file=…`; `/import` nimmt auch `pass1` bis `pass3`.
+- Neu: Die Statusseite zeigt die Release-Nummer mit Link zum Release (`/api/status` hat `version`).
+- Geändert: Export und Import sind nicht mehr als Symbole in der Statusleiste; sie stehen im Tab *Sicherung*.
+- Behoben: Die Meldung nach dem Einlesen zeigte "Werte þrnommen" statt "übernommen". Ein unveränderter SD-Pin löst keinen Neustart-Hinweis mehr aus.
+
+**English**
+
+- New: *Sicherung* (backup) tab: the settings (with favorites and station list) can be saved to a file and read in again, optionally with WiFi passwords (only from the local network) and with the files in flash (MP3, including saved texts) as a ZIP file; the SD card is never included. When restoring, WiFi and files can be deselected separately. New routes: `GET /export?wifi=1`, `GET /api/fileget?file=…`; `/import` also accepts `pass1` to `pass3`.
+- New: the status page shows the release number with a link to the release (`/api/status` has `version`).
+- Changed: export and import are no longer icons in the status bar; they are in the *Sicherung* tab.
+- Fixed: the message after restoring showed "Werte þrnommen" instead of "übernommen". An unchanged SD pin no longer triggers the restart hint.
+
 ## 2026-11-13 - Version 1.6.1
 
 **Deutsch**

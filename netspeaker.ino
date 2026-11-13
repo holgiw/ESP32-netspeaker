@@ -4594,7 +4594,7 @@ void setup() {
     loadSettings();
     fxApplyCfg();
     loadPinActions();
-    logLine("[BOOT] " PROJECT_TITLE " " + String(FIRMWARE_MARKER + FIRMWARE_MARKER_PREFIX_LEN));
+    logLine("[BOOT] " PROJECT_TITLE " " PROJECT_VERSION " " + String(FIRMWARE_MARKER + FIRMWARE_MARKER_PREFIX_LEN));
     bootCrashes = prefs.getInt("crashes", 0);
     if (isCrashReset()) {
         bootCrashes++;
