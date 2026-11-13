@@ -204,7 +204,8 @@
 <rect x="40" y="822" width="1420" height="128" rx="8" fill="#ffffff" stroke="#c9d3de"/>
 <text x="64" y="850" font-size="14" font-weight="bold" fill="#1a2129">Hinweise / notes</text>
 <text x="64" y="867" font-size="12.5"  fill="#1a2129">&#8226; Pins 2/3/4 (DIN/BCLK/LRC) und 10/11/12/13 (SD) sind Standard und im Tab Audio &#228;nderbar (Verst&#228;rker wirkt nach Neustart, SD sofort). Das Bild zeigt die Standard-Pins.</text>
-<text x="64" y="884" font-size="12.5"  fill="#1a2129">&#8226; SD (Verst&#228;rker) und GAIN bleiben offen: Mono-Mix L+R, 9 dB. GAIN an GND = 12 dB, an VIN = 6 dB, SD an GND = Verst&#228;rker aus.</text>
-<text x="64" y="901" font-size="12.5"  fill="#1a2129">&#8226; Der ESP32-S3-Zero hat nur einen GND- und einen 3V3-Pin (links oben). GND und 3,3 V f&#252;r den SD-Leser laufen deshalb &#252;ber den ESP hinweg nach rechts (Y-Kabel oder Verteilerleiste).</text>
-<text x="64" y="918" font-size="12.5"  fill="#1a2129">&#8226; Elko direkt an VIN und GND des Verst&#228;rkers l&#246;ten (Plus-Bein an VIN, Minus-Streifen an GND). Leitungen kurz halten (unter 10 cm). Pin-Reihenfolge der Module nach der Beschriftung pr&#252;fen.</text>
+<text x="64" y="884" font-size="12.5"  fill="#1a2129">&#8226; SD-Pin des MAX98357A (Shutdown und Kanalwahl): unter 0,16 V = Verst&#228;rker aus (SD an GND), 0,16&#8211;0,77 V = Mono-Mix L+R, 0,77&#8211;1,4 V = nur rechter Kanal, &#252;ber 1,4 V = nur linker Kanal.</text>
+<text x="64" y="901" font-size="12.5"  fill="#1a2129">&#8226; Adafruit-Modul: SD liegt &#252;ber 1 M&#937; an VIN, offen = Mono-Mix (bei 5 V); ohne diesen Widerstand bleibt der Verst&#228;rker bei offenem SD-Pin aus. GAIN offen = 9 dB, an GND = 12 dB, an VIN = 6 dB.</text>
+<text x="64" y="918" font-size="12.5"  fill="#1a2129">&#8226; Der ESP32-S3-Zero hat nur einen GND- und einen 3V3-Pin (links oben). GND und 3,3 V f&#252;r den SD-Leser laufen deshalb &#252;ber den ESP hinweg nach rechts (Y-Kabel oder Verteilerleiste).</text>
+<text x="64" y="935" font-size="12.5"  fill="#1a2129">&#8226; Elko direkt an VIN und GND des Verst&#228;rkers l&#246;ten (Plus-Bein an VIN, Minus-Streifen an GND). Leitungen kurz halten (unter 10 cm). Pin-Reihenfolge der Module nach der Beschriftung pr&#252;fen.</text>
 </svg>

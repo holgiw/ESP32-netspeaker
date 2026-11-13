@@ -3,9 +3,9 @@
 
 #pragma once
 
-static const char WIRING_SVG[] PROGMEM = R"svg(<svg xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;max-width:960px;display:block;margin:0 auto" viewBox="0 0 960 1080" font-family="Arial,Helvetica,sans-serif">
+static const char WIRING_SVG[] PROGMEM = R"svg(<svg xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;max-width:960px;display:block;margin:0 auto" viewBox="0 0 960 1100" font-family="Arial,Helvetica,sans-serif">
   <title>NetSpeaker - Verkabelung ESP32-S3 / MAX98357A / SD-Karte</title>
-  <rect width="960" height="1080" fill="#ffffff"/>
+  <rect width="960" height="1100" fill="#ffffff"/>
   <text x="480" y="34" text-anchor="middle" font-size="22" font-weight="bold" fill="#1a2129">NetSpeaker - Verkabelung / wiring</text>
 
   <!-- ESP32-S3 -->
@@ -52,7 +52,7 @@ static const char WIRING_SVG[] PROGMEM = R"svg(<svg xmlns="http://www.w3.org/200
     <circle cx="610" cy="186" r="6"/><circle cx="610" cy="236" r="6"/><circle cx="610" cy="286" r="6"/><circle cx="610" cy="336" r="6"/><circle cx="610" cy="386" r="6"/>
   </g>
   <g font-size="12" fill="#5b6773">
-    <text x="830" y="190" text-anchor="end">SD: offen (Mono-Mix)</text>
+    <text x="830" y="190" text-anchor="end">SD: offen (siehe Hinweise)</text>
     <text x="830" y="210" text-anchor="end">GAIN: offen (9 dB)</text>
   </g>
 
@@ -125,11 +125,12 @@ static const char WIRING_SVG[] PROGMEM = R"svg(<svg xmlns="http://www.w3.org/200
   <g font-size="13" fill="#1a2129">
     <text x="40" y="912" font-weight="bold">Hinweise / notes</text>
     <text x="40" y="934">&#8226; Pins 2/3/4 (DIN/BCLK/LRC) sind Standard, im Tab Audio &#228;nderbar (wirkt nach Neustart).</text>
-    <text x="40" y="954">&#8226; SD gegen GND = Verst&#228;rker aus. SD offen = Mono-Mix L+R.</text>
+    <text x="40" y="954">&#8226; SD-Pin: unter 0,16 V = Verst&#228;rker aus (SD an GND), 0,16&#8211;0,77 V = Mono-Mix L+R, 0,77&#8211;1,4 V = rechter, &#252;ber 1,4 V = linker Kanal.</text>
     <text x="40" y="974">&#8226; GAIN: offen 9 dB, an GND 12 dB, an VIN 6 dB.</text>
-    <text x="40" y="994">&#8226; Gemeinsame Masse zwischen ESP und Verst&#228;rker ist Pflicht.</text>
-    <text x="40" y="1014">&#8226; SD-Karte: Pins 10/11/12/13 (MISO/CLK/MOSI/CS) sind Standard, im Tab Audio &#228;nderbar (wirkt sofort).</text>
-    <text x="40" y="1034">&#8226; SD-Modul mit 3,3 V betreiben (kein Pegelwandler), Leitungen unter 10 cm, Karte als FAT32 (SD bis 2 GB, SDHC bis 32 GB).</text>
-    <text x="40" y="1054">&#8226; Ohne Karte l&#228;uft alles andere unver&#228;ndert. Verst&#228;rker (5 V) und SD-Modul (3,3 V) teilen sich die Masse (GND) des ESP.</text>
+    <text x="40" y="994">&#8226; Adafruit-Modul: SD &#252;ber 1 M&#937; an VIN (offen = Mono-Mix); ohne Widerstand bleibt der Verst&#228;rker bei offenem SD aus.</text>
+    <text x="40" y="1014">&#8226; Gemeinsame Masse zwischen ESP und Verst&#228;rker ist Pflicht.</text>
+    <text x="40" y="1034">&#8226; SD-Karte: Pins 10/11/12/13 (MISO/CLK/MOSI/CS) sind Standard, im Tab Audio &#228;nderbar (wirkt sofort).</text>
+    <text x="40" y="1054">&#8226; SD-Modul mit 3,3 V betreiben (kein Pegelwandler), Leitungen unter 10 cm, Karte als FAT32 (SD bis 2 GB, SDHC bis 32 GB).</text>
+    <text x="40" y="1074">&#8226; Ohne Karte l&#228;uft alles andere unver&#228;ndert. Verst&#228;rker (5 V) und SD-Modul (3,3 V) teilen sich die Masse (GND) des ESP.</text>
   </g>
 </svg>)svg";
