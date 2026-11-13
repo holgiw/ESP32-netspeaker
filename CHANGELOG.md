@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-13 - Version 1.6.1
+
+**Deutsch**
+
+- Neu: Die grüne Leiste zeigt bei einer Ansage, woher der Text kommt: `♪ Ansage (VoiceRSS)`, `(gespeichert auf SD-Karte)`, `(gespeichert im Flash)` oder `(Zwischenspeicher)`. Das gilt auch, wenn die Ansage über ein Radio gemischt wird. Der Status liefert dazu `speechOn`, `speechSrc` und `speechSeq`.
+- Geändert: Der Haken *Text speichern* im Tab *Sprechen* verschwindet erst nach der Ansage, nicht schon beim Absenden.
+
+**English**
+
+- New: the green bar shows where the text of an announcement comes from: `♪ Ansage (VoiceRSS)`, `(gespeichert auf SD-Karte)` (saved on SD card), `(gespeichert im Flash)` (saved in flash) or `(Zwischenspeicher)` (cache). This also applies when the announcement is mixed over a radio. The status provides `speechOn`, `speechSrc` and `speechSeq` for this.
+- Changed: the checkbox *Text speichern* in the *Sprechen* tab is cleared only after the announcement, not when it is submitted.
+
 ## 2026-11-13 - Version 1.6.0
 
 **Deutsch**

@@ -180,6 +180,12 @@ struct FxParams {
 FxEngine annFx;
 volatile bool annOwn = false;
 
+// Herkunft der zuletzt gesprochenen Ansage (voicerss, sd, flash, cache) und Zaehler, der bei jeder Ansage steigt; die Statusanzeige nutzt beides.
+// Source of the announcement spoken last (voicerss, sd, flash, cache) and a counter that rises with every announcement; the status display uses both.
+
+String speechFrom;
+volatile uint32_t speechSeq = 0;
+
 // Meldung, wenn ein Text nicht gespeichert werden konnte; die Seite zeigt sie als roten Hinweis (Zaehler zaehlt jede neue Meldung).
 // Message when a text could not be saved; the page shows it as a red banner (the counter counts every new message).
 
@@ -2102,6 +2108,8 @@ static bool fetchSpeech(const Pending& p, String& err) {
     } else if (!got) {
         ttsCacheStore(p);
     }
+    speechFrom = got ? (loc.kind == 1 ? "sd" : (loc.kind == 2 ? "flash" : "cache")) : "voicerss";
+    speechSeq++;
     if (useOwn) {
         annFx.mode = own.mode;
         annFx.wet = own.wet;

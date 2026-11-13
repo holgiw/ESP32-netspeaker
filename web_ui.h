@@ -1020,7 +1020,12 @@ function ttsInfo(){fetch('/api/ttscache',{cache:'no-store'}).then(function(r){re
 function ttsClear(){if(!confirm('Alle zwischengespeicherten Ansagen von der SD-Karte l\u00f6schen?'))return;postApi('/api/ttscache',{clear:1},'ttsResult').then(ttsInfo);}
 function voiceTest(){var l=document.getElementById('cfgLang').value||DEF_LANG,v=document.getElementById('cfgVoice').value,r=document.querySelector("input[name='vrate']").value;if(v==='__custom__')v='';postApi('/api/say',{text:VOICE_TEXT[l]||VOICE_TEXT['en-gb'],lang:l,voice:v,rate:r},'voiceTestResult');}
 function fxSend(){var g=function(i){return document.getElementById(i);};postApi('/api/effect',{mode:g('fxMode').value,wet:g('fxWet').value,ann:g('fxAnn').checked?1:0,bass:g('eqBass').value,treble:g('eqTreble').value},'fxResult');}
-function sayNow(){var sv=document.getElementById('saySave');postApi('/api/say',{text:document.getElementById('sayText').value,lang:document.getElementById('sayLang').value,voice:document.getElementById('sayVoice').value,save:sv&&sv.checked?1:0},'sayResult').then(function(j){if(j&&j.ok&&sv)sv.checked=false;});}
+function sayNow(){var sv=document.getElementById('saySave');var want=sv&&sv.checked;postApi('/api/say',{text:document.getElementById('sayText').value,lang:document.getElementById('sayLang').value,voice:document.getElementById('sayVoice').value,save:want?1:0},'sayResult').then(function(j){if(j&&j.ok&&want)saveWait();});}
+function saveWait(){var seq0=SAYSEQ,t0=Date.now(),off=0,started=false,tm=setInterval(function(){if(Date.now()-t0>90000){clearInterval(tm);return;}
+  fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    if(j.speechSeq>seq0)started=true;
+    if(started&&!j.speechOn&&j.source!=='speech'){off++;if(off>=2){clearInterval(tm);var sv=document.getElementById('saySave');if(sv)sv.checked=false;}}else off=0;
+  }).catch(function(){});},500);}
 function clearLog(){if(!confirm('Log l\u00f6schen?'))return;postApi('/api/log',{clear:'1'},'logResult').then(function(){var p=document.getElementById('logContent');if(p)p.textContent='';});}
 function copyText(t,btn){
   function done(ok){if(btn){var o=btn.getAttribute('data-o')||btn.textContent;btn.setAttribute('data-o',o);btn.textContent=ok?'Kopiert':'Fehler';setTimeout(function(){btn.textContent=o;},1500);}}
@@ -1132,9 +1137,11 @@ setInterval(barTick,250);
 var SAVEN=0;try{SAVEN=+sessionStorage.getItem('saveN')||0;}catch(e){}
 function saveBannerShow(t,n){var b=document.getElementById('saveBanner');if(!b||!t||!n||n<=SAVEN)return;document.getElementById('saveBannerText').textContent=t;b.style.display='block';b.setAttribute('data-n',n);}
 function saveBannerClose(){var b=document.getElementById('saveBanner');if(!b)return;SAVEN=+b.getAttribute('data-n')||SAVEN;try{sessionStorage.setItem('saveN',String(SAVEN));}catch(e){}b.style.display='none';}
+var SPSRC={voicerss:'VoiceRSS',sd:'gespeichert auf SD-Karte',flash:'gespeichert im Flash',cache:'Zwischenspeicher'},SAYSEQ=0;
 function pollPlay(){if(document.hidden)return;fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
   if(j.muted!==undefined)muteShow(!!j.muted);
   saveBannerShow(j.saveErr,j.saveErrN);
+  if(j.speechSeq!==undefined)SAYSEQ=j.speechSeq;
   window.NOWURL=(j.source==='radio'&&j.state==='playing')?(j.url||''):'';if(window.favMarkNow)favMarkNow();
   var el=document.getElementById('playState');if(el)el.textContent='Zustand: '+j.state+(j.error?' ('+j.error+')':'');
   var vs=document.querySelector('.volrange'),ae=document.activeElement;if(vs&&!(ae&&ae.className==='volrange')&&j.volume!==undefined&&+vs.value!==j.volume){volShow(j.volume);}
@@ -1142,6 +1149,7 @@ function pollPlay(){if(document.hidden)return;fetch('/api/status',{cache:'no-sto
     if(j.source==='radio'){t='\u266a Webradio: '+(j.name||j.url)+(j.title?' \u2013 '+j.title:'');}
     else if(j.source==='file'){t='\u266a Datei: '+j.name;}
     else if(j.source==='speech'){t='\u266a Ansage';}
+    if(j.speechOn||j.source==='speech'){t='\u266a Ansage'+(SPSRC[j.speechSrc]?' ('+SPSRC[j.speechSrc]+')':'');}
     document.querySelectorAll('.nowplaying').forEach(function(np){np.textContent=t;np.title=j.url||'';
       var row=np.parentNode,bar=row.nextSibling&&row.nextSibling.className==='nowbar'?row.nextSibling:null;
       if(!bar){bar=document.createElement('div');bar.className='nowbar';bar.style.cssText='height:6px;margin:2px auto 8px;max-width:100%;background:#3a4147;border-radius:3px;overflow:hidden';bar.innerHTML='<div style="height:100%;width:0;background:var(--ok)"></div>';row.parentNode.insertBefore(bar,row.nextSibling);}
@@ -2231,6 +2239,9 @@ void handleApiLog() {
 }
 void handleApiStatus() {
     String j = "{\"state\":\"" + playStateName() + "\",\"error\":\"" + jsonEscape(lastError) + "\",\"volume\":" + String(cfg.vol) + ",\"playVolume\":" + String(currentVolume) + ",\"muted\":" + (muted ? "true" : "false") + (ttsSaveErrN > 0 ? ",\"saveErr\":\"" + jsonEscape(ttsSaveErr) + "\",\"saveErrN\":" + String(ttsSaveErrN) : String()) + ",\"queue\":" + String(annCount) + ",\"sd\":\"" + sdState + "\",\"sdMounted\":" + (sdReady ? "true" : "false") + ",\"resume\":" + (resumeUrl.length() > 0 ? "true" : "false");
+    bool speechOn = (nowKind == "speech" && playState != PS_IDLE) || (mixT[MIX_ANN].inUse && mixT[MIX_ANN].path == TTS_FILE);
+    j += ",\"speechSeq\":" + String(speechSeq) + ",\"speechOn\":" + (speechOn ? "true" : "false");
+    if (speechOn) j += ",\"speechSrc\":\"" + speechFrom + "\"";
     bool idleNow = playState == PS_IDLE || nowKind.isEmpty();
     j += ",\"source\":\"" + String(idleNow ? "" : nowKind.c_str()) + "\",\"name\":\"" + jsonEscape(idleNow ? String() : (nowKind == "radio" ? stationDisplayName() : (nowKind == "file" ? nowFile : String()))) + "\",\"title\":\"" + jsonEscape(nowKind == "radio" && !idleNow ? nowTitle : String()) + "\",\"url\":\"" + jsonEscape(nowKind == "radio" && !idleNow ? streamUrl : String()) + "\"";
     if (!idleNow && nowKind == "file" && playState == PS_PLAYING && audio) j += ",\"pos\":" + String(audio->getAudioCurrentTime()) + ",\"dur\":" + String(audio->getAudioFileDuration());
