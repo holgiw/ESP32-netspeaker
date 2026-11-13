@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-13 - Version 1.6.5
+
+**Deutsch**
+
+- Behoben: Endet die erste von zwei gleichzeitig laufenden Dateien früher, spielt die zweite bis zu ihrem Ende weiter (bisher wurde sie mit abgebrochen). Dabei läuft sie lückenlos weiter: die Audio-Bibliothek hält die Ausgabe nach dem Ende der ersten Datei mit Stille offen, bis die zweite fertig ist.
+
+**English**
+
+- Fixed: if the first of two files playing together ends earlier, the second one keeps playing to its end (before it was cut off). It continues without a gap: after the end of the first file the audio library keeps the output open with silence until the second one is finished.
+
 ## 2026-11-13 - Version 1.6.4
 
 **Deutsch**

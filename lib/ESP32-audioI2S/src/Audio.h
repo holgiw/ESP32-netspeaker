@@ -639,6 +639,7 @@ class Audio {
     uint8_t        m_prebufSec = 0;                   // prebuffer in seconds (0 = one frame block)
     bool           m_f_decode_ready = false;          // if true data for decode are ready
     bool           m_f_eof = false;                   // end of file
+    bool           m_f_holdSilence = false;           // after the end of a file: keep the output running with silence (the user hook mixes into it)
     bool           m_f_lockInBuffer = false;          // lock inBuffer for manipulation
     bool           m_f_audioTaskIsDecoding = false;   //
     bool           m_f_acceptRanges = false;          //

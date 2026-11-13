@@ -43,6 +43,11 @@ StackType_t __attribute__((unused))  xAudioStack[AUDIO_STACK_SIZE];
 __attribute__((weak)) void audio_process_i2s(int32_t* outBuff, int16_t validSamples, bool* continueI2S) {
     // Default: do nothing. User can provide their own implementation to process audio data.
 }
+// Wird am Dateiende gefragt: true = Ausgabe mit Stille weiterlaufen lassen (der Aufrufer beendet sie selbst mit stopSong()).
+// Asked at the end of a file: true = keep the output running with silence (the caller ends it itself with stopSong()).
+__attribute__((weak)) bool audio_hold_after_eof() {
+    return false;
+}
 __attribute__((weak)) void audio_process_raw_samples(int32_t* outBuff, int16_t validSamples) {
     // Default: do nothing. User can provide their own implementation to process audio data.
 }
@@ -848,6 +853,7 @@ void Audio::setDefaults() {
     m_f_stream = false;
     m_f_decode_ready = false;
     m_f_eof = false;
+    m_f_holdSilence = false;
     m_f_ID3v1TagFound = false;
     m_f_lockInBuffer = false;
     m_f_acceptRanges = false;
@@ -4657,6 +4663,8 @@ void Audio::processLocalFile() {
 
     // end of file reached? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     if (m_f_eof) { // m_f_eof and m_f_ID3v1TagFound will be set in playAudioData()
+        if (!m_f_holdSilence && audio_hold_after_eof()) m_f_holdSilence = true;
+        if (m_f_holdSilence) return;
         if (m_f_ID3v1TagFound) readID3V1Tag();
     exit:
         ps_ptr<char> afn;                                // audio file name
@@ -5163,6 +5171,17 @@ void Audio::processWebStreamHLS() {
 // —————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
 void Audio::playAudioData() {
 
+    if (m_f_holdSilence) { // end of file reached, output continues with silence
+        if (SamplesBuff.bufferFilled()) { playChunk(); }
+        if (m_validSamples) {
+            cacheSamples();
+            return;
+        }
+        memset(m_outBuff.get(), 0, 576 * 2 * sizeof(int32_t));
+        m_validSamples = 576;
+        cacheSamples();
+        return;
+    }
     if (m_f_eof || m_f_lockInBuffer || !m_f_stream) {
         vTaskDelay(1);
         return;

@@ -140,6 +140,7 @@ struct MixTrack {
     int32_t baseGainQ15 = 0;
     String path;
     bool onSd = false;
+    int vol = 0;
     volatile bool muteIt = false;
     volatile uint32_t underFrames = 0;   // Frames ohne Daten (Aussetzer) / frames without data (dropouts)
     volatile uint32_t maxDecUs = 0;      // laengste Dekodierzeit eines Frames / longest decode time of a frame
@@ -273,6 +274,7 @@ void annClear() {
     dirSess.names.clear();
 }
 volatile PlayState playState = PS_IDLE;
+volatile bool silenceCarrier = false;   // Ausgabe laeuft mit Stille weiter, solange die zweite Datei allein spielt / output keeps running with silence while the second file plays alone
 String lastError;
 unsigned long playStartMillis = 0;
 bool voiceBusy = false;
@@ -931,6 +933,7 @@ void settleVolume() {
 }
 
 void setIdle() {
+    silenceCarrier = false;
     mixStopAll();
     titleBoostEnd();
     streamWaitingReady = false;
@@ -942,6 +945,7 @@ void setIdle() {
 }
 
 void stopPlayback() {
+    silenceCarrier = false;
     mixStopAll();
     titleBoostEnd();
     if (audio) audio->stopSong();
@@ -2695,6 +2699,7 @@ bool mixStart(int t, const String& path, int vol, bool sd = false, bool duckLaye
     m.inUse = true;
     m.path = path;
     m.onSd = sd;
+    m.vol = vol;
 
     // Stumm gilt fuer Text-Ansagen und SD-Dateien, nicht fuer MP3 aus dem Flash.
     // Mute applies to text announcements and SD files, not to MP3 from the flash.
@@ -3270,7 +3275,26 @@ void processPending() {
 // Meldet das Ende einer Wiedergabe, auch wenn die Audio-Bibliothek keinen Rueckruf liefert.
 // Detects the end of a playback even if the audio library gives no callback.
 
+// Ist die zweite Datei fertig, wird die offen gehaltene Ausgabe beendet; holdName/holdAnnounce siehe audio_hold_after_eof().
+// When the second file is finished, the output kept open is ended; see audio_hold_after_eof() for holdName/holdAnnounce.
+
+extern String holdName;
+extern volatile bool holdAnnounce;
+
 void playbackWatch() {
+    if (holdAnnounce) {
+        holdAnnounce = false;
+        nowFile = holdName;
+        logLine("[MIX] first file ended, second file continues alone: " + holdName);
+        publishStatus(true);
+    }
+    if (silenceCarrier && !mixT[MIX_ANN].inUse) {
+        silenceCarrier = false;
+        logLine("[MIX] second file finished");
+        if (audio) audio->stopSong();
+        setIdle();
+        return;
+    }
     if (playState == PS_PLAYING && millis() - playStartMillis > 1500 && audio && !audio->isRunning()) {
         logLine("[PLAY] finished");
         setIdle();
@@ -3429,9 +3453,27 @@ void onAudioEvent(Audio::msg_t m) {
     xQueueSend(audioEvtQueue, &e, 0);
 }
 
+// Wird von der Audio-Bibliothek am Ende der Hauptdatei gefragt: laeuft noch eine zweite Datei, bleibt die Ausgabe mit Stille offen und der Mischer spielt sie zu Ende.
+// Asked by the audio library at the end of the main file: if a second file is still playing, the output stays open with silence and the mixer plays it to its end.
+
+String holdName;
+volatile bool holdAnnounce = false;
+
+bool audio_hold_after_eof() {
+    MixTrack& m = mixT[MIX_ANN];
+    if (nowKind == "file" && !streamActive && !silenceCarrier && m.inUse && m.active && !m.producerDone && m.path != TTS_FILE) {
+        holdName = (m.onSd ? "sd:" : "") + m.path;
+        holdAnnounce = true;
+        silenceCarrier = true;
+        return true;
+    }
+    return false;
+}
+
 void handleAudioEvent(uint8_t type, const String& text) {
     if (type == (uint8_t)Audio::evt_eof) {
         logLine("[AUDIO] end: " + text);
+        silenceCarrier = false;
         setIdle();
     } else if (type == (uint8_t)Audio::evt_name) {
         nowName = text;
@@ -4764,6 +4806,7 @@ void setup() {
     audioEvtQueue = xQueueCreate(AUDIO_EVT_QUEUE_LEN, sizeof(AudioEvt));
     fsReady = LittleFS.begin(true);
     if (fsReady) LittleFS.mkdir(MP3_DIR);
+    if (fsReady) LittleFS.remove("/_silence.mp3");   // Rest einer fruehen Testfassung / leftover of an early test version
     loadSettings();
     fxApplyCfg();
     loadPinActions();
