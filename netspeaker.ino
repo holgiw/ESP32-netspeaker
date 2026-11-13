@@ -156,6 +156,7 @@ struct Pending {
     bool resume = false;
     bool force = false;
     bool save = false;
+    bool noFx = false;   // Ansage ohne Klangeffekt / announcement without sound effect
 };
 
 // Fundort einer Sprachdatei (steht hier oben, damit die automatischen Funktionsdeklarationen den Typ kennen).
@@ -178,7 +179,6 @@ struct FxParams {
 };
 
 FxEngine annFx;
-volatile bool annOwn = false;
 
 // Herkunft der zuletzt gesprochenen Ansage (voicerss, sd, flash, cache) und Zaehler, der bei jeder Ansage steigt; die Statusanzeige nutzt beides.
 // Source of the announcement spoken last (voicerss, sd, flash, cache) and a counter that rises with every announcement; the status display uses both.
@@ -517,7 +517,7 @@ void loadPinActions() {
     }
 }
 
-String commandSay(const String& textIn, const String& lang, const String& voice, int rate, int vol, bool save = false);
+String commandSay(const String& textIn, const String& lang, const String& voice, int rate, int vol, bool save = false, bool useFx = true);
 String commandPlayFile(const String& nameIn, int vol, bool shuffle, bool loop);
 String commandPlayUrl(const String& urlIn, int vol);
 String commandPlayStation(const String& selIn, int vol);
@@ -1794,12 +1794,26 @@ static void ttsSaveFail(const String& de, const String& logEn) {
     logLine("[VOICERSS] " + logEn);
 }
 
-// Die Effektwerte, die ein jetzt gespeicherter Text bekommt: die aktuellen Einstellungen, ohne Effekt wenn Ansagen davon ausgenommen sind.
-// The effect values a text saved now gets: the current settings, without effect if announcements are excluded.
+// Die Effektwerte, die ein jetzt gespeicherter Text bekommt: die aktuellen Einstellungen, ohne Effekt bei fx=0.
+// The effect values a text saved now gets: the current settings, without effect for fx=0.
 
-static FxParams ttsFxCurrent() {
-    if (!cfg.fxAnn) return FxParams{0, 0, 0, 0};
+static FxParams fxGlobalParams() {
     return FxParams{cfg.fxMode, cfg.fxWet, cfg.eqBass, cfg.eqTreble};
+}
+
+static FxParams ttsFxCurrent(const Pending& p) {
+    return p.noFx ? FxParams{0, 0, 0, 0} : fxGlobalParams();
+}
+
+// Stellt die Effekt-Instanz der Ansagen auf die Werte der naechsten Ansage ein.
+// Sets the effect instance of the announcements to the values of the next announcement.
+
+static void annSetParams(const FxParams& f) {
+    annFx.mode = f.mode;
+    annFx.wet = f.wet;
+    annFx.bass = f.bass;
+    annFx.treble = f.treble;
+    annFx.flush();
 }
 
 static bool ttsCacheOn() {
@@ -2063,15 +2077,10 @@ int ttsCacheInfo(uint32_t& bytes, bool clear) {
 // With p.save the text is then saved permanently, otherwise (cache on) stored in the cache.
 
 static bool fetchSpeech(const Pending& p, String& err) {
-    annOwn = false;
     TtsLoc loc = ttsLocate(p);
     bool got = loc.kind != 0 && ttsRestore(loc);
-    FxParams own{0, 0, 0, 0};
-    bool useOwn = false;
-    if (got && loc.kind <= 2) {
-        own = ttsFxParse(loc.suffix);
-        useOwn = true;
-    }
+    FxParams use = fxGlobalParams();
+    if (got && loc.kind <= 2) use = ttsFxParse(loc.suffix);
     if (!got) {
         if (cfg.vkey.isEmpty()) {
             err = "VoiceRSS API key is not set";
@@ -2088,7 +2097,7 @@ static bool fetchSpeech(const Pending& p, String& err) {
         // Neu speichern, wenn der Text noch nicht gespeichert ist oder mit anderen Effektwerten gespeichert war; die alte Datei entfaellt.
         // Save again if the text is not saved yet or was saved with other effect values; the old file is removed.
 
-        FxParams cur = ttsFxCurrent();
+        FxParams cur = ttsFxCurrent(p);
         String curSuffix = ttsFxSuffix(cur);
         if (!(got && loc.kind <= 2 && loc.suffix == curSuffix)) {
             ttsSaveText(p, cur);
@@ -2103,21 +2112,18 @@ static bool fetchSpeech(const Pending& p, String& err) {
                 }
             }
         }
-        own = cur;
-        useOwn = true;
+        use = cur;
     } else if (!got) {
         ttsCacheStore(p);
     }
+
+    // fx=0: die Ansage laeuft ohne Effekt, auch wenn der Text mit Effekt gespeichert ist.
+    // fx=0: the announcement plays without effect, even if the text is saved with an effect.
+
+    if (p.noFx) use = FxParams{0, 0, 0, 0};
     speechFrom = got ? (loc.kind == 1 ? "sd" : (loc.kind == 2 ? "flash" : "cache")) : "voicerss";
     speechSeq++;
-    if (useOwn) {
-        annFx.mode = own.mode;
-        annFx.wet = own.wet;
-        annFx.bass = own.bass;
-        annFx.treble = own.treble;
-        annFx.flush();
-        annOwn = true;
-    }
+    annSetParams(use);
     return true;
 }
 
@@ -2308,14 +2314,13 @@ uint32_t nvsFreeEntries() {
 
 volatile bool muteMain = true;
 
-// Klangeffekte (Hall, Echo, Klangregler): eine Instanz fuer den ganzen Ausgang. Mit "Auch auf Ansagen" liegt sie hinter allen Spuren, sonst vor der
-// Ansagenspur; Sprache im Hauptstrom (ohne Radio) bleibt dann unbearbeitet.
-// Sound effects (reverb, echo, tone control): one instance for the whole output. With "Also on announcements" it sits behind all tracks, otherwise
-// before the announcement track; speech in the main stream (without radio) then stays unprocessed.
+// Klangeffekte (Hall, Echo, Klangregler): Webradio bleibt immer ohne Effekt. Der Effekt wirkt auf Ansagen (eigene Instanz annFx, mit den Werten der
+// Ansage) und auf Dateien, die im Hauptstrom laufen (Instanz fx, allgemeine Werte).
+// Sound effects (reverb, echo, tone control): web radio always stays without effect. The effect acts on announcements (own instance annFx, with the values
+// of the announcement) and on files playing in the main stream (instance fx, general values).
 
 FxEngine fx;
-volatile bool fxOnAnn = true;
-volatile bool fxMainOk = true;
+volatile bool fxFileMain = false;
 volatile bool fxSpeechMain = false;
 int32_t* fxTmp = nullptr;
 #define FX_TMP_WORDS 8192
@@ -2325,15 +2330,14 @@ void fxApplyCfg() {
     fx.wet = cfg.fxWet;
     fx.bass = cfg.eqBass;
     fx.treble = cfg.eqTreble;
-    fxOnAnn = cfg.fxAnn;
     fx.resetLoad();
 }
 
 void muteWatch() {
     bool flash = nowKind == "file" && !nowFile.startsWith("sd:");
     muteMain = !flash;
-    fxMainOk = cfg.fxAnn || nowKind != "speech";
     fxSpeechMain = nowKind == "speech";
+    fxFileMain = nowKind == "file";
 
     // Solange eine Flash-MP3 laeuft, wird die Verstaerkung nicht mitgefuehrt: sie springt auf den Zielwert, damit es danach nicht erst ein- oder ausblendet.
     // While a flash MP3 plays the gain is not followed: it jumps to the target so nothing fades in or out afterwards.
@@ -2385,33 +2389,32 @@ void audio_process_i2s(int32_t* buf, int16_t words, bool* continueI2S) {
     if (muteMain) muteApply(buf, words);
     uint32_t sr = audio ? audio->getSampleRate() : 0;
 
-    // Gespeicherter Text mit eigenen Effektwerten: die Ansage bekommt die eigene Effekt-Instanz, der Rest (Radio, Dateien) die allgemeine.
-    // Saved text with its own effect values: the announcement gets the own effect instance, the rest (radio, files) the general one.
+    // Sprache im Hauptstrom bekommt die Ansage-Effekte, eine Datei im Hauptstrom die allgemeinen; Webradio bleibt immer unbearbeitet.
+    // Speech in the main stream gets the announcement effects, a file in the main stream the general ones; web radio is never processed.
 
-    if (annOwn) {
-        if (fxSpeechMain) {
-            annFx.process(buf, words, sr);
+    if (fxSpeechMain) {
+        annFx.process(buf, words, sr);
+        return;
+    }
+    if (fxFileMain) fx.process(buf, words, sr);
+
+    // Gemischte Ansage: eigene Spur, mit den Ansage-Effekten bearbeitet und dann zum Hauptstrom addiert.
+    // Mixed announcement: own track, processed with the announcement effects and then added to the main stream.
+
+    if (annFx.active() && mixT[MIX_ANN].active) {
+        if (!fxTmp) fxTmp = (int32_t*)heap_caps_malloc(FX_TMP_WORDS * sizeof(int32_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (fxTmp && words <= FX_TMP_WORDS) {
+            memset(fxTmp, 0, words * sizeof(int32_t));
+            mixAddTrack(mixT[MIX_ANN], fxTmp, words);
+            annFx.process(fxTmp, words, sr);
+            for (int i = 0; i < words; i++) {
+                int64_t v = (int64_t)buf[i] + fxTmp[i];
+                buf[i] = v > INT32_MAX ? INT32_MAX : (v < INT32_MIN ? INT32_MIN : (int32_t)v);
+            }
             return;
         }
-        if (mixT[MIX_ANN].active) {
-            if (!fxTmp) fxTmp = (int32_t*)heap_caps_malloc(FX_TMP_WORDS * sizeof(int32_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-            if (fxTmp && words <= FX_TMP_WORDS) {
-                fx.process(buf, words, sr);
-                memset(fxTmp, 0, words * sizeof(int32_t));
-                mixAddTrack(mixT[MIX_ANN], fxTmp, words);
-                annFx.process(fxTmp, words, sr);
-                for (int i = 0; i < words; i++) {
-                    int64_t v = (int64_t)buf[i] + fxTmp[i];
-                    buf[i] = v > INT32_MAX ? INT32_MAX : (v < INT32_MIN ? INT32_MIN : (int32_t)v);
-                }
-                return;
-            }
-        }
     }
-    bool all = fxOnAnn;
-    if (!all && fxMainOk) fx.process(buf, words, sr);
     mixAddTrack(mixT[MIX_ANN], buf, words);
-    if (all) fx.process(buf, words, sr);
 }
 
 // Lese-Task: MP3 aus dem Dateisystem lesen, mit dem Dekoder der Bibliothek in PCM wandeln und in den Ringpuffer schreiben.
@@ -2817,7 +2820,7 @@ bool fileMixed(const Pending& p) {
     // Eine Datei der Karte ueber dem Radio liegt auf Spur 0 und wird von einer Ansage abgesenkt; alles andere ist eine Ansage (Spur 1).
     // A file of the card over the radio goes on track 0 and is lowered by an announcement; everything else is an announcement (track 1).
 
-    annOwn = false;
+    annSetParams(fxGlobalParams());
     if (!mixStart((r.sd && streamActive) ? MIX_LAYER : MIX_ANN, r.path, p.vol >= 0 ? p.vol : cfg.vol, r.sd)) return false;
 
     // Laeuft schon eine Datei, bleibt sie die angezeigte; nur ueber einem Radio steht die gemischte Datei in nowFile.
@@ -3577,7 +3580,7 @@ void checkSerialWifi() {
 // Gemeinsame Befehle fuer REST-API und MQTT: pruefen, in die Warteschlange stellen; Rueckgabe leer = angenommen, sonst Fehlertext.
 // Shared commands for the REST API and MQTT: validate, queue; empty return = accepted, otherwise the error text.
 
-String commandSay(const String& textIn, const String& lang, const String& voice, int rate, int vol, bool save) {
+String commandSay(const String& textIn, const String& lang, const String& voice, int rate, int vol, bool save, bool useFx) {
     String text = textIn;
     text.trim();
     if (text.isEmpty()) return "Kein Text angegeben";
@@ -3590,6 +3593,7 @@ String commandSay(const String& textIn, const String& lang, const String& voice,
     q.rate = rate;
     q.vol = vol;
     q.save = save;
+    q.noFx = !useFx;
 
     // Ohne API-Schluessel nur, wenn der Text lokal gespeichert vorliegt.
     // Without an API key only if the text is stored locally.
@@ -3982,7 +3986,7 @@ void onMqttMessage(char* topic, uint8_t* payload, unsigned int length) {
         }
     }
     if (t == base + "/say") {
-        if (isJson) err = commandSay(jsonGet(body, "text"), jsonGet(body, "lang"), jsonGet(body, "voice"), numberOr(jsonGet(body, "rate"), 99), numberOr(jsonGet(body, "vol"), -1), flagOn(jsonGet(body, "save")));
+        if (isJson) err = commandSay(jsonGet(body, "text"), jsonGet(body, "lang"), jsonGet(body, "voice"), numberOr(jsonGet(body, "rate"), 99), numberOr(jsonGet(body, "vol"), -1), flagOn(jsonGet(body, "save")), jsonGet(body, "fx").isEmpty() || flagOn(jsonGet(body, "fx")));
         else err = commandSay(body, "", "", 99, -1);
     } else if (t == base + "/play" || t == base + "/url" || t == base + "/file") {
         String url = body, file = body;

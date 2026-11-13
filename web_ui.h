@@ -258,13 +258,12 @@ String panelSpeak() {
     h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='saySave' style='width:auto;margin:0;'>Text speichern</label> " + infoTip("Speichert die Sprachdatei dieses Textes beim n&auml;chsten Sprechen dauerhaft, bevorzugt auf der SD-Karte (Ordner /ansagen), sonst im Ger&auml;t (Tab MP3 (Flash)). Danach wird der Haken wieder entfernt. Gespeicherte Texte werden bei gleicher Sprache, Stimme und gleichem Tempo gespielt, ohne VoiceRSS zu fragen, auch ohne Internet. Die aktuellen Klangeffekte werden mit gespeichert (im Dateinamen, zum Beispiel _halle40_b3_t-2) und gelten nur f&uuml;r diesen Text, unabh&auml;ngig von den sp&auml;teren Einstellungen") + "</div>";
     h += "<div class='row'><button type='button' onclick='sayNow()' style='width:150px'>Sprechen</button> " + infoTip("Sprechen: sagt den Text jetzt an, ein laufendes Webradio l&auml;uft danach weiter") + "</div>";
     h += "<div id='sayResult'></div><div class='row'><small id='playState'></small></div></div>";
-    h += "<div class='card'><h3>Klangeffekte " + infoTip("Hall, Echo und Klangregler wirken auf den ganzen Ausgang (Webradio, Dateien, Ansagen). &Auml;nderungen gelten sofort und bleiben gespeichert. Der Verst&auml;rker spielt in Mono, der Raumeindruck ist deshalb begrenzt") + "</h3>";
+    h += "<div class='card'><h3>Klangeffekte " + infoTip("Hall, Echo und Klangregler wirken auf Ansagen und abgespielte Dateien, nie auf Webradio. &Auml;nderungen gelten sofort und bleiben gespeichert. Der Verst&auml;rker spielt in Mono, der Raumeindruck ist deshalb begrenzt") + "</h3>";
     static const char* const FXN[] = {"Aus", "Zimmer", "Halle", "Kirche", "Echo"};
     h += "<div class='row'>Effekt <select id='fxMode' onchange='fxSend()' style='width:150px'>";
     for (int i = 0; i < 5; i++) h += String("<option value='") + i + "'" + (cfg.fxMode == i ? " selected" : "") + ">" + FXN[i] + "</option>";
     h += "</select> " + infoTip("Zimmer, Halle und Kirche sind Hall mit zunehmender Nachhallzeit; Echo wiederholt den Ton nach etwa 0,35 Sekunden. Aus: kein Effekt") + "</div>";
     h += "<div class='row'>Anteil <input type='range' id='fxWet' min='0' max='100' value='" + String(cfg.fxWet) + "' oninput=\"document.getElementById('fxWetV').textContent=this.value\" onchange='fxSend()' style='width:200px'> <span id='fxWetV'>" + String(cfg.fxWet) + "</span> % " + infoTip("Wie stark der Effekt zum Originalton gemischt wird, 0 bis 100 Prozent") + "</div>";
-    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='fxAnn' onchange='fxSend()'" + String(cfg.fxAnn ? " checked" : "") + " style='width:auto;margin:0;'>Auch auf Ansagen anwenden</label> " + infoTip("Ein: der Effekt wirkt auch auf Ansagen und gesprochenen Text. Aus: Ansagen bleiben ohne Effekt") + "</div>";
     h += "<div class='row'>B&auml;sse <input type='range' id='eqBass' min='-12' max='12' value='" + String(cfg.eqBass) + "' oninput=\"document.getElementById('eqBassV').textContent=this.value\" onchange='fxSend()' style='width:200px'> <span id='eqBassV'>" + String(cfg.eqBass) + "</span> dB " + infoTip("Tiefen unter etwa 200 Hz anheben oder absenken; 0 = unver&auml;ndert") + "</div>";
     h += "<div class='row'>H&ouml;hen <input type='range' id='eqTreble' min='-12' max='12' value='" + String(cfg.eqTreble) + "' oninput=\"document.getElementById('eqTrebleV').textContent=this.value\" onchange='fxSend()' style='width:200px'> <span id='eqTrebleV'>" + String(cfg.eqTreble) + "</span> dB " + infoTip("H&ouml;hen ab etwa 4 kHz anheben oder absenken; 0 = unver&auml;ndert") + "</div>";
     h += "<div id='fxResult'></div></div>";
@@ -504,7 +503,7 @@ String panelMqtt() {
     static const char* const exFavorites[] = {"{\"max\":40,\"favorites\":[{\"n\":1,\"name\":\"BR3\",\"url\":\"https://...\"}]}"};
     static const char* const exVolState[] = {"12"};
     static const char* const exAvail[] = {"online", "offline"};
-    h += mqttRow(base, "/say", true, "Text, der angesagt wird. Oder JSON mit <code>text</code> und optional <code>lang</code>, <code>voice</code>, <code>rate</code>, <code>vol</code>.", exSay, 2);
+    h += mqttRow(base, "/say", true, "Text, der angesagt wird. Oder JSON mit <code>text</code> und optional <code>lang</code>, <code>voice</code>, <code>rate</code>, <code>vol</code>, <code>save</code>, <code>fx</code> (0 = ohne Klangeffekt).", exSay, 2);
     h += mqttRow(base, "/play", true, "URL (Webradio, MP3) <em>oder</em> Dateiname aus dem Tab MP3 (Flash) oder <code>sd:/Pfad.mp3</code> von der SD-Karte. Das Ger&auml;t erkennt selbst, was es ist. JSON: <code>url</code> oder <code>file</code>, optional <code>vol</code>; bei einem Ordner (<code>sd:/Pfad/</code>) auch <code>shuffle</code> (zuf&auml;llige Reihenfolge) und <code>loop</code> (endlos), z. B. <code>{&quot;file&quot;:&quot;sd:/Musik/&quot;,&quot;shuffle&quot;:1,&quot;loop&quot;:1}</code>.", exPlay, 3);
     h += mqttRow(base, "/url", true, "URL (http:// oder https://). JSON: <code>url</code>, optional <code>vol</code>.", exUrl, 1);
     h += mqttRow(base, "/file", true, "Dateiname einer hochgeladenen Datei, <code>sd:/Pfad.mp3</code> oder ein Ordner <code>sd:/Ordner/</code>. JSON: <code>file</code>, optional <code>vol</code>, <code>shuffle</code> und <code>loop</code>.", exFile, 1);
@@ -734,7 +733,7 @@ String panelDoc() {
         h += "<!--WIRING_VIEW-->";
     }
     h += docCard("Text ansagen (VoiceRSS)",
-        "<code>text</code> (Pflicht, h&ouml;chstens 500 Zeichen), optional <code>save</code> (1 = Text dauerhaft speichern, bevorzugt auf der SD-Karte, sonst im Flash), <code>lang</code> (z. B. de-de, en-gb), <code>voice</code> (z. B. Hanna), <code>rate</code> (-10 bis 10), <code>vol</code> (0-100). Ohne Angabe gelten die Werte aus dem Tab VoiceRSS. Der API-Schl&uuml;ssel muss gespeichert sein.",
+        "<code>text</code> (Pflicht, h&ouml;chstens 500 Zeichen), optional <code>save</code> (1 = Text dauerhaft speichern, bevorzugt auf der SD-Karte, sonst im Flash), <code>fx</code> (0 = ohne Klangeffekt, Standard 1), <code>lang</code> (z. B. de-de, en-gb), <code>voice</code> (z. B. Hanna), <code>rate</code> (-10 bis 10), <code>vol</code> (0-100). Ohne Angabe gelten die Werte aus dem Tab VoiceRSS. Der API-Schl&uuml;ssel muss gespeichert sein.",
         R"d(curl -d "text=Hallo Welt" http://@HOST@/api/say
 curl "http://@HOST@/api/say?text=Hallo%20Welt&lang=en-gb&voice=Alice&vol=10"
 curl -H "Content-Type: application/json" -d '{"text":"Hallo Welt","lang":"de-de","voice":"Hanna","rate":0,"vol":12}' http://@HOST@/api/say)d");
@@ -811,7 +810,7 @@ curl -d "fetch=en" http://@HOST@/api/lang
 curl -d "delete=en" http://@HOST@/api/lang
 curl "http://@HOST@/lang.json?l=en")d");
     h += docCard("Klangeffekte",
-        "<code>GET /api/effect</code> liefert <code>mode</code> (off, room, hall, church, echo), <code>wet</code> (0-100), <code>ann</code>, <code>bass</code>, <code>treble</code> (dB) und <code>load</code> (Rechenlast des Effekts in Prozent). <code>POST /api/effect</code> setzt die angegebenen Werte; <code>mode</code> auch als Zahl 0-4 oder auf Deutsch (aus, zimmer, halle, kirche, echo), <code>ann=1</code> wirkt auch auf Ansagen, <code>bass</code> und <code>treble</code> -12 bis 12 dB. Die Werte bleiben gespeichert; im Tab Sprechen einstellbar.",
+        "<code>GET /api/effect</code> liefert <code>mode</code> (off, room, hall, church, echo), <code>wet</code> (0-100), <code>bass</code>, <code>treble</code> (dB) und <code>load</code> (Rechenlast des Effekts in Prozent). <code>POST /api/effect</code> setzt die angegebenen Werte; <code>mode</code> auch als Zahl 0-4 oder auf Deutsch (aus, zimmer, halle, kirche, echo), <code>bass</code> und <code>treble</code> -12 bis 12 dB. Die Effekte wirken auf Ansagen und abgespielte Dateien, nie auf Webradio. Die Werte bleiben gespeichert; im Tab Sprechen einstellbar. Mit <code>fx=0</code> bei <code>/api/say</code> l&auml;uft eine einzelne Ansage ohne Effekt.",
         R"d(curl http://@HOST@/api/effect
 curl -d "mode=hall&wet=35" http://@HOST@/api/effect
 curl -d "bass=4&treble=-2" http://@HOST@/api/effect
@@ -827,7 +826,7 @@ curl --data-binary @netspeaker-settings.txt -H "Content-Type: text/plain" http:/
 curl -o netspeaker-settings.txt http://@HOST@/export
 curl -X POST http://@HOST@/restart)d");
     h += docCard("MQTT",
-        "Basis-Topic <code>" + htmlEsc(base) + "</code> (im Tab MQTT &auml;nderbar). Nutzlast als Text oder als JSON. <code>/say</code>: Text oder <code>{\"text\":\"...\",\"lang\":\"..\",\"voice\":\"..\",\"rate\":0,\"vol\":60}</code>. <code>/play</code>: URL oder Dateiname, auch <code>{\"url\":\"...\"}</code> oder <code>{\"file\":\"...\"}</code>. <code>/url</code> nur URL, <code>/file</code> nur Dateiname, <code>/station</code> Platz 1-30 oder Name (auch JSON <code>{\"n\":3}</code> oder <code>{\"name\":\"..\"}</code>). <code>/stop</code> ohne Nutzlast. <code>/volume</code> 0-100. <code>/restart</code> ohne Nutzlast startet das Ger&auml;t neu (nicht retained senden; eine Nachricht in den ersten 3 s nach dem Verbinden wird ignoriert). "
+        "Basis-Topic <code>" + htmlEsc(base) + "</code> (im Tab MQTT &auml;nderbar). Nutzlast als Text oder als JSON. <code>/say</code>: Text oder <code>{\"text\":\"...\",\"lang\":\"..\",\"voice\":\"..\",\"rate\":0,\"vol\":60,\"fx\":0}</code>. <code>/play</code>: URL oder Dateiname, auch <code>{\"url\":\"...\"}</code> oder <code>{\"file\":\"...\"}</code>. <code>/url</code> nur URL, <code>/file</code> nur Dateiname, <code>/station</code> Platz 1-30 oder Name (auch JSON <code>{\"n\":3}</code> oder <code>{\"name\":\"..\"}</code>). <code>/stop</code> ohne Nutzlast. <code>/volume</code> 0-100. <code>/restart</code> ohne Nutzlast startet das Ger&auml;t neu (nicht retained senden; eine Nachricht in den ersten 3 s nach dem Verbinden wird ignoriert). "
         "Zur&uuml;ck kommen <code>/status</code> (idle, loading, playing, error: ...), <code>/now</code> (was gerade l&auml;uft, zum Beispiel &quot;Sendername - Titel&quot;) und <code>/availability</code> (online, offline). <code>/volume/state</code> (gerade wirkende Lautst&auml;rke) und <code>/volume/general</code> (allgemeine) werden bei jeder &Auml;nderung gesendet. <code>/stations</code> enth&auml;lt die Senderliste (retained, wird nach jeder &Auml;nderung neu gesendet); ein Aufruf von <code>/list</code> sendet sie erneut; ein ung&uuml;ltiger Befehl erscheint in <code>/status</code> als Fehler. Zus&auml;tzliche Gruppen-Topics (bis zu 5, im Tab MQTT) nehmen dieselben Befehle an, zum Beispiel <code>netspeaker/all/stop</code> f&uuml;r alle Ger&auml;te; Standard ist <code>netspeaker/all</code>.",
         "mosquitto_pub -h <broker> -t " + base + "/say -m \"Hallo Welt\"\n"
         "mosquitto_pub -h <broker> -t " + base + "/say -m '{\"text\":\"Hallo\",\"lang\":\"en-gb\",\"vol\":10}'\n"
@@ -1030,7 +1029,7 @@ var VOICE_TEXT={'de-de':'Hallo, das ist ein Test dieser Stimme.','en-gb':'Hello,
 function ttsInfo(){fetch('/api/ttscache',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){var e=document.getElementById('ttsInfo');if(e)e.textContent=j.files+' Dateien, '+Math.round(j.bytes/1024)+' KB';}).catch(function(){});}
 function ttsClear(){if(!confirm('Alle zwischengespeicherten Ansagen von der SD-Karte l\u00f6schen?'))return;postApi('/api/ttscache',{clear:1},'ttsResult').then(ttsInfo);}
 function voiceTest(){var l=document.getElementById('cfgLang').value||DEF_LANG,v=document.getElementById('cfgVoice').value,r=document.querySelector("input[name='vrate']").value;if(v==='__custom__')v='';postApi('/api/say',{text:VOICE_TEXT[l]||VOICE_TEXT['en-gb'],lang:l,voice:v,rate:r},'voiceTestResult');}
-function fxSend(){var g=function(i){return document.getElementById(i);};postApi('/api/effect',{mode:g('fxMode').value,wet:g('fxWet').value,ann:g('fxAnn').checked?1:0,bass:g('eqBass').value,treble:g('eqTreble').value},'fxResult');}
+function fxSend(){var g=function(i){return document.getElementById(i);};postApi('/api/effect',{mode:g('fxMode').value,wet:g('fxWet').value,bass:g('eqBass').value,treble:g('eqTreble').value},'fxResult');}
 var BK=null;
 function bkCrcTable(){var t=[],c,n,k;for(n=0;n<256;n++){c=n;for(k=0;k<8;k++)c=c&1?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c>>>0;}return t;}
 var BKCRC=bkCrcTable();
@@ -1928,7 +1927,7 @@ void handleExport() {
     }
     for (int i = 0; i < 5; i++) t += "ntp" + String(i + 1) + "=" + cfg.ntp[i] + "\n";
     t += "tz=" + cfg.tz + "\n";
-    t += "vlang=" + cfg.vlang + "\nvvoice=" + cfg.vvoice + "\nvfmt=" + cfg.vfmt + "\nvrate=" + String(cfg.vrate) + "\nttsc=" + String(cfg.ttsCache ? 1 : 0) + "\nfxmode=" + String(cfg.fxMode) + "\nfxwet=" + String(cfg.fxWet) + "\nfxann=" + String(cfg.fxAnn ? 1 : 0) + "\neqb=" + String(cfg.eqBass) + "\neqt=" + String(cfg.eqTreble) + "\n";
+    t += "vlang=" + cfg.vlang + "\nvvoice=" + cfg.vvoice + "\nvfmt=" + cfg.vfmt + "\nvrate=" + String(cfg.vrate) + "\nttsc=" + String(cfg.ttsCache ? 1 : 0) + "\nfxmode=" + String(cfg.fxMode) + "\nfxwet=" + String(cfg.fxWet) + "\neqb=" + String(cfg.eqBass) + "\neqt=" + String(cfg.eqTreble) + "\n";
     t += "vol=" + String(cfg.vol) + "\nbclk=" + String(cfg.bclk) + "\nlrc=" + String(cfg.lrc) + "\ndin=" + String(cfg.din) + "\n";
     t += "mq_srv=" + cfg.mqttServer + "\nmq_port=" + String(cfg.mqttPort) + "\nmq_user=" + cfg.mqttUser + "\nmq_base=" + cfg.mqttBase + "\n";
     for (int i = 0; i < 5; i++) t += "mq_g" + String(i + 1) + "=" + cfg.mqttGroup[i] + "\n";
@@ -2109,7 +2108,7 @@ String apiArg(const String& name) {
 }
 
 void handleApiSay() {
-    String err = commandSay(apiArg("text"), apiArg("lang"), apiArg("voice"), numberOr(apiArg("rate"), 99), numberOr(apiArg("vol"), -1), flagOn(apiArg("save")));
+    String err = commandSay(apiArg("text"), apiArg("lang"), apiArg("voice"), numberOr(apiArg("rate"), 99), numberOr(apiArg("vol"), -1), flagOn(apiArg("save")), apiArg("fx").isEmpty() || flagOn(apiArg("fx")));
     if (err.length() > 0) return sendErr(400, err);
     sendOk("Wird angesagt");
 }
@@ -2435,10 +2434,6 @@ void handleApiEffect() {
             cfg.fxWet = constrain(apiArg("wet").toInt(), 0, 100);
             prefs.putInt("fxwet", cfg.fxWet);
         }
-        if (!apiArg("ann").isEmpty()) {
-            cfg.fxAnn = flagOn(apiArg("ann"));
-            prefs.putBool("fxann", cfg.fxAnn);
-        }
         if (!apiArg("bass").isEmpty()) {
             cfg.eqBass = constrain(apiArg("bass").toInt(), -12, 12);
             prefs.putInt("eqb", cfg.eqBass);
@@ -2450,7 +2445,7 @@ void handleApiEffect() {
         fxApplyCfg();
     }
     static const char* const names[] = {"off", "room", "hall", "church", "echo"};
-    sendJson(200, String("{\"ok\":true,\"msg\":\"Gespeichert\",\"mode\":\"") + names[cfg.fxMode] + "\",\"wet\":" + String(cfg.fxWet) + ",\"ann\":" + (cfg.fxAnn ? "true" : "false") + ",\"bass\":" + String(cfg.eqBass) + ",\"treble\":" + String(cfg.eqTreble) + ",\"load\":" + String(fx.loadPercent(), 1) + "}");
+    sendJson(200, String("{\"ok\":true,\"msg\":\"Gespeichert\",\"mode\":\"") + names[cfg.fxMode] + "\",\"wet\":" + String(cfg.fxWet) + ",\"bass\":" + String(cfg.eqBass) + ",\"treble\":" + String(cfg.eqTreble) + ",\"load\":" + String(fx.loadPercent(), 1) + "}");
 }
 
 void handleApiSdMount() {
