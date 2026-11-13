@@ -95,8 +95,8 @@ pre.code{text-align:left;white-space:pre-wrap;word-break:break-all;font-family:v
 #include "wiring_svg.h"
 #include "wiring_view_svg.h"
 
-static const char TAB_KEYS[][12] = {"mp3", "sprechen", "sd", "radio", "pins", "audio", "mqtt", "wlan", "zeit", "sicherung", "status", "log", "doku"};
-static const char* const TAB_LABELS[] = {"MP3 (Flash)", "Sprechen", "SD-Karte", "Webradio", "Eing&auml;nge", "Audio", "MQTT", "WLAN", "Zeit", "Sicherung", "Status", "Log", "Doku"};
+static const char TAB_KEYS[][12] = {"mp3", "ansage", "sd", "radio", "pins", "audio", "mqtt", "wlan", "zeit", "sicherung", "status", "log", "doku"};
+static const char* const TAB_LABELS[] = {"MP3 (Flash)", "Ansage", "SD-Karte", "Webradio", "Eing&auml;nge", "Audio", "MQTT", "WLAN", "Zeit", "Sicherung", "Status", "Log", "Doku"};
 static const char* const TAB_TIPS[] = {"MP3-Dateien im Ger&auml;t hochladen und abspielen", "Text ansagen, stoppen, Lautst&auml;rke", "Dateien der SD-Karte abspielen, hochladen und verwalten", "Webradio-URL abspielen und bis zu 30 Sender speichern", "Freie Pins mit Pull-up: bei Kontakt nach GND eine Ansage oder MP3-Datei abspielen", "Anschl&uuml;sse (Pins von Verst&auml;rker und SD-Karte), Lautst&auml;rke, &Uuml;berblenden, Start und Sprachausgabe (VoiceRSS)", "MQTT-Broker und Basis-Topic", "Hostname und WLAN-Zugangsdaten", "Zeitserver und Zeitzone", "Einstellungen sichern und wieder einlesen, wahlweise mit WLAN-Zugangsdaten und Dateien im Flash", "Zustand des Ger&auml;ts", "Ereignisprotokoll", "Alle REST- und MQTT-Aufrufe zum Kopieren"};
 static const int TAB_COUNT = 13;
 
@@ -241,8 +241,8 @@ static const char* const FMT_LABELS[] = {"8 kHz mono (klein)", "22 kHz mono (Sta
 
 String nowPlayingRow();
 
-// Lautstaerkeregler ganz oben in den Tabs MP3, Sprechen, SD-Karte und Webradio; alle Regler zeigen denselben Wert.
-// Volume slider at the very top of the tabs MP3, Sprechen, SD-Karte and Webradio; all sliders show the same value.
+// Lautstaerkeregler ganz oben in den Tabs MP3, Ansage, SD-Karte und Webradio; alle Regler zeigen denselben Wert.
+// Volume slider at the very top of the tabs MP3, Ansage, SD-Karte and Webradio; all sliders show the same value.
 
 String volumeRow() {
     return "<div class='row volrow'><label>Lautst&auml;rke <input type='range' class='volrange' min='0' max='" + String(VOLUME_MAX) + "' value='" + String(cfg.vol) + "' style='width:200px' oninput='volShow(this.value)' onchange='setVol(this.value)'> <span class='volshow' style='display:inline-block;min-width:76px'>" + String(cfg.vol) + " / " + String(VOLUME_MAX) + "</span></label><button type='button' class='stopbtn' onclick='stopNow()' style='width:auto;padding:6px 16px;margin:0 4px 0 12px' disabled>&#9632; Stopp</button><button type='button' class='mutebtn' onclick='muteToggle()' style='width:auto;padding:6px 16px;margin:0 8px 0 4px'>Stumm</button> " + infoTip("Lautst&auml;rke 0 bis 100; wird sofort &uuml;bernommen und gespeichert. Stopp: beendet die Wiedergabe sofort, auch ein Webradio, ohne Fortsetzung. Stumm: blendet den Ton sanft aus und wieder ein, die eingestellte Lautst&auml;rke bleibt unver&auml;ndert. Stumm gilt f&uuml;r Webradio, Text-Ansagen (Uhrzeit, Mail ...) und MP3 von der SD-Karte; MP3 aus dem Flash bleiben h&ouml;rbar") + "</div>";
@@ -258,7 +258,7 @@ String panelSpeak() {
     h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='saySave' style='width:auto;margin:0;'>Text speichern</label> " + infoTip("Speichert die Sprachdatei dieses Textes beim n&auml;chsten Sprechen dauerhaft, bevorzugt auf der SD-Karte (Ordner /ansagen), sonst im Ger&auml;t (Tab MP3 (Flash)). Danach wird der Haken wieder entfernt. Gespeicherte Texte werden bei gleicher Sprache, Stimme und gleichem Tempo gespielt, ohne VoiceRSS zu fragen, auch ohne Internet. Die aktuellen Klangeffekte werden mit gespeichert (im Dateinamen, zum Beispiel _halle40_b3_t-2) und gelten nur f&uuml;r diesen Text, unabh&auml;ngig von den sp&auml;teren Einstellungen") + "</div>";
     h += "<div class='row'><button type='button' onclick='sayNow()' style='width:150px'>Sprechen</button> " + infoTip("Sprechen: sagt den Text jetzt an, ein laufendes Webradio l&auml;uft danach weiter") + "</div>";
     h += "<div id='sayResult'></div><div class='row'><small id='playState'></small></div></div>";
-    h += "<div class='card'><h3>Klangeffekte " + infoTip("Hall, Echo und Klangregler wirken auf Ansagen und abgespielte Dateien, nie auf Webradio. &Auml;nderungen gelten sofort und bleiben gespeichert. Der Verst&auml;rker spielt in Mono, der Raumeindruck ist deshalb begrenzt") + "</h3>";
+    h += "<div class='card'><h3>Klangeffekte " + infoTip("Hall und Echo wirken auf Ansagen, Klangregler und Wandern auch auf abgespielte Dateien, nie auf Webradio. &Auml;nderungen gelten sofort und bleiben gespeichert. Der Verst&auml;rker spielt in Mono, der Raumeindruck ist deshalb begrenzt") + "</h3>";
     static const char* const FXN[] = {"Aus", "Zimmer", "Halle", "Kirche", "Echo"};
     h += "<div class='row'>Effekt <select id='fxMode' onchange='fxSend()' style='width:150px'>";
     for (int i = 0; i < 5; i++) h += String("<option value='") + i + "'" + (cfg.fxMode == i ? " selected" : "") + ">" + FXN[i] + "</option>";
@@ -266,6 +266,11 @@ String panelSpeak() {
     h += "<div class='row'>Anteil <input type='range' id='fxWet' min='0' max='100' value='" + String(cfg.fxWet) + "' oninput=\"document.getElementById('fxWetV').textContent=this.value\" onchange='fxSend()' style='width:200px'> <span id='fxWetV'>" + String(cfg.fxWet) + "</span> % " + infoTip("Wie stark der Effekt zum Originalton gemischt wird, 0 bis 100 Prozent") + "</div>";
     h += "<div class='row'>B&auml;sse <input type='range' id='eqBass' min='-12' max='12' value='" + String(cfg.eqBass) + "' oninput=\"document.getElementById('eqBassV').textContent=this.value\" onchange='fxSend()' style='width:200px'> <span id='eqBassV'>" + String(cfg.eqBass) + "</span> dB " + infoTip("Tiefen unter etwa 200 Hz anheben oder absenken; 0 = unver&auml;ndert") + "</div>";
     h += "<div class='row'>H&ouml;hen <input type='range' id='eqTreble' min='-12' max='12' value='" + String(cfg.eqTreble) + "' oninput=\"document.getElementById('eqTrebleV').textContent=this.value\" onchange='fxSend()' style='width:200px'> <span id='eqTrebleV'>" + String(cfg.eqTreble) + "</span> dB " + infoTip("H&ouml;hen ab etwa 4 kHz anheben oder absenken; 0 = unver&auml;ndert") + "</div>";
+    static const char* const PANN[] = {"Aus", "links &rarr; rechts", "rechts &rarr; links", "hin und her"};
+    h += "<div class='row'>Wandern <select id='fxPan' onchange='fxSend()' style='width:170px'>";
+    for (int i = 0; i < 4; i++) h += String("<option value='") + i + "'" + (cfg.panMode == i ? " selected" : "") + ">" + PANN[i] + "</option>";
+    h += "</select> " + infoTip("Der Ton wandert beim Abspielen zwischen links und rechts. Zu h&ouml;ren nur mit zwei Verst&auml;rkern im Stereo-Aufbau, ein Modul mischt zu Mono. Bei links &rarr; rechts und rechts &rarr; links bleibt der Ton am Ende stehen, bei hin und her l&auml;uft die Bewegung weiter. Wirkt auf Ansagen und abgespielte Dateien, nie auf Webradio") + "</div>";
+    h += "<div class='row'>Dauer <input type='range' id='fxPanSec' min='0.5' max='20' step='0.5' value='" + String(cfg.panDs / 10.0, 1) + "' oninput=\"document.getElementById('fxPanSecV').textContent=this.value\" onchange='fxSend()' style='width:200px'> <span id='fxPanSecV'>" + String(cfg.panDs / 10.0, 1) + "</span> s " + infoTip("Dauer eines Durchgangs von einer Seite zur anderen in Sekunden, 0,5 bis 20") + "</div>";
     h += "<div id='fxResult'></div></div>";
     return h;
 }
@@ -342,7 +347,7 @@ String panelRadio() {
         h += "<button type='button' class='copy-btn' style='position:static;margin:2px' title='Aufruf per REST und MQTT anzeigen' onclick='stationCall(" + n + ",this)'" + off + ">API</button>";
         h += "<button type='button' class='copy-btn' style='position:static;margin:2px' title='Platz l&ouml;schen (Name und URL); die folgenden Pl&auml;tze r&uuml;cken auf' onclick='delStation(" + n + ")'" + off + ">&#10006;</button></div>";
     }
-    h += "<small>Das Feld rechts neben der URL ist die Lautst&auml;rke des Senders (0-100, leer = allgemeine Lautst&auml;rke). Speichern, bevor du &#9654; dr&uuml;ckst. &#9650;&#9660; verschieben den Sender und speichern sofort. Der URL-Knopf kopiert den REST-Aufruf <code>/api/station?n=Platz</code>; auch der Name geht (<code>?name=...</code>).</small>";
+    h += "<small>Das Feld rechts neben der URL ist die Lautst&auml;rke des Senders (0-100, leer = allgemeine Lautst&auml;rke). Speichern, bevor du &#9654; dr&uuml;ckst. &#9650;&#9660; verschieben den Sender und speichern sofort. Der URL-Knopf kopiert den REST-Aufruf mit Beispielwerten f&uuml;r alle Parameter, zum Beispiel <code>/api/station?n=Platz&amp;vol=60</code>; auch der Name geht (<code>?name=...</code>).</small>";
     h += "<button type='submit'>Speichern</button><div id='stResult'></div></form>";
     h += "<div style='margin-top:18px;padding-top:12px;border-top:1px solid var(--panel-border)'><h3 style='margin:0 0 6px'>Senderlisten</h3>";
     h += "<div class='row' style='justify-content:flex-start;gap:8px'><span style='min-width:110px;text-align:left'>Eigene Liste</span><button type='button' onclick=\"location.href='/stations.txt'\" style='width:auto;padding:8px 14px'>Liste speichern</button> " + infoTip("Speichert die Senderliste (Name, URL, Lautst&auml;rke) als Textdatei auf deinem Rechner") + " ";
@@ -369,7 +374,7 @@ String panelPins() {
 
 String panelMp3() {
     String h = volumeRow() + nowPlayingRow();
-    h += "<div class='card'><h3>Dateien im Ger&auml;t</h3><div id='fsMem'></div><div id='fileList'>Lade &hellip;</div><hr>";
+    h += "<div class='card' style='max-width:900px'><h3>Dateien im Ger&auml;t</h3><div id='fsMem'></div><div id='fileList'>Lade &hellip;</div><hr>";
     h += "<div class='row'><input type='file' id='upFile' multiple accept='.mp3' style='width:90%'><button type='button' onclick='uploadNow()' style='width:150px'>Hochladen</button> " + infoTip("Eine oder mehrere MP3-Dateien vom Rechner w&auml;hlen; sie werden nacheinander in den Speicher des Ger&auml;ts geladen") + "</div>";
     h += "<div id='upResult'></div></div>";
     return h;
@@ -711,7 +716,7 @@ String panelDoc() {
     String base = mqttBaseTopic();
     String h = docCard("Allgemein",
         "Alle Aufrufe gehen an <code>http://" + htmlEsc(cfg.host) + ".local/</code> oder an die IP-Adresse. Parameter k&ouml;nnen als Formular (<code>-d</code>), als Query (<code>?text=...</code>) oder als flaches JSON im Body kommen; Aufrufe per GET sind erlaubt, zum Beispiel f&uuml;r Home-Automation. "
-        "Antwort: <code>{\"ok\":true,\"msg\":\"...\"}</code> oder bei einem Fehler HTTP 400 mit <code>{\"ok\":false,\"error\":\"...\"}</code>. Ansagen und MP3-Dateien kommen in eine Warteschlange (bis zu 8) und laufen nacheinander; ein Sender-Befehl wirkt sofort, ein Stopp leert die Warteschlange.", "");
+        "Antwort: <code>{\"ok\":true,\"msg\":\"...\"}</code> oder bei einem Fehler HTTP 400 mit <code>{\"ok\":false,\"error\":\"...\"}</code>. Texte kommen in eine Warteschlange (bis zu 8) und laufen nacheinander. Eine MP3-Datei startet sofort, auch wenn schon eine andere l&auml;uft: bis zu zwei Dateien spielen &uuml;bereinander (zum Beispiel Vogelgezwitscher mit einer Glocke dar&uuml;ber), eine dritte wartet. Ein Sender-Befehl wirkt sofort, ein Stopp leert die Warteschlange.", "");
     {
         // Verkabelungsbild: die GPIO-Nummern im Bild sind die eingestellten Pins.
         // Wiring picture: the GPIO numbers in the picture are the configured pins.
@@ -765,7 +770,7 @@ curl http://@HOST@/stations.txt -o stations.txt
 curl --data-binary @stations.txt -H "Content-Type: text/plain" http://@HOST@/importstations
 curl -d "n=3" http://@HOST@/api/stationdelete)d");
     h += docCard("Hochgeladene MP3-Datei abspielen",
-        "<code>file</code> ist der Dateiname aus dem Tab MP3 (Flash). Dort gibt es f&uuml;r jede Datei Kn&ouml;pfe, die den fertigen Aufruf kopieren. Mit <code>/api/files</code> kommt die Liste, mit <code>/api/delete</code> wird eine Datei gel&ouml;scht. Hochladen geht per <code>/upload</code> (Formular, Feld <code>file</code>). Ein Name ohne <code>sd:</code> wird zuerst im Flash und dann auf der SD-Karte gesucht (<code>sd:/Pfad.mp3</code> nur auf der Karte).",
+        "<code>file</code> ist der Dateiname aus dem Tab MP3 (Flash). Dort gibt es f&uuml;r jede Datei Kn&ouml;pfe, die den fertigen Aufruf kopieren. Mit <code>/api/files</code> kommt die Liste, mit <code>/api/delete</code> wird eine Datei gel&ouml;scht. Hochladen geht per <code>/upload</code> (Formular, Feld <code>file</code>). <code>/api/flash?dir=</code> zeigt einen Ordner wie bei der SD-Karte (leer = MP3-Ordner, <code>ansagen</code> = gespeicherte Texte), <code>/api/fileget?file=</code> l&auml;dt eine Datei herunter. Ein Name wie <code>ansagen/Text.mp3</code> liegt im Unterordner; endet der Name mit <code>/</code> (<code>ansagen/</code> oder <code>/</code> f&uuml;r den MP3-Ordner), spielt das Ger&auml;t alle Dateien des Ordners (mit <code>shuffle=1</code> zuf&auml;llig). Ein Name ohne <code>sd:</code> wird zuerst im Flash und dann auf der SD-Karte gesucht (<code>sd:/Pfad.mp3</code> nur auf der Karte).",
         R"d(curl -d "file=glocke.mp3" http://@HOST@/api/file
 curl "http://@HOST@/api/file?file=glocke.mp3&vol=15"
 curl http://@HOST@/api/files
@@ -810,7 +815,7 @@ curl -d "fetch=en" http://@HOST@/api/lang
 curl -d "delete=en" http://@HOST@/api/lang
 curl "http://@HOST@/lang.json?l=en")d");
     h += docCard("Klangeffekte",
-        "<code>GET /api/effect</code> liefert <code>mode</code> (off, room, hall, church, echo), <code>wet</code> (0-100), <code>bass</code>, <code>treble</code> (dB) und <code>load</code> (Rechenlast des Effekts in Prozent). <code>POST /api/effect</code> setzt die angegebenen Werte; <code>mode</code> auch als Zahl 0-4 oder auf Deutsch (aus, zimmer, halle, kirche, echo), <code>bass</code> und <code>treble</code> -12 bis 12 dB. Die Effekte wirken auf Ansagen und abgespielte Dateien, nie auf Webradio. Die Werte bleiben gespeichert; im Tab Sprechen einstellbar. Mit <code>fx=0</code> bei <code>/api/say</code> l&auml;uft eine einzelne Ansage ohne Effekt.",
+        "<code>GET /api/effect</code> liefert <code>mode</code> (off, room, hall, church, echo), <code>wet</code> (0-100), <code>bass</code>, <code>treble</code> (dB), <code>pan</code> (off, lr = links&rarr;rechts, rl = rechts&rarr;links, pp = hin und her), <code>pansec</code> (Dauer eines Durchgangs, 0,5-20 s) und <code>load</code> (Rechenlast des Effekts in Prozent). <code>POST /api/effect</code> setzt die angegebenen Werte; <code>mode</code> auch als Zahl 0-4 oder auf Deutsch (aus, zimmer, halle, kirche, echo), <code>bass</code> und <code>treble</code> -12 bis 12 dB. Hall und Echo wirken nur auf Ansagen, Klangregler und Wandern auch auf abgespielte Dateien, nie auf Webradio. Die Werte bleiben gespeichert; im Tab Ansage einstellbar. Mit <code>fx=0</code> bei <code>/api/say</code> l&auml;uft eine einzelne Ansage ohne Effekt.",
         R"d(curl http://@HOST@/api/effect
 curl -d "mode=hall&wet=35" http://@HOST@/api/effect
 curl -d "bass=4&treble=-2" http://@HOST@/api/effect
@@ -1029,7 +1034,7 @@ var VOICE_TEXT={'de-de':'Hallo, das ist ein Test dieser Stimme.','en-gb':'Hello,
 function ttsInfo(){fetch('/api/ttscache',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){var e=document.getElementById('ttsInfo');if(e)e.textContent=j.files+' Dateien, '+Math.round(j.bytes/1024)+' KB';}).catch(function(){});}
 function ttsClear(){if(!confirm('Alle zwischengespeicherten Ansagen von der SD-Karte l\u00f6schen?'))return;postApi('/api/ttscache',{clear:1},'ttsResult').then(ttsInfo);}
 function voiceTest(){var l=document.getElementById('cfgLang').value||DEF_LANG,v=document.getElementById('cfgVoice').value,r=document.querySelector("input[name='vrate']").value;if(v==='__custom__')v='';postApi('/api/say',{text:VOICE_TEXT[l]||VOICE_TEXT['en-gb'],lang:l,voice:v,rate:r},'voiceTestResult');}
-function fxSend(){var g=function(i){return document.getElementById(i);};postApi('/api/effect',{mode:g('fxMode').value,wet:g('fxWet').value,bass:g('eqBass').value,treble:g('eqTreble').value},'fxResult');}
+function fxSend(){var g=function(i){return document.getElementById(i);};postApi('/api/effect',{mode:g('fxMode').value,wet:g('fxWet').value,bass:g('eqBass').value,treble:g('eqTreble').value,pan:g('fxPan').value,pansec:g('fxPanSec').value},'fxResult');}
 var BK=null;
 function bkCrcTable(){var t=[],c,n,k;for(n=0;n<256;n++){c=n;for(k=0;k<8;k++)c=c&1?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c>>>0;}return t;}
 var BKCRC=bkCrcTable();
@@ -1073,7 +1078,7 @@ function bkPick(){var inp=document.getElementById('bkFile'),f=inp.files[0],info=
     if(n){document.getElementById('bkImpFiles').disabled=false;document.getElementById('bkImpFiles').checked=true;}
     btn.disabled=false;document.getElementById('bkRestoreResult').innerHTML='';}
   if(/\.zip$/i.test(f.name)){f.arrayBuffer().then(function(ab){var ents;try{ents=bkUnzip(ab);}catch(e){showRes('bkRestoreResult',{ok:false,error:'ZIP-Datei nicht lesbar (nur unkomprimierte Sicherungen dieses Ger\u00e4ts)'});return;}
-      var st=null,fl=[];ents.forEach(function(e){if(e.name==='settings.txt')st=new TextDecoder().decode(e.data);else if(/^mp3\/[^\/]+\.mp3$/i.test(e.name))fl.push({name:e.name.substring(4),data:e.data});});
+      var st=null,fl=[];ents.forEach(function(e){if(e.name==='settings.txt')st=new TextDecoder().decode(e.data);else if(/^mp3\/(ansagen\/)?[^\/]+\.mp3$/i.test(e.name))fl.push({name:e.name.substring(4),data:e.data});});
       if(st===null){showRes('bkRestoreResult',{ok:false,error:'Keine Einstellungen in der ZIP-Datei'});return;}ready(st,fl);});}
   else f.text().then(function(t){ready(t,[]);});}
 function bkRestore(){if(!BK)return;var wifi=bkChk('bkImpWifi'),files=bkChk('bkImpFiles')&&BK.files.length>0,st=BK.settings;
@@ -1085,8 +1090,8 @@ function bkRestore(){if(!BK)return;var wifi=bkChk('bkImpWifi'),files=bkChk('bkIm
     var msg=t.substring(3),bad=[];
     if(!files){showRes('bkRestoreResult',{ok:true,msg:msg});return;}
     return BK.files.reduce(function(p,f,i){return p.then(function(){showRes('bkRestoreResult',{ok:true,msg:'Lade Datei '+(i+1)+' von '+BK.files.length+' hoch &hellip;'});
-      var fd=new FormData();fd.append('file',new Blob([f.data],{type:'audio/mpeg'}),f.name);
-      return fetch('/upload',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(j){if(!j.ok)bad.push(f.name);}).catch(function(){bad.push(f.name);});});},Promise.resolve())
+      var sub=f.name.indexOf('ansagen/')===0,fd=new FormData();fd.append('file',new Blob([f.data],{type:'audio/mpeg'}),sub?f.name.substring(8):f.name);
+      return fetch('/upload'+(sub?'?dir=ansagen':''),{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(j){if(!j.ok)bad.push(f.name);}).catch(function(){bad.push(f.name);});});},Promise.resolve())
     .then(function(){showRes('bkRestoreResult',bad.length?{ok:false,error:msg+' Dateien: '+(BK.files.length-bad.length)+' von '+BK.files.length+' eingelesen; Fehler: '+bad.join(', ')}:{ok:true,msg:msg+' '+BK.files.length+' Dateien eingelesen.'});bkFilesInfo();});
   }).catch(function(){showRes('bkRestoreResult',{ok:false,error:'Keine Antwort vom Ger&auml;t'});});}
 function sayNow(){var sv=document.getElementById('saySave');var want=sv&&sv.checked;postApi('/api/say',{text:document.getElementById('sayText').value,lang:document.getElementById('sayLang').value,voice:document.getElementById('sayVoice').value,save:want?1:0},'sayResult').then(function(j){if(j&&j.ok&&want)saveWait();});}
@@ -1105,13 +1110,13 @@ function copyPre(btn){copyText(btn.parentNode.querySelector('pre').textContent,b
 function playStation(n){postApi('/api/station',{n:n},'stResult');}
 function moveStation(n,d){var a=document.querySelector('.stationrow[data-n="'+n+'"]'),b=document.querySelector('.stationrow[data-n="'+(n+d)+'"]');if(!a||!b||!b.getAttribute('data-url')&&d>0)return;['rn','ru','rv'].forEach(function(p){var x=a.querySelector('[name="'+p+n+'"]'),y=b.querySelector('[name="'+p+(n+d)+'"]'),t=x.value;x.value=y.value;y.value=t;});a.closest('form').submit();}
 function delStation(n){if(!confirm('Platz '+n+' (Name und URL) l\u00f6schen?'))return;postApi('/api/stationdelete',{n:n},'stResult').then(function(j){if(j&&j.ok)location.href='/?tab=radio';});}
-function stationLink(n){return location.origin+'/api/station?n='+n;}
+function stationLink(n){return location.origin+'/api/station?n='+n+'&vol=60';}
 function callLine(box,label,text){var d=document.createElement('div'),c=document.createElement('code'),b=document.createElement('button');d.style.cssText='display:flex;gap:8px;align-items:center;margin:2px 0';d.appendChild(document.createTextNode(label+' '));c.textContent=text;c.style.flex='1';b.type='button';b.textContent='Kopieren';b.className='copy-btn';b.style.cssText='position:static;margin:0';b.onclick=function(){copyText(text,b);};d.appendChild(c);d.appendChild(b);box.appendChild(d);}
 function callBox(row,lines){var old=row.nextSibling;if(old&&old.className==='callbox'){old.remove();return;}var b=document.createElement('div'),i;b.className='callbox';b.style.cssText='margin:0 0 8px 2rem;padding:6px 10px;border:1px solid var(--panel-border);border-radius:6px;text-align:left;font-size:.85em;overflow-wrap:anywhere';
   for(i=0;i<lines.length;i++)callLine(b,lines[i][0],lines[i][1]);if(!MQTT_ON){var s=document.createElement('small');s.textContent='MQTT: Broker im Tab MQTT eintragen.';b.appendChild(s);}row.parentNode.insertBefore(b,row.nextSibling);}
-function stationCall(n,btn){var row=btn.closest('.stationrow'),nm=row?(row.querySelector("input[name='rn"+n+"']")||{}).value:'';callBox(row,[['REST:',location.origin+'/api/station?n='+n],nm?['REST (Name):',location.origin+'/api/station?name='+encodeURIComponent(nm)]:null,['MQTT Thema:',MQTT_BASE+'/station'],['MQTT Nutzlast:',String(n)]].filter(Boolean));}
-function favCall(f,btn){callBox(btn.parentNode,[['REST:','curl -d "url='+f.url+'" '+location.origin+'/api/play'],['MQTT Thema:',MQTT_BASE+'/play'],['MQTT Nutzlast:',f.url]]);}
-function apiLink(n){return location.origin+'/api/file?file='+encodeURIComponent(n);}
+function stationCall(n,btn){var row=btn.closest('.stationrow'),nm=row?(row.querySelector("input[name='rn"+n+"']")||{}).value:'';callBox(row,[['REST:',location.origin+'/api/station?n='+n+'&vol=60'],nm?['REST (Name):',location.origin+'/api/station?name='+encodeURIComponent(nm)+'&vol=60']:null,['MQTT Thema:',MQTT_BASE+'/station'],['MQTT Nutzlast:',String(n)],['MQTT Nutzlast (JSON):','{"n":'+n+',"vol":60}']].filter(Boolean));}
+function favCall(f,btn){callBox(btn.parentNode,[['REST:','curl -d "url='+f.url+'&vol=60" '+location.origin+'/api/play'],['MQTT Thema:',MQTT_BASE+'/play'],['MQTT Nutzlast:',f.url],['MQTT Nutzlast (JSON):','{"url":"'+f.url+'","vol":60}']]);}
+function apiLink(n){return location.origin+'/api/file?file='+encodeURIComponent(n)+'&vol=60&shuffle=0&loop=0';}
 var VOICES={'de-de':['Hanna','Lina','Jonas'],'en-gb':['Alice','Nancy','Lily','Harry'],'en-us':['Linda','Amy','Mary','John','Mike'],'fr-fr':['Bette','Iva','Zola'],'es-es':['Camila','Sofia','Luna'],'it-it':['Bria','Mia','Pietro'],'pl-pl':['Julia','Jan'],'sv-se':['Molly','Hugo']};
 function fillVoiceSel(id,lang,keep){var s=document.getElementById(id);if(!s)return;var cur=s.value;var v=VOICES[lang||DEF_LANG]||[];s.innerHTML='';
   function add(val,txt){var o=document.createElement('option');o.value=val;o.textContent=txt;s.appendChild(o);}
@@ -1180,14 +1185,32 @@ function sdUploadNow(){var fs=Array.prototype.slice.call(document.getElementById
 function playFile(n,res,ex){var p={file:n};if(ex)for(var k in ex)p[k]=ex[k];postApi('/api/play',p,res||'upResult');}
 function sdLoopOn(){var c=document.getElementById('sdLoop');return c&&c.checked?'1':'0';}
 function renFile(n){var x=prompt('Neuer Name:',n);if(!x||x===n)return;postApi('/api/rename',{file:n,to:x},'upResult').then(function(){loadFiles();});}
-function delFile(n){if(!confirm('Datei '+n+' löschen?'))return;postApi('/api/delete',{file:n},'upResult').then(loadFiles);}
-function loadFiles(){fetch('/api/files',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
-  var h='<table style="width:100%">';
-  j.files.forEach(function(f){h+='<tr><td>'+f.name+'</td><td>'+Math.round(f.size/1024)+' KB</td><td><a href="#" onclick="playFile(\''+f.name+'\');return false;" title="Abspielen">&#9654;</a> <a href="#" onclick="renFile(\''+f.name+'\');return false;" title="Umbenennen">&#9998;</a> <a href="#" onclick="delFile(\''+f.name+'\');return false;" title="L\u00f6schen">&#10006;</a></td><td><button type="button" class="copy-btn" style="position:static;margin:2px" title="'+apiLink(f.name)+'" onclick="copyText(apiLink(\''+f.name+'\'),this)">URL</button><button type="button" class="copy-btn" style="position:static;margin:2px" title="curl-Aufruf kopieren" onclick="copyText(\'curl &quot;\'+apiLink(\''+f.name+'\')+\'&quot;\',this)">curl</button></td></tr>';});
-  if(!j.files.length)h+='<tr><td>Keine Dateien</td></tr>';
-  document.getElementById('fileList').innerHTML=h+'</table>';
-  memShow('fsMem',j.used,j.total);
-  }).catch(function(){});}
+function delFile(n){if(!confirm('Datei '+n+' löschen?'))return;postApi('/api/delete',{file:n},'upResult').then(function(){loadFiles();});}
+var fsCur='';
+function loadFiles(dir){if(dir===undefined)dir=fsCur;fsCur=dir;var box=document.getElementById('fileList');if(!box)return;
+  fetch('/api/flash?dir='+encodeURIComponent(dir),{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    box.textContent='';memShow('fsMem',j.used,j.total);
+    var pre=dir?dir+'/':'',tb=document.createElement('table');tb.style.width='100%';
+    function cell(tr,t){var td=document.createElement('td');if(t!==null)td.textContent=t;tr.appendChild(td);return td;}
+    function btn(td,txt,tip,fn){var b=document.createElement('button');b.type='button';b.className='copy-btn';b.style.cssText='position:static;margin:2px';b.textContent=txt;b.title=tip;b.onclick=fn;td.appendChild(b);}
+    function cp(td,n){btn(td,'URL',apiLink(n),function(){copyText(apiLink(n),this);});btn(td,'curl','curl-Aufruf kopieren',function(){copyText('curl "'+apiLink(n)+'"',this);});}
+    function dl(td,n){var a=document.createElement('a');a.className='copy-btn';a.style.cssText='position:static;margin:2px;display:inline-block;text-decoration:none';a.textContent='\u2B07';a.title='Datei herunterladen';a.href='/api/fileget?file='+encodeURIComponent(n);a.setAttribute('download',n.replace(/^.*\//,''));td.appendChild(a);}
+    if(dir){var up=document.createElement('tr'),ut=cell(up,null),ua=document.createElement('a');ua.href='#';ua.textContent='\u2191 ..';ua.onclick=function(){loadFiles('');return false;};ut.appendChild(ua);cell(up,'');cell(up,'');tb.appendChild(up);}
+    if(j.entries.some(function(e){return !e.d;})){var hr=document.createElement('tr'),hc=cell(hr,null),ha;hc.textContent=dir?'\uD83D\uDCC1 dieser Ordner':'\uD83D\uDCC1 / (Hauptverzeichnis)';cell(hr,'');ha=cell(hr,null);var ref=dir?dir+'/':'/';
+      btn(ha,'\u25B6 Ordner','Alle MP3-Dateien dieses Ordners nacheinander abspielen',function(){playFile(ref,'upResult');});
+      btn(ha,'\uD83D\uDD00 Zufall','Alle MP3-Dateien dieses Ordners in zuf\u00e4lliger Reihenfolge abspielen, jede einmal je Sitzung',function(){playFile(ref,'upResult',{shuffle:1});});
+      cp(ha,ref);tb.appendChild(hr);}
+    j.entries.forEach(function(e){var tr=document.createElement('tr'),td=cell(tr,null),n=pre+e.n,act;
+      if(e.d){var a=document.createElement('a');a.href='#';a.textContent='\uD83D\uDCC1 '+e.n;a.onclick=function(){loadFiles(e.n);return false;};td.appendChild(a);cell(tr,'');act=cell(tr,null);
+        btn(act,'\u25B6 Ordner','Alle MP3-Dateien des Ordners nacheinander abspielen',function(){playFile(e.n+'/','upResult');});
+        btn(act,'\uD83D\uDD00 Zufall','Alle MP3-Dateien des Ordners in zuf\u00e4lliger Reihenfolge abspielen, jede einmal je Sitzung',function(){playFile(e.n+'/','upResult',{shuffle:1});});cp(act,e.n+'/');
+        btn(act,'\u2716','Ordner mit Inhalt l\u00f6schen',function(){if(!confirm('Ordner mit allem Inhalt '+e.n+' l\u00f6schen?'))return;postApi('/api/delete',{file:e.n+'/'},'upResult').then(function(){loadFiles('');});});}
+      else{td.textContent=e.n;cell(tr,Math.round(e.s/1024)+' KB');act=cell(tr,null);
+        btn(act,'\u25B6','Abspielen (reiht sich in die Warteschlange ein)',function(){playFile(n,'upResult');});dl(act,n);cp(act,n);
+        btn(act,'\u270E','Umbenennen',function(){renFile(n);});btn(act,'\u2716','Datei l\u00f6schen',function(){delFile(n);});}
+      tb.appendChild(tr);});
+    if(!j.entries.length)tb.appendChild(document.createElement('tr')).appendChild(document.createElement('td')).textContent='Keine MP3-Dateien oder Ordner';
+    box.appendChild(tb);}).catch(function(){});}
 function uploadNow(){var fs=Array.prototype.slice.call(document.getElementById('upFile').files);if(!fs.length){showRes('upResult',{ok:false,error:'Keine Datei gew&auml;hlt'});return;}
   var i=0,okc=0,bad=[];
   function next(){if(i>=fs.length){var inp=document.getElementById('upFile');inp.value='';loadFiles();
@@ -1261,7 +1284,7 @@ function testNtp(n){var box=document.getElementById('ntpTestResult'+n);var v=doc
     else{box.className='res-bad';box.innerHTML='&#10008; Server nicht erreichbar';}
   }).catch(function(){box.className='res-bad';box.innerHTML='&#10008; Server nicht erreichbar';});}
 var TABINIT={};
-TABINIT.sprechen=function(){fillVoiceSel('sayVoice',document.getElementById('sayLang').value,true);};
+TABINIT.ansage=function(){fillVoiceSel('sayVoice',document.getElementById('sayLang').value,true);};
 TABINIT.audio=function(){fillVoiceSel('cfgVoice',(document.getElementById('cfgLang')||{}).value,true);ttsInfo();};
 TABINIT.radio=function(){rbInit();listIndex();favLoad();};
 TABINIT.mp3=function(){loadFiles();};
@@ -1272,13 +1295,16 @@ TABINIT.status=function(){if(window.langList)langList();};
 TABINIT.sicherung=function(){bkFilesInfo();};
 TABINIT.log=function(){if(window.logInit)logInit();};
 function tabInit(k,p){p.querySelectorAll('.codehost').forEach(function(c){c.textContent=c.textContent.replace(/@HOST@/g,location.host);});if(TABINIT[k])TABINIT[k]();pollPlay();}
+// Beim Oeffnen von MP3 (Flash) und SD-Karte die Liste immer neu laden (ein erst jetzt geladener Tab holt sie selbst).
+// When opening MP3 (Flash) and SD card always reload the list (a tab that is only loaded now fetches it itself).
+function tabShow(k){var p=document.querySelector('.panel-'+k);if(!p||p.getAttribute('data-lazy')!==null)return;if(k==='mp3')loadFiles(fsCur);else if(k==='sd')sdLoad(sdCur);}
 function tabLoad(k){var p=document.querySelector('.panel-'+k);if(!p||p.getAttribute('data-lazy')!=='1')return;p.setAttribute('data-lazy','0');
   p.innerHTML='<div class="card"><p>Lade \u2026</p></div>';
   fetch('/panel?tab='+k,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('http');return r.text();}).then(function(t){p.innerHTML=t;p.removeAttribute('data-lazy');tabInit(k,p);})
     .catch(function(){p.setAttribute('data-lazy','1');p.innerHTML='<div class="card"><p>Tab konnte nicht geladen werden.</p><button type="button" onclick="tabLoad(\''+k+'\')" style="width:auto;padding:8px 14px">Erneut versuchen</button></div>';});}
 (function(){
   function tabUrl(k){try{history.replaceState(null,'','?tab='+k);}catch(e){}}
-  document.querySelectorAll('.tabctrl').forEach(function(r){r.addEventListener('change',function(){if(r.checked){var k=r.id.replace('tab-','');tabLoad(k);tabUrl(k);}});});
+  document.querySelectorAll('.tabctrl').forEach(function(r){r.addEventListener('change',function(){if(r.checked){var k=r.id.replace('tab-','');tabLoad(k);tabUrl(k);tabShow(k);}});});
   var ap=document.querySelector('.panel-'+ACT_TAB);if(ap)tabInit(ACT_TAB,ap);
   var cr=document.querySelector('.tabctrl:checked');if(cr){var ck=cr.id.replace('tab-','');tabLoad(ck);tabUrl(ck);}
   setInterval(pollPlay,3000);})();
@@ -1436,7 +1462,7 @@ void sendPumped(int code, const char* type, const String& s) {
 // Sends the content of one tab (without the <div class='tabpanel'> frame); the docs page inserts the wiring picture straight from flash.
 
 void sendPanelBody(const String& k) {
-    if (k == "sprechen") sendChunk(panelSpeak());
+    if (k == "ansage") sendChunk(panelSpeak());
     else if (k == "radio") sendChunk(panelRadio());
     else if (k == "sd") sendChunk(panelSd());
     else if (k == "mp3") sendChunk(panelMp3());
@@ -1472,6 +1498,13 @@ void sendPanelBody(const String& k) {
     }
 }
 
+// Die frueheren Tabnamen bleiben als Adresse gueltig (Lesezeichen): sprechen heisst jetzt ansage.
+// The former tab names stay valid as an address (bookmarks): sprechen is now called ansage.
+
+void tabKeyNorm(String& k) {
+    if (k == "sprechen") k = "ansage";
+}
+
 bool tabKeyValid(const String& k) {
     for (int i = 0; i < TAB_COUNT; i++) {
         if (k == TAB_KEYS[i]) return true;
@@ -1484,6 +1517,7 @@ bool tabKeyValid(const String& k) {
 
 void handlePanel() {
     String k = webserver.arg("tab");
+    tabKeyNorm(k);
     if (!tabKeyValid(k)) {
         webserver.send(400, "text/plain; charset=utf-8", "Unknown tab");
         return;
@@ -1497,6 +1531,7 @@ void handlePanel() {
 
 void handleRoot() {
     String act = webserver.arg("tab");
+    tabKeyNorm(act);
     if (!tabKeyValid(act)) act = TAB_KEYS[0];
     webserver.setContentLength(CONTENT_LENGTH_UNKNOWN);
     webserver.sendHeader("Cache-Control", "no-store");
@@ -1816,7 +1851,7 @@ void handleSave() {
     logLine("[WEB] settings saved: " + sect);
     static const char* const tabForSect[] = {"wlan", "audio", "audio", "mqtt", "zeit", "log", "radio"};
     static const char* const sects[] = {"wlan", "voice", "audio", "mqtt", "time", "log", "radio"};
-    const char* tab = "sprechen";
+    const char* tab = "ansage";
     for (int i = 0; i < 7; i++) {
         if (sect == sects[i]) tab = tabForSect[i];
     }
@@ -1927,7 +1962,7 @@ void handleExport() {
     }
     for (int i = 0; i < 5; i++) t += "ntp" + String(i + 1) + "=" + cfg.ntp[i] + "\n";
     t += "tz=" + cfg.tz + "\n";
-    t += "vlang=" + cfg.vlang + "\nvvoice=" + cfg.vvoice + "\nvfmt=" + cfg.vfmt + "\nvrate=" + String(cfg.vrate) + "\nttsc=" + String(cfg.ttsCache ? 1 : 0) + "\nfxmode=" + String(cfg.fxMode) + "\nfxwet=" + String(cfg.fxWet) + "\neqb=" + String(cfg.eqBass) + "\neqt=" + String(cfg.eqTreble) + "\n";
+    t += "vlang=" + cfg.vlang + "\nvvoice=" + cfg.vvoice + "\nvfmt=" + cfg.vfmt + "\nvrate=" + String(cfg.vrate) + "\nttsc=" + String(cfg.ttsCache ? 1 : 0) + "\nfxmode=" + String(cfg.fxMode) + "\nfxwet=" + String(cfg.fxWet) + "\neqb=" + String(cfg.eqBass) + "\neqt=" + String(cfg.eqTreble) + "\npanm=" + String(cfg.panMode) + "\npand=" + String(cfg.panDs) + "\n";
     t += "vol=" + String(cfg.vol) + "\nbclk=" + String(cfg.bclk) + "\nlrc=" + String(cfg.lrc) + "\ndin=" + String(cfg.din) + "\n";
     t += "mq_srv=" + cfg.mqttServer + "\nmq_port=" + String(cfg.mqttPort) + "\nmq_user=" + cfg.mqttUser + "\nmq_base=" + cfg.mqttBase + "\n";
     for (int i = 0; i < 5; i++) t += "mq_g" + String(i + 1) + "=" + cfg.mqttGroup[i] + "\n";
@@ -2006,8 +2041,9 @@ void handleImport() {
         } else if (k == "vvoice") { cfg.vvoice = v; prefs.putString("vvoice", v);
         } else if (k == "fxmode") { cfg.fxMode = constrain(v.toInt(), 0, 4); prefs.putInt("fxmode", cfg.fxMode); fxApplyCfg();
         } else if (k == "fxwet") { cfg.fxWet = constrain(v.toInt(), 0, 100); prefs.putInt("fxwet", cfg.fxWet); fxApplyCfg();
-        } else if (k == "fxann") { cfg.fxAnn = v.toInt() != 0; prefs.putBool("fxann", cfg.fxAnn); fxApplyCfg();
         } else if (k == "eqb") { cfg.eqBass = constrain(v.toInt(), -12, 12); prefs.putInt("eqb", cfg.eqBass); fxApplyCfg();
+        } else if (k == "panm") { cfg.panMode = constrain(v.toInt(), 0, 3); prefs.putInt("panm", cfg.panMode); fxApplyCfg();
+        } else if (k == "pand") { cfg.panDs = constrain(v.toInt(), 5, 200); prefs.putInt("pand", cfg.panDs); fxApplyCfg();
         } else if (k == "eqt") { cfg.eqTreble = constrain(v.toInt(), -12, 12); prefs.putInt("eqt", cfg.eqTreble); fxApplyCfg();
         } else if (k == "ttsc") { cfg.ttsCache = v.toInt() != 0; prefs.putBool("ttsc", cfg.ttsCache);
         } else if (k == "vfmt") { cfg.vfmt = v; prefs.putString("vfmt", v);
@@ -2357,6 +2393,15 @@ void handleApiStatus() {
 // Clean the file name: only letters, digits, dot, hyphen, underscore; allowed extension mp3.
 
 String cleanFileName(String name) {
+
+    // Der Unterordner ansagen (gespeicherte Texte) bleibt als Vorsatz erhalten, sonst zaehlt nur der Dateiname.
+    // The subfolder ansagen (saved texts) stays as a prefix, otherwise only the file name counts.
+
+    String sub;
+    if (name.startsWith("ansagen/")) {
+        sub = "ansagen/";
+        name = name.substring(8);
+    }
     int slash = max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
     if (slash >= 0) name = name.substring(slash + 1);
     String out;
@@ -2370,7 +2415,7 @@ String cleanFileName(String name) {
     bool okExt = lower.endsWith(".mp3");
     if (!okExt || out.startsWith(".")) return "";
     if (out.length() > 100) out = out.substring(0, 96) + ".mp3";
-    return out;
+    return sub + out;
 }
 
 // Inhalt eines Ordners der SD-Karte als JSON: mounted, state, size, used (MB), dir und entries (n = Name, d = Ordner, s = Groesse).
@@ -2442,10 +2487,30 @@ void handleApiEffect() {
             cfg.eqTreble = constrain(apiArg("treble").toInt(), -12, 12);
             prefs.putInt("eqt", cfg.eqTreble);
         }
+        if (!apiArg("pan").isEmpty()) {
+            String pv = apiArg("pan");
+            pv.trim();
+            pv.toLowerCase();
+            int pm = -1;
+            if (pv == "off" || pv == "aus" || pv == "0") pm = 0;
+            else if (pv == "lr" || pv == "1") pm = 1;
+            else if (pv == "rl" || pv == "2") pm = 2;
+            else if (pv == "pp" || pv == "hin" || pv == "3") pm = 3;
+            if (pm < 0) return sendErr(400, "pan: off, lr, rl, pp oder 0-3");
+            cfg.panMode = pm;
+            prefs.putInt("panm", cfg.panMode);
+        }
+        if (!apiArg("pansec").isEmpty()) {
+            String ps = apiArg("pansec");
+            ps.replace(",", ".");
+            cfg.panDs = constrain((int)(ps.toFloat() * 10.0f + 0.5f), 5, 200);
+            prefs.putInt("pand", cfg.panDs);
+        }
         fxApplyCfg();
     }
     static const char* const names[] = {"off", "room", "hall", "church", "echo"};
-    sendJson(200, String("{\"ok\":true,\"msg\":\"Gespeichert\",\"mode\":\"") + names[cfg.fxMode] + "\",\"wet\":" + String(cfg.fxWet) + ",\"bass\":" + String(cfg.eqBass) + ",\"treble\":" + String(cfg.eqTreble) + ",\"load\":" + String(fx.loadPercent(), 1) + "}");
+    static const char* const pnames[] = {"off", "lr", "rl", "pp"};
+    sendJson(200, String("{\"ok\":true,\"msg\":\"Gespeichert\",\"mode\":\"") + names[cfg.fxMode] + "\",\"wet\":" + String(cfg.fxWet) + ",\"bass\":" + String(cfg.eqBass) + ",\"treble\":" + String(cfg.eqTreble) + ",\"pan\":\"" + pnames[cfg.panMode] + "\",\"pansec\":" + String(cfg.panDs / 10.0, 1) + ",\"load\":" + String(fx.loadPercent(), 1) + ",\"annMode\":" + String((int)annFx.mode) + ",\"annLoad\":" + String(annFx.loadPercent(), 1) + "}");
 }
 
 void handleApiSdMount() {
@@ -2570,18 +2635,26 @@ void handleApiFiles() {
     String j = "{\"files\":[";
     bool first = true;
     if (fsReady) {
-        File dir = LittleFS.open(MP3_DIR);
-        File f = dir ? dir.openNextFile() : File();
-        while (f) {
-            if (!f.isDirectory()) {
-                if (!first) j += ",";
-                first = false;
-                String n = String(f.name());
-                n = n.substring(n.lastIndexOf('/') + 1);
-                j += "{\"name\":\"" + jsonEscape(n) + "\",\"size\":" + String((unsigned long)f.size()) + "}";
+        // Erst der Ordner der MP3-Dateien, dann der Unterordner ansagen (Namen mit Vorsatz ansagen/).
+        // First the folder of the MP3 files, then the subfolder ansagen (names with the prefix ansagen/).
+
+        for (int pass = 0; pass < 2; pass++) {
+            String dpath = pass == 0 ? String(MP3_DIR) : String(MP3_DIR) + "/" + TTS_FLASH_SUB;
+            String prefix = pass == 0 ? String() : String(TTS_FLASH_SUB) + "/";
+            File dir = LittleFS.open(dpath);
+            File f = dir ? dir.openNextFile() : File();
+            while (f) {
+                if (!f.isDirectory()) {
+                    if (!first) j += ",";
+                    first = false;
+                    String n = String(f.name());
+                    n = n.substring(n.lastIndexOf('/') + 1);
+                    j += "{\"name\":\"" + jsonEscape(prefix + n) + "\",\"size\":" + String((unsigned long)f.size()) + "}";
+                }
+                f = dir.openNextFile();
+                audioPump();
             }
-            f = dir.openNextFile();
-            audioPump();
+            if (dir) dir.close();
         }
     }
     audioPump();
@@ -2593,6 +2666,54 @@ void handleApiFiles() {
 // MP3-Datei im Geraet umbenennen: file = alter Name, to = neuer Name (".mp3" wird bei Bedarf angehaengt). Pins, die diese Datei abspielen, folgen dem neuen Namen.
 // Rename an MP3 file in the device: file = old name, to = new name (".mp3" is appended if missing). Pins that play this file follow the new name.
 
+// Inhalt eines Ordners im Flash wie bei der SD-Karte: dir leer = Ordner der MP3-Dateien (mit dem Unterordner ansagen), dir=ansagen = die gespeicherten Texte.
+// Content of a folder in flash like on the SD card: empty dir = folder of the MP3 files (with the subfolder ansagen), dir=ansagen = the saved texts.
+
+void handleApiFlash() {
+    String dir = webserver.arg("dir");
+    while (dir.startsWith("/")) dir.remove(0, 1);
+    if (dir.endsWith("/")) dir.remove(dir.length() - 1);
+    if (!dir.isEmpty() && dir != TTS_FLASH_SUB) return sendErr(404, "Ordner nicht gefunden");
+    std::vector<std::pair<String, uint32_t>> files;
+    bool hasSub = false;
+    if (fsReady) {
+        File d = LittleFS.open(String(MP3_DIR) + (dir.isEmpty() ? String() : "/" + dir));
+        File f = d ? d.openNextFile() : File();
+        while (f) {
+            String n = String(f.name());
+            n = n.substring(n.lastIndexOf('/') + 1);
+            if (f.isDirectory()) {
+                if (dir.isEmpty() && n == TTS_FLASH_SUB) hasSub = true;
+            } else {
+                files.push_back(std::make_pair(n, (uint32_t)f.size()));
+            }
+            f = d.openNextFile();
+            audioPump();
+        }
+        if (d) d.close();
+    }
+    std::sort(files.begin(), files.end(), [](const std::pair<String, uint32_t>& a, const std::pair<String, uint32_t>& b) {
+        String x = a.first, y = b.first;
+        x.toLowerCase();
+        y.toLowerCase();
+        return x < y;
+    });
+    storageRefresh();
+    String j = "{\"dir\":\"" + dir + "\",\"entries\":[";
+    bool first = true;
+    if (hasSub) {
+        j += "{\"n\":\"" TTS_FLASH_SUB "\",\"d\":1,\"s\":0}";
+        first = false;
+    }
+    for (size_t i = 0; i < files.size(); i++) {
+        if (!first) j += ",";
+        first = false;
+        j += "{\"n\":\"" + jsonEscape(files[i].first) + "\",\"d\":0,\"s\":" + String((unsigned long)files[i].second) + "}";
+    }
+    j += "],\"used\":" + String(fsReady ? fsUsedC : 0) + ",\"total\":" + String(fsReady ? fsTotalC : 0) + "}";
+    sendJson(200, j);
+}
+
 void handleApiRename() {
     String oldName = cleanFileName(apiArg("file"));
     String to = apiArg("to");
@@ -2600,6 +2721,7 @@ void handleApiRename() {
     String lower = to;
     lower.toLowerCase();
     if (!to.isEmpty() && !lower.endsWith(".mp3")) to += ".mp3";
+    if (oldName.startsWith("ansagen/") && !to.startsWith("ansagen/") && !to.isEmpty()) to = "ansagen/" + to;
     String newName = cleanFileName(to);
     String oldPath = String(MP3_DIR) + "/" + oldName;
     String newPath = String(MP3_DIR) + "/" + newName;
@@ -2642,6 +2764,33 @@ void handleApiFileGet() {
 }
 
 void handleApiDelete() {
+
+    // Der Unterordner ansagen wird samt Inhalt geloescht.
+    // The subfolder ansagen is deleted together with its content.
+
+    String rawName = webserver.arg("file");
+    if (rawName == TTS_FLASH_SUB || rawName == String(TTS_FLASH_SUB) + "/") {
+        String dpath = String(MP3_DIR) + "/" + TTS_FLASH_SUB;
+        std::vector<String> names;
+        File d = LittleFS.open(dpath);
+        if (!d || !d.isDirectory()) return sendErr(404, "Ordner nicht gefunden");
+        File f = d.openNextFile();
+        while (f) {
+            String n = String(f.name());
+            names.push_back(n.substring(n.lastIndexOf('/') + 1));
+            f = d.openNextFile();
+        }
+        d.close();
+        for (size_t i = 0; i < names.size(); i++) {
+            stopIfUsing(String(TTS_FLASH_SUB) + "/" + names[i]);
+            LittleFS.remove(dpath + "/" + names[i]);
+            audioPump();
+        }
+        LittleFS.rmdir(dpath);
+        storageInvalidate();
+        logLine("[FILES] deleted folder " + dpath);
+        return sendOk("Gel\xC3\xB6scht");
+    }
     String name = cleanFileName(webserver.arg("file"));
     String path = String(MP3_DIR) + "/" + name;
     if (name.isEmpty() || !LittleFS.exists(path)) return sendErr(404, "Datei nicht gefunden");
@@ -3036,11 +3185,13 @@ void handleUploadData() {
                 if (uploadError.isEmpty() && !uploadFile) uploadError = "Datei kann nicht angelegt werden";
             }
         } else {
-            String name = cleanFileName(up.filename);
+            String sub = webserver.arg("dir") == TTS_FLASH_SUB ? String(TTS_FLASH_SUB) + "/" : String();
+            String name = cleanFileName(sub + up.filename);
             if (!name.isEmpty()) stopIfUsing(name);
             if (name.isEmpty()) {
                 uploadError = "Dateiname oder Typ nicht erlaubt";
             } else {
+                if (sub.length() > 0 && !LittleFS.exists(String(MP3_DIR) + "/" + TTS_FLASH_SUB)) LittleFS.mkdir(String(MP3_DIR) + "/" + TTS_FLASH_SUB);
                 uploadFile = LittleFS.open(String(MP3_DIR) + "/" + name, FILE_WRITE);
                 if (!uploadFile) uploadError = "Datei kann nicht angelegt werden";
             }
@@ -3448,6 +3599,7 @@ void setupWeb() {
     webserver.on("/api/sdrename", handleApiSdRename);
     webserver.on("/api/sdfile", HTTP_GET, handleApiSdFile);
     webserver.on("/api/fileget", HTTP_GET, handleApiFileGet);
+    webserver.on("/api/flash", HTTP_GET, handleApiFlash);
     webserver.on("/api/delete", handleApiDelete);
     webserver.on("/api/rename", handleApiRename);
     webserver.on("/api/scan", HTTP_GET, handleApiScan);

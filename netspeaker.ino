@@ -79,9 +79,10 @@ struct Settings {
     bool ttsCache;
     int fxMode;
     int fxWet;
-    bool fxAnn;
     int eqBass;
     int eqTreble;
+    int panMode;
+    int panDs;
     int duckPct;
     int volRampMs;
     bool resumeLast;
@@ -119,6 +120,8 @@ enum PlayState { PS_IDLE, PS_LOADING, PS_PLAYING };
 #define MIX_LAYER 0
 #define MIX_ANN 1
 
+static inline void audioPump();
+
 struct MixTrack {
     int16_t* ring = nullptr;
     std::atomic<uint32_t> wr{0};
@@ -138,6 +141,8 @@ struct MixTrack {
     String path;
     bool onSd = false;
     volatile bool muteIt = false;
+    volatile uint32_t underFrames = 0;   // Frames ohne Daten (Aussetzer) / frames without data (dropouts)
+    volatile uint32_t maxDecUs = 0;      // laengste Dekodierzeit eines Frames / longest decode time of a frame
     bool pending = false;
     unsigned long activateAt = 0;
     uint32_t lastRd = 0;
@@ -176,6 +181,8 @@ struct FxParams {
     int wet;
     int bass;
     int treble;
+    int pan = 0;      // Wandern: 0 aus, 1 links->rechts, 2 rechts->links, 3 hin und her / sweep
+    int panDs = 30;   // Dauer eines Durchgangs in 0,1 s / duration of one pass in 0.1 s
 };
 
 FxEngine annFx;
@@ -642,9 +649,10 @@ void loadSettings() {
     cfg.ttsCache = prefs.getBool("ttsc", false);
     cfg.fxMode = constrain(prefs.getInt("fxmode", 0), 0, 4);
     cfg.fxWet = constrain(prefs.getInt("fxwet", 30), 0, 100);
-    cfg.fxAnn = prefs.getBool("fxann", true);
     cfg.eqBass = constrain(prefs.getInt("eqb", 0), -12, 12);
     cfg.eqTreble = constrain(prefs.getInt("eqt", 0), -12, 12);
+    cfg.panMode = constrain(prefs.getInt("panm", 0), 0, 3);
+    cfg.panDs = constrain(prefs.getInt("pand", 30), 5, 200);
     cfg.mixAnn = prefs.getBool("mix", true);
     cfg.loudNorm = prefs.getBool("loud", true);
     cfg.radioAgc = prefs.getBool("agc", false);
@@ -1719,6 +1727,7 @@ String buildSpeechUrl(const Pending& p) {
 #define TTS_CACHE_DIR "/tts"
 #define TTS_CACHE_MAX 500
 #define TTS_SAVE_DIR "/ansagen"
+#define TTS_FLASH_SUB "ansagen"   // Unterordner im Flash: /mp3/ansagen / subfolder in flash: /mp3/ansagen
 #define TTS_FLASH_RESERVE 65536UL
 
 static String ttsBase(const Pending& p) {
@@ -1754,11 +1763,12 @@ static String ttsName(const Pending& p) {
 static const char* const FX_NAMES[] = {"aus", "zimmer", "halle", "kirche", "echo"};
 
 static String ttsFxSuffix(const FxParams& f) {
-    if (f.mode == 0 && f.bass == 0 && f.treble == 0) return "";
+    if (f.mode == 0 && f.bass == 0 && f.treble == 0 && f.pan == 0) return "";
     String s = String("_") + FX_NAMES[f.mode];
     if (f.mode != 0) s += String(f.wet);
     if (f.bass != 0) s += "_b" + String(f.bass);
     if (f.treble != 0) s += "_t" + String(f.treble);
+    if (f.pan >= 1 && f.pan <= 3) s += String("_w") + String("lrp"[f.pan - 1]) + String(f.panDs);
     return s;
 }
 
@@ -1774,6 +1784,9 @@ static FxParams ttsFxParse(const String& suf) {
             f.bass = constrain(tok.substring(1).toInt(), -12, 12);
         } else if (tok.length() >= 2 && tok[0] == 't' && (isdigit(tok[1]) || tok[1] == '-')) {
             f.treble = constrain(tok.substring(1).toInt(), -12, 12);
+        } else if (tok.length() >= 3 && tok[0] == 'w' && (tok[1] == 'l' || tok[1] == 'r' || tok[1] == 'p') && isdigit(tok[2])) {
+            f.pan = tok[1] == 'l' ? 1 : (tok[1] == 'r' ? 2 : 3);
+            f.panDs = constrain(tok.substring(2).toInt(), 5, 200);
         } else {
             for (int m = 0; m < 5; m++) {
                 String n = FX_NAMES[m];
@@ -1798,7 +1811,17 @@ static void ttsSaveFail(const String& de, const String& logEn) {
 // The effect values a text saved now gets: the current settings, without effect for fx=0.
 
 static FxParams fxGlobalParams() {
-    return FxParams{cfg.fxMode, cfg.fxWet, cfg.eqBass, cfg.eqTreble};
+    return FxParams{cfg.fxMode, cfg.fxWet, cfg.eqBass, cfg.eqTreble, cfg.panMode, cfg.panDs};
+}
+
+// Effektwerte fuer Dateien: wie die allgemeinen, aber ohne Hall und Echo (zu rechenintensiv, vor allem mit zwei Spuren); Klangregler und Wandern gelten.
+// Effect values for files: like the general ones, but without reverb and echo (too computing-intensive, especially with two tracks); tone control and sweep apply.
+
+static FxParams fxFileParams() {
+    FxParams f = fxGlobalParams();
+    f.mode = 0;
+    f.wet = 0;
+    return f;
 }
 
 static FxParams ttsFxCurrent(const Pending& p) {
@@ -1813,6 +1836,8 @@ static void annSetParams(const FxParams& f) {
     annFx.wet = f.wet;
     annFx.bass = f.bass;
     annFx.treble = f.treble;
+    annFx.pan = f.pan;
+    annFx.panDs = f.panDs;
     annFx.flush();
 }
 
@@ -1869,6 +1894,13 @@ static TtsLoc ttsLocate(const Pending& p) {
     String base = ttsBase(p);
     String n = ttsFindSaved(true, TTS_SAVE_DIR, base);
     if (!n.isEmpty()) return TtsLoc{1, String(TTS_SAVE_DIR) + "/" + n, n.substring(base.length(), n.length() - 4)};
+    String fdir = String(MP3_DIR) + "/" + TTS_FLASH_SUB;
+    n = ttsFindSaved(false, fdir, base);
+    if (!n.isEmpty()) return TtsLoc{2, fdir + "/" + n, n.substring(base.length(), n.length() - 4)};
+
+    // Aeltere Texte liegen noch im Ordner der MP3-Dateien selbst.
+    // Older texts still lie in the folder of the MP3 files itself.
+
     n = ttsFindSaved(false, MP3_DIR, base);
     if (!n.isEmpty()) return TtsLoc{2, String(MP3_DIR) + "/" + n, n.substring(base.length(), n.length() - 4)};
     if (cfg.ttsCache) {
@@ -1996,8 +2028,8 @@ static void ttsCacheStore(const Pending& p) {
     else logLine("[VOICERSS] could not store in cache");
 }
 
-// Speichert den Text dauerhaft: bevorzugt auf der SD-Karte, sonst im Flash (Ordner der MP3-Dateien, sichtbar im Tab MP3 (Flash)).
-// Saves the text permanently: preferably on the SD card, otherwise in flash (folder of the MP3 files, visible in the MP3 (Flash) tab).
+// Speichert den Text dauerhaft: bevorzugt auf der SD-Karte, sonst im Flash (Unterordner ansagen der MP3-Dateien, sichtbar im Tab MP3 (Flash)).
+// Saves the text permanently: preferably on the SD card, otherwise in flash (subfolder ansagen of the MP3 files, visible in the MP3 (Flash) tab).
 
 static void ttsSaveText(const Pending& p, const FxParams& fxp) {
     String name = ttsBase(p) + ttsFxSuffix(fxp) + ".mp3";
@@ -2019,7 +2051,9 @@ static void ttsSaveText(const Pending& p, const FxParams& fxp) {
         ttsSaveFail("Text nicht gespeichert: Flash voll (mindestens 64 KB m\xC3\xBCssen frei bleiben)", "text not saved: flash is full (at least 64 KB must stay free)");
         return;
     }
-    String path = String(MP3_DIR) + "/" + name;
+    String fdir = String(MP3_DIR) + "/" + TTS_FLASH_SUB;
+    if (!LittleFS.exists(fdir)) LittleFS.mkdir(fdir);
+    String path = fdir + "/" + name;
     LittleFS.remove(path);
     File dst = LittleFS.open(path, FILE_WRITE);
     size_t n = 0;
@@ -2099,7 +2133,8 @@ static bool fetchSpeech(const Pending& p, String& err) {
 
         FxParams cur = ttsFxCurrent(p);
         String curSuffix = ttsFxSuffix(cur);
-        if (!(got && loc.kind <= 2 && loc.suffix == curSuffix)) {
+        bool inPlace = loc.kind != 2 || loc.path.startsWith(String(MP3_DIR) + "/" + TTS_FLASH_SUB + "/");   // Texte im alten Ordner wandern in den Unterordner / texts in the old folder move to the subfolder
+        if (!(got && loc.kind <= 2 && loc.suffix == curSuffix && inPlace)) {
             ttsSaveText(p, cur);
             if (got && loc.kind <= 2) {
                 if (loc.kind == 1) {
@@ -2123,6 +2158,7 @@ static bool fetchSpeech(const Pending& p, String& err) {
     if (p.noFx) use = FxParams{0, 0, 0, 0};
     speechFrom = got ? (loc.kind == 1 ? "sd" : (loc.kind == 2 ? "flash" : "cache")) : "voicerss";
     speechSeq++;
+    logLine("[VOICERSS] announcement effect: " + String(use.mode ? FX_NAMES[use.mode] : "off") + (use.mode ? " " + String(use.wet) + " %" : "") + (use.bass || use.treble ? ", bass " + String(use.bass) + ", treble " + String(use.treble) : "") + (use.pan ? ", sweep " + String(use.pan) + " " + String(use.panDs / 10.0, 1) + " s" : "") + (p.noFx ? " (fx=0)" : ""));
     annSetParams(use);
     return true;
 }
@@ -2187,6 +2223,7 @@ static void mixAddTrack(MixTrack& m, int32_t* buf, int16_t words) {
             wr = m.wr.load(std::memory_order_acquire);
             if (wr - rd < 2) {
                 if (m.producerDone) m.drained = true;
+                else m.underFrames = m.underFrames + (uint32_t)(frames - i);
                 break;
             }
         }
@@ -2326,10 +2363,12 @@ int32_t* fxTmp = nullptr;
 #define FX_TMP_WORDS 8192
 
 void fxApplyCfg() {
-    fx.mode = cfg.fxMode;
+    fx.mode = FX_OFF;   // Hall und Echo wirken nicht auf Dateien im Hauptstrom / reverb and echo do not act on files in the main stream
     fx.wet = cfg.fxWet;
     fx.bass = cfg.eqBass;
     fx.treble = cfg.eqTreble;
+    fx.pan = cfg.panMode;
+    fx.panDs = cfg.panDs;
     fx.resetLoad();
 }
 
@@ -2375,7 +2414,23 @@ void muteApply(int32_t* buf, int16_t words) {
 // Wird im Audio-Task vor jeder I2S-Ausgabe aufgerufen: addiert beide Mischspuren zu den Radio-Samples.
 // Called in the audio task before every I2S output: adds both mix tracks to the radio samples.
 
+// Abstaende zwischen den Aufrufen des Audio-Hooks: Luecken ueber 60 ms zeigen, dass die Hauptschleife die Ausgabe nicht rechtzeitig fuellt.
+// Intervals between calls of the audio hook: gaps over 60 ms show that the main loop does not fill the output in time.
+
+volatile uint32_t hookGaps = 0;
+volatile uint32_t hookGapMax = 0;
+
 void audio_process_i2s(int32_t* buf, int16_t words, bool* continueI2S) {
+    static int64_t lastHook = 0;
+    int64_t nowHook = esp_timer_get_time();
+    if (lastHook != 0) {
+        int64_t gap = nowHook - lastHook;
+        if (gap > 60000 && gap < 1500000) {
+            hookGaps = hookGaps + 1;
+            if ((uint32_t)(gap / 1000) > hookGapMax) hookGapMax = (uint32_t)(gap / 1000);
+        }
+    }
+    lastHook = nowHook;
     int32_t fg = fileGainQ15;
     if (fileGainOn && fg != 32768) {
         for (int i = 0; i < words; i++) {
@@ -2479,7 +2534,10 @@ void mixTask(void* arg) {
                 have -= sync;
             }
             int32_t left = have;
+            int64_t dt0 = esp_timer_get_time();
             int32_t res = dec->decode(in, &left, out);
+            uint32_t dtu = (uint32_t)(esp_timer_get_time() - dt0);
+            if (dtu > m.maxDecUs) m.maxDecUs = dtu;
             int used = have - left;
             if (res == 0) {
                 uint32_t frames = dec->getOutputSamples();
@@ -2564,7 +2622,10 @@ void mixHalt(int t) {
     m.active = false;
     m.pending = false;
     m.abortFlag = true;
-    for (int i = 0; i < 100 && m.taskRunning; i++) delay(10);
+    for (int i = 0; i < 100 && m.taskRunning; i++) {
+        delay(10);
+        audioPump();
+    }
     m.abortFlag = false;
     for (int i = 0; i < 50 && m.inHook; i++) delay(2);
     delay(5);
@@ -2590,6 +2651,13 @@ void mixStop(int t) {
         radioBack = true;
     }
     if (!was) return;
+    {
+        MixTrack& mm = mixT[t];
+        uint32_t ur = mm.outRate ? (uint32_t)((uint64_t)mm.underFrames * 1000 / mm.outRate) : 0;
+        logLine("[MIX] track " + String(t) + " ended: dropouts " + String(ur) + " ms, longest decode " + String(mm.maxDecUs / 1000.0, 1) + " ms, output gaps " + String(hookGaps) + " (longest " + String(hookGapMax) + " ms)");
+        hookGaps = 0;
+        hookGapMax = 0;
+    }
     if (t == MIX_LAYER) logLine(radioBack ? "[MIX] card file over the radio finished, radio back to volume " + String(currentVolume) : String("[MIX] card file over the radio finished"));
     else logLine(annCount > 0 ? String("[MIX] announcement finished, next one waiting, radio stays lowered") : "[MIX] announcement finished, radio back to volume " + String(currentVolume));
 }
@@ -2609,6 +2677,7 @@ void mixQuickFade() {
     for (int i = 9; i >= 0; i--) {
         m.gainQ15 = (int32_t)((int64_t)g0 * i / 10);
         delay(10);
+        audioPump();
         esp_task_wdt_reset();
     }
 }
@@ -2616,7 +2685,7 @@ void mixQuickFade() {
 // Startet eine Mischspur fuer eine MP3-Datei; false, wenn Speicher oder Dekoder fehlen (dann gilt der normale Weg ueber Unterbrechen).
 // Starts a mix track for an MP3 file; false if memory or decoder is missing (the normal way via interrupting then applies).
 
-bool mixStart(int t, const String& path, int vol, bool sd = false) {
+bool mixStart(int t, const String& path, int vol, bool sd = false, bool duckLayer = true, bool duckBase = true) {
     MixTrack& m = mixT[t];
     if (t == MIX_ANN) mixQuickFade();
     mixHalt(t);
@@ -2638,10 +2707,17 @@ bool mixStart(int t, const String& path, int vol, bool sd = false) {
     m.drained = false;
     m.producerDone = false;
     m.abortFlag = false;
+    m.underFrames = 0;
+    m.maxDecUs = 0;
+    hookGaps = 0;
+    hookGapMax = 0;
     m.outRate = audio->getSampleRate();
     m.baseGainQ15 = mixGainFor(vol);
     m.gainQ15 = m.baseGainQ15;
     m.taskRunning = true;
+    // Die Dekodier-Tasks laufen auf Kern 1: auf Kern 0 (WLAN) war die Dekodierzeit bis 207 ms und es gab Aussetzer von zusammen ueber 10 s.
+    // The decoder tasks run on core 1: on core 0 (WiFi) the decode time was up to 207 ms and there were dropouts of over 10 s in total.
+
     if (m.outRate == 0 || xTaskCreatePinnedToCore(mixTask, t == MIX_LAYER ? "mixlay" : "mixann", 12288, &m, 1, nullptr, 1) != pdPASS) {
         m.taskRunning = false;
         mixStop(t);
@@ -2649,7 +2725,8 @@ bool mixStart(int t, const String& path, int vol, bool sd = false) {
     }
     unsigned long t0 = millis();
     while (millis() - t0 < 1500 && m.taskRunning && (m.wr.load() - m.rd.load()) < MIX_PREFILL_FRAMES) {
-        delay(5);
+        delay(2);
+        audioPump();
         esp_task_wdt_reset();
     }
     if (m.wr.load() < 2) {
@@ -2663,14 +2740,21 @@ bool mixStart(int t, const String& path, int vol, bool sd = false) {
     // War das Radio oder die Datei schon beim Aufruf abgesenkt (Ansage), startet die Ansage ohne weitere Wartezeit.
     // If the radio or file was already lowered when the call came in (announcement), the announcement starts without further delay.
 
+    // Eine zweite Datei ueber einer laufenden Datei (kein Webradio) senkt die erste nicht ab: beide spielen mit ihrer eigenen Lautstaerke weiter.
+    // A second file over a running file (no web radio) does not lower the first one: both keep playing at their own volume.
+
     unsigned long lead = (unsigned long)cfg.fadeMs * 6 / 10;
     unsigned long since = mixDucked ? millis() - mixDuckAt : 0;
-    if (!mixDucked) {
-        volRampTo(duck, cfg.fadeMs);
-        mixDuckAt = millis();
+    if (duckBase) {
+        if (!mixDucked) {
+            volRampTo(duck, cfg.fadeMs);
+            mixDuckAt = millis();
+        }
+        mixDucked = true;
+    } else {
+        lead = 0;
     }
-    mixDucked = true;
-    if (t == MIX_ANN) layerDuck(true);
+    if (t == MIX_ANN && duckLayer) layerDuck(true);
     m.pending = true;
     m.activateAt = millis() + (since >= lead ? 0 : lead - since);
     logLine("[MIX] " + path + " mixed over the running audio, " + String(t == MIX_LAYER ? "file" : "announcement") + " volume " + String(vol) + ", radio " + String(currentVolume) + " -> " + String(duck / VOL_FINE) + ", source " + String(m.srcRate) + " Hz, output " + String(m.outRate) + " Hz");
@@ -2684,6 +2768,21 @@ bool mixPossible() {
     if (!cfg.mixAnn || !audio || playState != PS_PLAYING || !audio->isRunning()) return false;
     if (streamActive) return nowKind == "radio" && !streamWaitingReady && !fadeInWaiting && !fadeInActive;
     return nowKind == "file";
+}
+
+// Darf eine MP3-Datei jetzt zusaetzlich zu einem laufenden Klang gespielt werden? Hoechstens zwei Klaenge (Datei im Hauptstrom, Mischspuren) zugleich;
+// das Webradio zaehlt nicht mit. Texte laufen weiter nacheinander.
+// May an MP3 file be played now in addition to a running sound? At most two sounds (file in the main stream, mix tracks) at the same time;
+// the web radio does not count. Texts still run one after another.
+
+bool fileConcurrentOk(const Pending& p) {
+    if (p.type != PEND_FILE || !cfg.mixAnn || voiceBusy || !mixPossible()) return false;
+    String l = p.text;
+    l.toLowerCase();
+    if (!l.endsWith(".mp3")) return false;
+    int n = (nowKind == "file" ? 1 : 0) + (mixT[MIX_LAYER].inUse ? 1 : 0) + (mixT[MIX_ANN].inUse ? 1 : 0);
+    if (n < 1 || n >= 2) return false;
+    return !mixT[MIX_LAYER].inUse || !mixT[MIX_ANN].inUse;
 }
 
 // Meldet einen Fehler, ohne das laufende Radio anzutasten.
@@ -2820,8 +2919,22 @@ bool fileMixed(const Pending& p) {
     // Eine Datei der Karte ueber dem Radio liegt auf Spur 0 und wird von einer Ansage abgesenkt; alles andere ist eine Ansage (Spur 1).
     // A file of the card over the radio goes on track 0 and is lowered by an announcement; everything else is an announcement (track 1).
 
-    annSetParams(fxGlobalParams());
-    if (!mixStart((r.sd && streamActive) ? MIX_LAYER : MIX_ANN, r.path, p.vol >= 0 ? p.vol : cfg.vol, r.sd)) return false;
+    bool layer = r.sd && streamActive;
+
+    // Laeuft schon ein Klang, bekommt die Datei die freie Spur und beide spielen zugleich (die laufende Datei wird nicht abgesenkt).
+    // If a sound is already running, the file gets the free track and both play at the same time (the running file is not lowered).
+
+    bool together = nowKind == "file" || mixT[MIX_LAYER].inUse || mixT[MIX_ANN].inUse;
+    if (together) {
+        int want = layer ? MIX_LAYER : MIX_ANN;
+        if (mixT[want].inUse) layer = want == MIX_ANN;   // die andere Spur nehmen / take the other track
+    }
+
+    // Die Effektwerte der Ansagen nur setzen, wenn die Datei auf die Ansagenspur kommt; eine laufende Ansage behaelt sonst ihre Werte.
+    // Set the effect values of the announcements only if the file goes on the announcement track; otherwise a running announcement keeps its values.
+
+    if (!layer) annSetParams(fxFileParams());
+    if (!mixStart(layer ? MIX_LAYER : MIX_ANN, r.path, p.vol >= 0 ? p.vol : cfg.vol, r.sd, !together, !(nowKind == "file" && !streamActive))) return false;
 
     // Laeuft schon eine Datei, bleibt sie die angezeigte; nur ueber einem Radio steht die gemischte Datei in nowFile.
     // If a file is already playing it stays the one shown; only over a radio the mixed file goes into nowFile.
@@ -3010,6 +3123,13 @@ void processQueue() {
         }
     }
 
+    for (int i = 0; i < annCount; i++) {
+        if (fileConcurrentOk(annQueue[i]) && annTake(i, next)) {
+            pending = next;
+            return;
+        }
+    }
+
     if (!voiceBusy && !mixAny() && nowKind == "file" && mixPossible()) {
         for (int i = 0; i < annCount; i++) {
             if (((annQueue[i].type == PEND_SAY && nowFile.startsWith("sd:")) || flashOverSd(annQueue[i])) && annTake(i, next)) {
@@ -3052,7 +3172,7 @@ void processPending() {
         lowerName.toLowerCase();
         mixable = lowerName.endsWith(".mp3");
     }
-    if (flashOverSd(p)) mixable = true;
+    if (flashOverSd(p) || fileConcurrentOk(p)) mixable = true;
 
     if (mixAny() && !(mixable && mixPossible())) {
         mixHalt(MIX_LAYER);
@@ -3663,6 +3783,52 @@ String commandPlayDir(const String& refIn, int vol, bool shuffle = false, bool l
     return "";
 }
 
+// Ordner-Sitzung fuer den Flash: "/" ist der Ordner der MP3-Dateien, "ansagen/" der Unterordner mit den gespeicherten Texten.
+// Folder session for the flash: "/" is the folder of the MP3 files, "ansagen/" the subfolder with the saved texts.
+
+String commandPlayDirFlash(const String& refIn, int vol, bool shuffle, bool loop) {
+    String sub = refIn;
+    sub.trim();
+    while (sub.startsWith("/")) sub.remove(0, 1);
+    if (sub.endsWith("/")) sub.remove(sub.length() - 1);
+    if (!sub.isEmpty() && sub != TTS_FLASH_SUB) return "Ordner nicht gefunden";
+    if (!fsReady) return "Dateisystem nicht verfuegbar";
+    String path = String(MP3_DIR) + (sub.isEmpty() ? String() : "/" + sub);
+    String prefix = sub.isEmpty() ? String() : sub + "/";
+    File d = LittleFS.open(path);
+    if (!d || !d.isDirectory()) return "Ordner nicht gefunden";
+    DirSession s;
+    File e = d.openNextFile();
+    while (e) {
+        if (!e.isDirectory()) {
+            String n = String(e.name());
+            n = n.substring(n.lastIndexOf('/') + 1);
+            String l = n;
+            l.toLowerCase();
+            if (l.endsWith(".mp3")) s.names.push_back(prefix + n);
+        }
+        e = d.openNextFile();
+    }
+    d.close();
+    if (s.names.empty()) return "Keine MP3-Dateien im Ordner";
+    std::sort(s.names.begin(), s.names.end(), [](const String& a, const String& b) { return a < b; });
+    String key = "flash:/" + prefix;
+    s.active = true;
+    s.shuffle = shuffle;
+    s.loop = loop;
+    s.vol = vol;
+    s.dir = key;
+    if (shuffle) {
+        String last = prefs.getString("dirfirst", "");
+        String avoid = last.startsWith(key + "|") ? last.substring(key.length() + 1) : String();
+        dirShuffle(s.names, avoid);
+        prefs.putString("dirfirst", key + "|" + s.names[0]);
+    }
+    logLine("[DIR] session " + key + ": " + String(s.names.size()) + " files" + (shuffle ? ", shuffled, first " + s.names[0] : String()) + (loop ? ", loop" : String()));
+    dirSess = s;
+    return "";
+}
+
 // Gibt der Warteschlange die naechste Datei der Ordner-Sitzung, sobald nichts mehr wartet oder laeuft; Ansagen dazwischen kommen zuerst.
 // Gives the queue the next file of the folder session as soon as nothing is waiting or running; announcements in between come first.
 
@@ -3691,11 +3857,14 @@ void dirFeed() {
     dirSess.lastFeed = millis();
     annPush(q);
 }
+String commandPlayDirFlash(const String& refIn, int vol, bool shuffle, bool loop);
+
 String commandPlayFile(const String& nameIn, int vol, bool shuffle = false, bool loop = false) {
     String name = nameIn;
     name.trim();
     if (name.isEmpty()) return "Kein Dateiname angegeben";
     if (name.startsWith("sd:") && name.endsWith("/")) return commandPlayDir(name, vol, shuffle, loop);
+    if (!name.startsWith("sd:") && name.endsWith("/")) return commandPlayDirFlash(name, vol, shuffle, loop);
     Pending q;
     q.type = PEND_FILE;
     q.text = name;

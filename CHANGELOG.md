@@ -1,9 +1,37 @@
 # Changelog
 
+## 2026-11-13 - Version 1.6.4
+
+**Deutsch**
+
+- Geändert: Im Flash gespeicherte Texte (*Text speichern* ohne SD-Karte) liegen jetzt im Unterordner `ansagen` des MP3-Ordners, nicht mehr zwischen den eigenen MP3-Dateien. Im Tab *MP3 (Flash)* erscheinen sie als `ansagen/…`; Abspielen, Löschen, Umbenennen, Sicherung und Wiederherstellen kennen den Unterordner. Ältere Texte im MP3-Ordner werden weiter gefunden.
+- Neu: MP3-Dateien über REST oder MQTT laufen gleichzeitig übereinander statt nacheinander: kommt ein Aufruf, während schon eine Datei (oder ein Text über dem Radio) läuft, startet die zweite sofort auf der freien Mischspur, zum Beispiel Vogelgezwitscher mit einer Glocke darüber. Höchstens zwei Klänge zugleich (das Webradio zählt nicht mit), ein dritter wartet in der Warteschlange; Texte laufen weiter nacheinander. Beide Dateien laufen mit ihrer eigenen Lautstärke weiter, die laufende Datei wird nicht abgesenkt; nur ein Webradio senkt sich wie bei Ansagen nach der Einstellung *Radio bei* im Tab *Audio* (Texte über einer Datei senken diese weiter ab).
+- Neu: Effekt *Wandern* im Tab *Ansage* (Karte *Klangeffekte*): der Ton wandert zwischen links und rechts (links → rechts, rechts → links, hin und her) mit einstellbarer *Dauer* (0,5 bis 20 s je Durchgang). Wirkt auf Ansagen und Dateien, nie auf Webradio; mit Hall und Klangreglern kombinierbar; hörbar nur im Stereo-Aufbau mit zwei Verstärkermodulen. REST `pan` (`off`, `lr`, `rl`, `pp`) und `pansec`, Export `panm`, `pand`; die Werte stehen auch im Dateinamen gespeicherter Texte (`_wl30`).
+- Geändert: Die Knöpfe *URL* und *curl* (Tabs *MP3 (Flash)*, *SD-Karte*) sowie die REST-Aufrufe bei Sendern und Favoriten kopieren Beispielwerte für alle Parameter: `…/api/file?file=…&vol=60&shuffle=0&loop=0`, `…/api/station?n=3&vol=60`, `…/api/play` mit `vol=60`; bei Sendern und Favoriten zusätzlich die MQTT-Nutzlast als JSON.
+- Geändert: Der Tab *Sprechen* heißt jetzt *Ansage* (Adresse `?tab=ansage`; `?tab=sprechen` aus alten Lesezeichen führt weiter dorthin). Die Tabs *MP3 (Flash)* und *SD-Karte* laden ihre Liste bei jedem Öffnen neu.
+- Neu: Der Tab *MP3 (Flash)* zeigt die Dateien wie der Tab *SD-Karte*: Ordner als Zeilen (Unterordner `ansagen`) zum Öffnen, `..` zurück, je Ordner *▶ Ordner*, *🔀 Zufall*, *URL*, *curl* und Löschen, je Datei Abspielen, Herunterladen, *URL*, *curl*, Umbenennen, Löschen. Neue Routen `GET /api/flash?dir=`; ein Name mit `/` am Ende (`ansagen/`, `/`) spielt den Ordner, `/api/delete` löscht den Unterordner `ansagen` samt Inhalt.
+- Neu: Das Log nennt bei jeder Ansage den Effekt (`announcement effect: …`); `/api/effect` zeigt mit `annMode` und `annLoad` die Werte der letzten Ansage.
+- Behoben: Eine Datei, die über ein Radio gemischt wird (SD-Datei als Overlay), setzte die Effektwerte einer laufenden Ansage zurück.
+- Behoben: Englische Texte: Doku-Karte *Sicherung* und ein Tooltip im SD-Tab waren unübersetzt; doppelte Einträge entfernt.
+
+**English**
+
+- Changed: texts saved in flash (*Text speichern* without an SD card) now lie in the subfolder `ansagen` of the MP3 folder, no longer between your own MP3 files. In the *MP3 (Flash)* tab they appear as `ansagen/…`; playing, deleting, renaming, backup and restore know the subfolder. Older texts in the MP3 folder are still found.
+- New: MP3 files via REST or MQTT play on top of each other instead of one after another: if a call arrives while a file (or a text over the radio) is already running, the second starts at once on the free mix track, for example birdsong with a bell over it. At most two sounds at a time (the web radio does not count), a third waits in the queue; texts still run one after another. Both files keep playing at their own volume, the running file is not lowered; only a web radio is lowered like for announcements according to the setting *Radio bei* in the *Audio* tab (texts over a file still lower it).
+- New: effect *Wandern* (sweep) in the *Ansage* tab (card *Klangeffekte*): the sound moves between left and right (left → right, right → left, back and forth) with an adjustable *Dauer* (duration, 0.5 to 20 s per pass). Acts on announcements and files, never on web radio; can be combined with reverb and tone control; audible only in the stereo setup with two amplifier modules. REST `pan` (`off`, `lr`, `rl`, `pp`) and `pansec`, export `panm`, `pand`; the values are also in the file name of saved texts (`_wl30`).
+- Changed: the buttons *URL* and *curl* (tabs *MP3 (Flash)*, *SD card*) and the REST calls for stations and favorites copy example values for all parameters: `…/api/file?file=…&vol=60&shuffle=0&loop=0`, `…/api/station?n=3&vol=60`, `…/api/play` with `vol=60`; for stations and favorites also the MQTT payload as JSON.
+- Changed: the tab *Sprechen* is now called *Ansage* (address `?tab=ansage`; `?tab=sprechen` from old bookmarks still leads there). The tabs *MP3 (Flash)* and *SD card* reload their list every time they are opened.
+- New: the *MP3 (Flash)* tab shows the files like the *SD card* tab: folders as rows (subfolder `ansagen`) to open, `..` back, per folder *▶ Ordner*, *🔀 Zufall*, *URL*, *curl* and delete, per file play, download, *URL*, *curl*, rename, delete. New route `GET /api/flash?dir=`; a name ending in `/` (`ansagen/`, `/`) plays the folder, `/api/delete` deletes the subfolder `ansagen` with its content.
+- New: the log names the effect for every announcement (`announcement effect: …`); `/api/effect` shows the values of the last announcement with `annMode` and `annLoad`.
+- Fixed: a file mixed over a radio (SD file as overlay) reset the effect values of a running announcement.
+- Fixed: English texts: the *Sicherung* docs card and a tooltip in the SD tab were untranslated; duplicate entries removed.
+
 ## 2026-11-13 - Version 1.6.3
 
 **Deutsch**
 
+- Geändert: Hall und Echo wirken nicht mehr auf abgespielte Dateien (zu hohe Rechenlast, besonders bei zwei Spuren), nur noch auf Ansagen; Klangregler und Wandern wirken weiter auch auf Dateien.
+- Behoben: Zwei MP3-Dateien zugleich klangen abgehackt. Die Dekodier-Tasks der Mischspuren laufen jetzt auf dem zweiten Kern, und der Mischer lässt die Audio-Bibliothek in seinen Wartezeiten weiterlaufen; das Log meldet je Spur Aussetzer und Dekodierzeit (`[MIX] track N ended: …`).
 - Geändert: Webradio läuft immer ohne Klangeffekt. Die Effekte wirken nur noch auf Ansagen und abgespielte Dateien. Der Haken *Auch auf Ansagen anwenden* und der Parameter `ann` entfallen.
 - Neu: Ansagen über REST (`/api/say`) und MQTT (`/say`, JSON) haben den Parameter `fx` (Standard 1); mit `fx=0` läuft die einzelne Ansage ohne Klangeffekt, auch wenn der Text mit Effekt gespeichert ist. Mit `save=1` wird der Text dann trocken gespeichert.
 - Neu: Hinweis zu Stereo in den Verkabelungsbildern und in der README: ein zweites MAX98357A-Modul am selben I2S-Bus, der SD-Pin wählt den Kanal (links direkt an VIN, rechts über etwa 470 kΩ an VIN, bei 5 V).
@@ -11,6 +39,8 @@
 
 **English**
 
+- Changed: reverb and echo no longer act on played files (too much computing load, especially with two tracks), only on announcements; tone control and sweep still also act on files.
+- Fixed: two MP3 files at the same time sounded choppy. The decoder tasks of the mix tracks now run on the second core, and the mixer lets the audio library keep running during its waiting times; the log reports dropouts and decode time per track (`[MIX] track N ended: …`).
 - Changed: web radio always plays without sound effect. The effects now act only on announcements and played files. The checkbox *Auch auf Ansagen anwenden* and the parameter `ann` are removed.
 - New: announcements via REST (`/api/say`) and MQTT (`/say`, JSON) have the parameter `fx` (default 1); with `fx=0` the single announcement plays without sound effect, even if the text is saved with an effect. With `save=1` the text is then saved dry.
 - New: note about stereo in the wiring pictures and in the README: a second MAX98357A module on the same I2S bus, the SD pin selects the channel (left directly to VIN, right through about 470 kΩ to VIN, at 5 V).
