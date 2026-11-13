@@ -42,6 +42,8 @@ class FxEngine {
     volatile int wet = 30;       // 0..100 %
     volatile int bass = 0;       // -12..12 dB
     volatile int treble = 0;     // -12..12 dB
+    volatile int pan = 0;        // Wandern: 0 aus, 1 links->rechts, 2 rechts->links, 3 hin und her / sweep: 0 off, 1 left->right, 2 right->left, 3 back and forth
+    volatile int panDs = 30;     // Dauer eines Durchgangs in 0,1 s (5..200) / duration of one pass in 0.1 s (5..200)
     volatile uint32_t cpuUs = 0; // Rechenzeit seit dem letzten Zuruecksetzen / processing time since the last reset
     volatile uint32_t cpuFrames = 0;
 
@@ -52,7 +54,7 @@ class FxEngine {
     }
 
     bool active() const {
-        return mode != FX_OFF || bass != 0 || treble != 0;
+        return mode != FX_OFF || bass != 0 || treble != 0 || pan != 0;
     }
 
     // Auslastung des Audio-Kerns durch die Effekte in Prozent (Mittel seit dem Zuruecksetzen).
@@ -70,6 +72,13 @@ class FxEngine {
         if (!active() || sampleRate < 8000 || sampleRate > 48000 || words < 2) return;
         int64_t t0 = esp_timer_get_time();
         int m = mode, w = wet, b = bass, t = treble;
+        int pn = pan, ps = panDs;
+        if (pn != curPan || ps != curPanDs) {
+            curPan = pn;
+            curPanDs = ps;
+            panReset();
+        }
+        float panInc = 1.0f / ((float)(ps < 5 ? 5 : ps) * 0.1f * (float)sampleRate);
 
         // Nach einer Pause (kein Ton) die Verzoegerungsleitungen leeren, sonst klingt ein alter Hall an.
         // After a pause (no sound) clear the delay lines, otherwise an old reverb tail sounds again.
@@ -115,6 +124,29 @@ class FxEngine {
                 ol = l * dry + sl * g;
                 orr = r * dry + sr * g;
             }
+            if (curPan != 0) {
+
+                // Wandern: die Mitte beider Kanaele wird mit gleichbleibender Leistung zwischen links und rechts verschoben (Mitte = Originalpegel).
+                // Sweep: the mid of both channels is moved between left and right with constant power (center = original level).
+
+                float mid = 0.5f * (ol + orr);
+                float th = panPos * 1.5707963f;
+                ol = mid * cosf(th) * 1.41421356f;
+                orr = mid * sinf(th) * 1.41421356f;
+                panPos += panDir * panInc;
+                if (curPan == 3) {
+                    if (panPos >= 1.0f) {
+                        panPos = 1.0f;
+                        panDir = -1.0f;
+                    } else if (panPos <= 0.0f) {
+                        panPos = 0.0f;
+                        panDir = 1.0f;
+                    }
+                } else {
+                    if (panPos > 1.0f) panPos = 1.0f;
+                    if (panPos < 0.0f) panPos = 0.0f;
+                }
+            }
             buf[2 * i] = clip32(ol);
             buf[2 * i + 1] = clip32(orr);
         }
@@ -137,6 +169,20 @@ class FxEngine {
     bool ok = false;
     uint32_t rate = 0;
     int curMode = -1, curBass = 999, curTreble = 999;
+    int curPan = 0, curPanDs = 30;
+    float panPos = 0.0f, panDir = 1.0f;
+
+    // Startposition der Bewegung: bei rechts->links beginnt sie rechts, sonst links.
+    // Start position of the sweep: right->left starts at the right, otherwise at the left.
+    void panReset() {
+        if (curPan == 2) {
+            panPos = 1.0f;
+            panDir = -1.0f;
+        } else {
+            panPos = 0.0f;
+            panDir = 1.0f;
+        }
+    }
     bool eqOn = false;
     volatile bool needClear = false;
     int64_t lastCall = 0;
@@ -175,6 +221,7 @@ class FxEngine {
     }
 
     void clearState() {
+        panReset();
         if (pool) memset(pool, 0, sizeof(float) * FX_POOL_FLOATS);
         for (int i = 0; i < 8; i++) {
             cl[i].store = 0;
