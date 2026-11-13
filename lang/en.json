@@ -484,12 +484,12 @@
 "Zypern (CY)":"Cyprus (CY)",
 "Sie können auch eine SSID manuell eingeben. Das Passwort ist ausgeblendet. Lassen Sie das Feld leer, um das aktuelle Passwort beizubehalten.":"You can also enter an SSID manually. The password is hidden. Leave the field empty to keep the current password.",
 "Ansagen auf der SD-Karte zwischenspeichern":"Cache announcements on the SD card",
-"Ein einmal von VoiceRSS geholter Text wird als MP3 im Ordner /tts der SD-Karte abgelegt; der Dateiname beginnt mit einem Hinweis auf den Text, zum Beispiel Achtung_auf_Gleis_3_3fa9c2e1.mp3. Derselbe Text mit gleicher Sprache, Stimme, Tempo und gleichem Format wird danach von der Karte gespielt, ohne Internet und ohne VoiceRSS-Anfrage. Es bleiben höchstens 500 Dateien, die ältesten werden gelöscht. Ohne Karte läuft alles wie bisher":"A text fetched once from VoiceRSS is stored as MP3 in the folder /tts of the SD card; the file name starts with a hint about the text, for example Achtung_auf_Gleis_3_3fa9c2e1.mp3. The same text with the same language, voice, rate and format is then played from the card, without internet and without a VoiceRSS request. At most 500 files are kept, the oldest are deleted. Without a card everything works as before",
+"Ein einmal von VoiceRSS geholter Text wird als MP3 im Ordner /tts der SD-Karte abgelegt; der Dateiname beginnt mit einem Hinweis auf den Text, zum Beispiel Achtung_auf_Gleis_3_3fa9c2e1.mp3. Derselbe Text mit gleicher Sprache, Stimme, Tempo und gleichem Format wird danach von der Karte gespielt, ohne Internet und ohne VoiceRSS-Anfrage. Es bleiben höchstens 500 Dateien, die ältesten werden gelöscht. Ohne Karte läuft alles wie bisher.":"A text fetched once from VoiceRSS is stored as MP3 in the folder /tts of the SD card; the file name starts with a hint about the text, for example Achtung_auf_Gleis_3_3fa9c2e1.mp3. The same text with the same language, voice, rate and format is then played from the card, without internet and without a VoiceRSS request. At most 500 files are kept, the oldest are deleted. Without a card everything works as before.",
 "Zwischenspeicher leeren":"Clear cache",
-"Löscht alle zwischengespeicherten Ansagen von der SD-Karte (Ordner /tts); sie werden bei Bedarf neu von VoiceRSS geholt":"Deletes all cached announcements from the SD card (folder /tts); they are fetched from VoiceRSS again when needed",
+"Löscht alle zwischengespeicherten Ansagen von der SD-Karte (Ordner /tts); sie werden bei Bedarf neu von VoiceRSS geholt.":"Deletes all cached announcements from the SD card (folder /tts); they are fetched from VoiceRSS again when needed.",
 "Alle zwischengespeicherten Ansagen von der SD-Karte löschen?":"Delete all cached announcements from the SD card?",
 "Text speichern":"Save text",
-"Speichert die Sprachdatei dieses Textes beim nächsten Sprechen dauerhaft, bevorzugt auf der SD-Karte (Ordner /ansagen), sonst im Gerät (Tab MP3 (Flash)). Danach wird der Haken wieder entfernt. Gespeicherte Texte werden bei gleicher Sprache, Stimme und gleichem Tempo gespielt, ohne VoiceRSS zu fragen, auch ohne Internet":"Saves the speech file of this text permanently the next time you speak, preferably on the SD card (folder /ansagen), otherwise in the device (MP3 (Flash) tab). The checkbox is cleared afterwards. Saved texts are played with the same language, voice and rate without asking VoiceRSS, even without internet",
+"Speichert die Sprachdatei dieses Textes beim nächsten Sprechen dauerhaft, bevorzugt auf der SD-Karte (Ordner /ansagen), sonst im Gerät (Tab MP3 (Flash)). Danach wird der Haken wieder entfernt. Gespeicherte Texte werden bei gleicher Sprache, Stimme und gleichem Tempo gespielt, ohne VoiceRSS zu fragen, auch ohne Internet.":"Saves the speech file of this text permanently the next time you speak, preferably on the SD card (folder /ansagen), otherwise in the device (MP3 (Flash) tab). The checkbox is cleared afterwards. Saved texts are played with the same language, voice and rate without asking VoiceRSS, even without internet.",
 "Text nicht gespeichert: kein Speicher verfügbar":"Text not saved: no storage available",
 "Text nicht gespeichert: Flash voll (mindestens 64 KB müssen frei bleiben)":"Text not saved: flash is full (at least 64 KB must stay free)",
 "Text konnte nicht im Flash gespeichert werden":"The text could not be saved in flash",
@@ -497,7 +497,8 @@
 "Lade …":"Loading …",
 "Tab konnte nicht geladen werden.":"The tab could not be loaded.",
 "Erneut versuchen":"Try again",
-"Unbekannter Tab":"Unknown tab"
+"Unbekannter Tab":"Unknown tab",
+"Alle MP3-Dateien des Ordners in zufälliger Reihenfolge abspielen, jede einmal je Sitzung":"Play all MP3 files of the folder in random order, every file once per session"
 },
 "r":[
 ["^(\\d+) Dateien, (\\d+) KB$", "$1 files, $2 KB"],
