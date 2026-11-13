@@ -26,6 +26,7 @@ Die Auswahl im Tab stammt aus der Datei `index.txt` in diesem Ordner (eine Zeile
 | `australien` | 24 Sender: Beliebte Sender aus Australien |
 | `grossbritannien` | 24 Sender: Beliebte Sender aus Großbritannien |
 | `frankreich` | 24 Sender: Beliebte Sender aus Frankreich |
+| `weihnachten` | 24 Sender: Weihnachtslieder und Weihnachtsradios |
 
 Alle Streams waren beim Anlegen erreichbar (Audiodaten abgerufen; die AAC-Sender zusätzlich auf dem Gerät abgespielt). Sender ändern ihre Adressen von Zeit zu Zeit; ein toter Eintrag lässt sich im Tab ersetzen.
 
@@ -55,5 +56,6 @@ The selection in the tab comes from the file `index.txt` in this folder (one lin
 | `australien` | 24 stations: Popular stations from Australia |
 | `grossbritannien` | 24 stations: Popular stations from the UK |
 | `frankreich` | 24 stations: Popular stations from France |
+| `weihnachten` | 24 stations: Christmas songs and Christmas radios |
 
 All streams were reachable when the lists were made (audio data retrieved; the AAC stations were also played on the device). Stations change their addresses from time to time; a dead entry can be replaced in the tab.

@@ -85,6 +85,7 @@ select.pinsel.dup{outline:2px solid var(--bad);}
 .mqtt .kind.cmd{color:var(--accent);border-color:var(--accent-dim);}
 .mqtt .kind.msg{color:var(--ok);border-color:var(--ok);}
 .flash.warn{background:#fff3cd;color:#856404;border-color:#ffeeba;}
+.flash.bad{background:#f8d7da;color:#721c24;border-color:#f5c6cb;font-weight:600;}
 .res-ok{background:#d4edda;color:#155724;border:1px solid #c3e6cb;border-radius:6px;padding:8px 12px;margin:10px auto;max-width:400px;}
 .res-bad{background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;border-radius:6px;padding:8px 12px;margin:10px auto;max-width:400px;}
 textarea{height:110px;resize:vertical;}
@@ -264,6 +265,7 @@ String panelSpeak() {
     h += "<textarea id='sayText' maxlength='" + String(TTS_MAX_CHARS) + "' placeholder='Text zum Ansagen'></textarea>";
     h += "<div class='row'><select id='sayLang' onchange=\"fillVoiceSel('sayVoice',this.value,false)\" style='width:210px'><option value=''>Standard (" + htmlEsc(cfg.vlang) + ")</option>" + selectOptions(LANG_VALUES, LANG_LABELS, LANG_COUNT, "") + "</select> " + infoTip("Sprache der Ansage; Standard ist die Sprache aus dem Tab Audio") + "";
     h += "<select id='sayVoice' onchange='voiceChosen(this)' style='width:210px'><option value=''>Standard (VoiceRSS)</option></select> " + infoTip("Stimme f&uuml;r diese Ansage; Standard = gespeicherte Stimme bzw. Standardstimme der Sprache") + "</div>";
+    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='saySave' style='width:auto;margin:0;'>Text speichern</label> " + infoTip("Speichert die Sprachdatei dieses Textes beim n&auml;chsten Sprechen dauerhaft, bevorzugt auf der SD-Karte (Ordner /ansagen), sonst im Ger&auml;t (Tab MP3 (Flash)). Danach wird der Haken wieder entfernt. Gespeicherte Texte werden bei gleicher Sprache, Stimme und gleichem Tempo gespielt, ohne VoiceRSS zu fragen, auch ohne Internet") + "</div>";
     h += "<div class='row'><button type='button' onclick='sayNow()' style='width:150px'>Sprechen</button> " + infoTip("Sprechen: sagt den Text jetzt an, ein laufendes Webradio l&auml;uft danach weiter") + "</div>";
     h += "<div id='sayResult'></div><div class='row'><small id='playState'></small></div></div>";
     return h;
@@ -347,7 +349,7 @@ String panelRadio() {
     h += "<div class='row' style='justify-content:flex-start;gap:8px'><span style='min-width:110px;text-align:left'>Eigene Liste</span><button type='button' onclick=\"location.href='/stations.txt'\" style='width:auto;padding:8px 14px'>Liste speichern</button> " + infoTip("Speichert die Senderliste (Name, URL, Lautst&auml;rke) als Textdatei auf deinem Rechner") + " ";
     h += "<button type='button' onclick=\"document.getElementById('stFile').click()\" style='width:auto;padding:8px 14px'>Liste laden</button><input type='file' id='stFile' accept='.txt' style='display:none' onchange='loadStations(this)'> " + infoTip("Ersetzt die gespeicherte Senderliste durch eine zuvor gespeicherte Datei") + "</div>";
     h += "<div class='row' style='justify-content:flex-start;gap:8px'><span style='min-width:110px;text-align:left'>Fertige Liste</span><select id='stList' style='width:auto'><option>aac-auswahl</option><option>mp3-auswahl</option><option>rock</option><option>entspannung</option><option>schlager</option><option>country</option><option>folk</option><option>jazz</option><option>klassik</option><option>pop-charts</option><option>jahrzehnte</option><option>dance</option><option>hiphop</option><option>irland</option><option>usa</option><option>australien</option><option>grossbritannien</option><option>frankreich</option></select><button type='button' onclick='listFetch()' style='width:auto;padding:8px 14px'>Von GitHub laden</button> " + infoTip("L&auml;dt eine fertige Senderliste aus dem Ordner stations des Projekts auf GitHub und ersetzt die gespeicherte Liste; das Ger&auml;t braucht dazu Internet") + "</div>";
-    h += "<div class='row' style='justify-content:flex-start;gap:8px'><span style='min-width:110px;text-align:left'>Sender meines Landes</span><select id='rbCountry' style='width:auto'></select><select id='rbGenre' style='width:auto'><option value=''>Alle Genres</option><option>pop</option><option>rock</option><option>jazz</option><option>classical</option><option>country</option><option>folk</option><option>electronic</option><option>dance</option><option>hip hop</option><option>oldies</option><option>80s</option><option>90s</option><option>schlager</option><option>lounge</option><option>reggae</option><option>latin</option><option>world</option><option>metal</option><option>blues</option><option>soul</option></select><button type='button' onclick='rbLoad()' style='width:auto;padding:8px 14px'>Von radio-browser laden</button> " + infoTip("Holt die beliebtesten Sender des gew&auml;hlten Landes (optional eines Genres) aus dem offenen Verzeichnis radio-browser.info und ersetzt die gespeicherte Senderliste; nur Sender mit MP3 oder AAC, die zuletzt erreichbar waren, h&ouml;chstens 30. Der Browser ruft das Verzeichnis ab, das Ger&auml;t braucht dazu nichts. Die Favoriten stehen danach vorn") + "</div><div id='stListResult'></div></div></div>";
+    h += "<div class='row' style='justify-content:flex-start;gap:8px'><span style='min-width:110px;text-align:left'>Sender meines Landes</span><select id='rbCountry' style='width:auto'></select><select id='rbGenre' style='width:auto'><option value=''>Alle Genres</option><option>pop</option><option>rock</option><option>jazz</option><option>classical</option><option>country</option><option>folk</option><option>electronic</option><option>dance</option><option>hip hop</option><option>oldies</option><option>80s</option><option>90s</option><option>schlager</option><option>lounge</option><option>reggae</option><option>latin</option><option>world</option><option>metal</option><option>blues</option><option>soul</option><option value='christmas'>Weihnachten</option></select><button type='button' onclick='rbLoad()' style='width:auto;padding:8px 14px'>Von radio-browser laden</button> " + infoTip("Holt die beliebtesten Sender des gew&auml;hlten Landes (optional eines Genres) aus dem offenen Verzeichnis radio-browser.info und ersetzt die gespeicherte Senderliste; nur Sender mit MP3 oder AAC, die zuletzt erreichbar waren, h&ouml;chstens 30. Der Browser ruft das Verzeichnis ab, das Ger&auml;t braucht dazu nichts. Die Favoriten stehen danach vorn") + "</div><div id='stListResult'></div></div></div>";
     return h;
 }
 
@@ -355,7 +357,7 @@ String panelSd() {
     String h = volumeRow() + nowPlayingRow();
     h += "<div class='card' style='max-width:900px'><h3>SD-Karte</h3><small id='sdInfo'>Lade &hellip;</small><div id='sdMem'></div><div id='sdPath' style='margin:6px 0;color:var(--muted)'></div><div id='sdList'></div>";
     h += "<div class='row'><input type='file' id='sdUpFile' multiple accept='.mp3' style='width:55%'><button type='button' onclick='sdUploadNow()' style='width:auto;padding:8px 14px'>Hochladen</button> " + infoTip("Eine oder mehrere MP3-Dateien w&auml;hlen; sie werden nacheinander in den gezeigten Ordner der Karte hochgeladen") + "</div>";
-    h += "<div class='row'><button type='button' onclick='sdMkdir()' style='width:auto;padding:8px 14px'>Neuer Ordner</button><button type='button' onclick='sdRemount()' style='width:auto;padding:8px 14px'>Neu einbinden</button> <label style='display:inline-flex;align-items:center;gap:4px'><input type='checkbox' id='sdLoop'> Endlos</label> " + infoTip("Neuer Ordner: legt einen Ordner im gezeigten Ordner an. Neu einbinden: bindet die Karte neu ein, zum Beispiel nach dem Einstecken. Endlos: nach der letzten Datei eines Ordners beginnt eine neue Runde. Zufall (Knopf am Ordner): jede Datei kommt je Sitzung einmal, die Reihenfolge ist jedes Mal eine andere und beginnt nie mit der Datei der letzten Sitzung") + "</div><div id='sdResult'></div></div>";
+    h += "<div class='row'><button type='button' onclick='sdLoad(sdCur)' style='width:auto;padding:8px 14px'>Aktualisieren</button><button type='button' onclick='sdMkdir()' style='width:auto;padding:8px 14px'>Neuer Ordner</button><button type='button' onclick='sdRemount()' style='width:auto;padding:8px 14px'>Neu einbinden</button> <label style='display:inline-flex;align-items:center;gap:4px'><input type='checkbox' id='sdLoop'> Endlos</label> " + infoTip("Aktualisieren: liest den gezeigten Ordner neu. Neuer Ordner: legt einen Ordner im gezeigten Ordner an. Neu einbinden: bindet die Karte neu ein, zum Beispiel nach dem Einstecken. Endlos: nach der letzten Datei eines Ordners beginnt eine neue Runde. Zufall (Knopf am Ordner): jede Datei kommt je Sitzung einmal, die Reihenfolge ist jedes Mal eine andere und beginnt nie mit der Datei der letzten Sitzung") + "</div><div id='sdResult'></div></div>";
     return h;
 }
 
@@ -444,6 +446,8 @@ String panelAudio() {
     h += "<div class='row'><select name='vvoice' id='cfgVoice' onchange='voiceChosen(this)' style='width:260px'><option value=''>Standard (VoiceRSS)</option>" + (cfg.vvoice.length() > 0 ? "<option value='" + htmlEsc(cfg.vvoice) + "' selected>" + htmlEsc(cfg.vvoice) + "</option>" : String()) + "</select> " + infoTip("Standardstimme f&uuml;r Ansagen; Standard = Standardstimme der Sprache") + "</div>";
     h += "<div class='row'>Tempo (-10 bis 10): " + infoTip("Sprechtempo: -10 = sehr langsam, 0 = normal, 10 = sehr schnell") + " <input type='number' name='vrate' min='-10' max='10' value='" + String(cfg.vrate) + "' style='width:90px'></div>";
     h += "<div class='row'><select name='vfmt' style='width:260px'>" + selectOptions(FMT_VALUES, FMT_LABELS, 4, cfg.vfmt) + "</select> " + infoTip("Audioformat der Sprachdatei: kleiner = schneller geladen, gr&ouml;&szlig;er = bessere Qualit&auml;t") + "</div>";
+    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' name='ttsc' value='1'" + String(cfg.ttsCache ? " checked" : "") + " style='width:auto;margin:0;'>Ansagen auf der SD-Karte zwischenspeichern</label> " + infoTip("Ein einmal von VoiceRSS geholter Text wird als MP3 im Ordner /tts der SD-Karte abgelegt; der Dateiname beginnt mit einem Hinweis auf den Text, zum Beispiel Achtung_auf_Gleis_3_3fa9c2e1.mp3. Derselbe Text mit gleicher Sprache, Stimme, Tempo und gleichem Format wird danach von der Karte gespielt, ohne Internet und ohne VoiceRSS-Anfrage. Es bleiben h&ouml;chstens 500 Dateien, die &auml;ltesten werden gel&ouml;scht. Ohne Karte l&auml;uft alles wie bisher") + "</div>";
+    h += "<div class='row'><button type='button' onclick='ttsClear()' style='width:auto;padding:8px 14px'>Zwischenspeicher leeren</button> <span id='ttsInfo'></span> <span id='ttsResult'></span> " + infoTip("L&ouml;scht alle zwischengespeicherten Ansagen von der SD-Karte (Ordner /tts); sie werden bei Bedarf neu von VoiceRSS geholt") + "</div>";
     h += "<div class='row'><button type='button' onclick='voiceTest()' style='width:auto;padding:8px 14px'>Stimme testen</button> " + infoTip("Spricht einen kurzen Beispielsatz in der gew&auml;hlten Sprache, Stimme und mit dem eingestellten Tempo, auch ohne vorher zu speichern. Der API-Schl&uuml;ssel und das Audioformat m&uuml;ssen dazu gespeichert sein") + "</div><div id='voiceTestResult'></div>";
     h += "</div>";
     h += "<div style='text-align:center'><button type='submit'>Speichern</button></div></form>";
@@ -714,7 +718,7 @@ String panelDoc() {
         h += "<!--WIRING_VIEW-->";
     }
     h += docCard("Text ansagen (VoiceRSS)",
-        "<code>text</code> (Pflicht, h&ouml;chstens 500 Zeichen), optional <code>lang</code> (z. B. de-de, en-gb), <code>voice</code> (z. B. Hanna), <code>rate</code> (-10 bis 10), <code>vol</code> (0-100). Ohne Angabe gelten die Werte aus dem Tab VoiceRSS. Der API-Schl&uuml;ssel muss gespeichert sein.",
+        "<code>text</code> (Pflicht, h&ouml;chstens 500 Zeichen), optional <code>save</code> (1 = Text dauerhaft speichern, bevorzugt auf der SD-Karte, sonst im Flash), <code>lang</code> (z. B. de-de, en-gb), <code>voice</code> (z. B. Hanna), <code>rate</code> (-10 bis 10), <code>vol</code> (0-100). Ohne Angabe gelten die Werte aus dem Tab VoiceRSS. Der API-Schl&uuml;ssel muss gespeichert sein.",
         R"d(curl -d "text=Hallo Welt" http://@HOST@/api/say
 curl "http://@HOST@/api/say?text=Hallo%20Welt&lang=en-gb&voice=Alice&vol=10"
 curl -H "Content-Type: application/json" -d '{"text":"Hallo Welt","lang":"de-de","voice":"Hanna","rate":0,"vol":12}' http://@HOST@/api/say)d");
@@ -724,7 +728,7 @@ curl -H "Content-Type: application/json" -d '{"text":"Hallo Welt","lang":"de-de"
 curl -d "url=http://stream.example.com/radio.mp3" http://@HOST@/api/url
 curl "http://@HOST@/api/url?url=http://stream.example.com/radio.mp3&vol=10")d");
     h += docCard("SD-Karte",
-        "Dateien der SD-Karte (FAT32, nur MP3) werden mit dem Namen <code>sd:/Ordner/Datei.mp3</code> angesprochen, in <code>file</code> von <code>/api/play</code> und <code>/api/file</code> und ebenso per MQTT (<code>/file</code>, <code>/play</code>). Endet der Name mit <code>/</code>, spielt das Ger&auml;t alle MP3-Dateien des Ordners nacheinander (nach Name sortiert); sie kommen einzeln in die Warteschlange, Ansagen dazwischen kommen zuerst. Mit <code>shuffle=1</code> ist die Reihenfolge je Sitzung zuf&auml;llig und jede Datei kommt einmal vor, die erste ist nie die der letzten Sitzung dieses Ordners; mit <code>loop=1</code> beginnt nach der letzten Datei eine neue Runde (bei shuffle neu gemischt, die erste Datei ist nie die zuletzt gespielte). Ein neuer Sender oder Stopp beendet die Sitzung. <code>/api/sd?dir=/Ordner</code> listet einen Ordner, <code>/api/sdmount</code> bindet die Karte neu ein. Dateimanager: Hochladen mit <code>/upload?target=sd&amp;dir=/Ordner</code>, <code>/api/sdmkdir</code> (dir, name), <code>/api/sdrename</code> (path, to), <code>/api/sddelete</code> (path; ein Ordner wird samt Inhalt gel&ouml;scht) und <code>/api/sdfile?path=...</code> zum Herunterladen. Namen werden bereinigt (Umlaute umgeschrieben, Leerzeichen zu Unterstrichen).",
+        "Dateien der SD-Karte (FAT32, nur MP3) werden mit dem Namen <code>sd:/Ordner/Datei.mp3</code> angesprochen, in <code>file</code> von <code>/api/play</code> und <code>/api/file</code> und ebenso per MQTT (<code>/file</code>, <code>/play</code>). Endet der Name mit <code>/</code>, spielt das Ger&auml;t alle MP3-Dateien des Ordners nacheinander (nach Name sortiert); sie kommen einzeln in die Warteschlange, Ansagen dazwischen kommen zuerst. Mit <code>shuffle=1</code> ist die Reihenfolge je Sitzung zuf&auml;llig und jede Datei kommt einmal vor, die erste ist nie die der letzten Sitzung dieses Ordners; mit <code>loop=1</code> beginnt nach der letzten Datei eine neue Runde (bei shuffle neu gemischt, die erste Datei ist nie die zuletzt gespielte). Ein neuer Sender oder Stopp beendet die Sitzung. <code>/api/sd?dir=/Ordner</code> listet einen Ordner, <code>/api/sdmount</code> bindet die Karte neu ein. Dateimanager: Hochladen mit <code>/upload?target=sd&amp;dir=/Ordner</code>, <code>/api/sdmkdir</code> (dir, name), <code>/api/sdrename</code> (path, to), <code>/api/sddelete</code> (path; ein Ordner wird samt Inhalt gel&ouml;scht) und <code>/api/sdfile?path=...</code> zum Herunterladen. Namen werden bereinigt (Umlaute umgeschrieben, Leerzeichen zu Unterstrichen). Ansagen k&ouml;nnen auf der Karte zwischengespeichert werden (Tab Audio, Sprachausgabe): <code>GET /api/ttscache</code> liefert <code>enabled</code>, <code>files</code> und <code>bytes</code>, <code>POST /api/ttscache</code> mit <code>clear=1</code> l&ouml;scht den Zwischenspeicher (Ordner <code>/tts</code>, Dateinamen wie <code>Achtung_auf_Gleis_3_3fa9c2e1.mp3</code>, h&ouml;chstens 500).",
         R"d(curl -d "file=sd:/Musik/lied.mp3" http://@HOST@/api/play
 curl -d "file=sd:/Musik/Album/" http://@HOST@/api/play
 curl -d "file=sd:/Musik/&shuffle=1&loop=1" http://@HOST@/api/play
@@ -734,7 +738,9 @@ curl -d "dir=/Musik&name=Neu" http://@HOST@/api/sdmkdir
 curl -d "path=/Musik/lied.mp3&to=neu.mp3" http://@HOST@/api/sdrename
 curl -d "path=/Musik/lied.mp3" http://@HOST@/api/sddelete
 curl -o lied.mp3 "http://@HOST@/api/sdfile?path=/Musik/lied.mp3"
-curl -X POST http://@HOST@/api/sdmount)d");
+curl -X POST http://@HOST@/api/sdmount
+curl http://@HOST@/api/ttscache
+curl -d "clear=1" http://@HOST@/api/ttscache)d");
     h += docCard("Gespeicherte Webradios / URLs",
         "Im Tab Webradio lassen sich 30 Pl&auml;tze mit Name, URL und eigener Lautst&auml;rke speichern (leer = allgemeine Lautst&auml;rke; ein <code>vol</code> im Aufruf hat Vorrang). <code>n</code> ist die Platznummer (1-30), alternativ <code>name</code> (Gro&szlig;-/Kleinschreibung egal). <code>/api/stations</code> liefert die belegten Pl&auml;tze (JSON mit n, name, url, vol), <code>/api/stationdelete</code> l&ouml;scht einen Platz (Name und URL), die folgenden Pl&auml;tze r&uuml;cken nach oben. <code>/stations.txt</code> l&auml;dt die Liste als Textdatei, <code>POST /importstations</code> ersetzt sie durch eine solche Datei (im Tab Webradio: Liste speichern / Liste laden). <code>POST /api/stationlist</code> mit <code>list=aac-auswahl</code> l&auml;dt eine fertige Liste von GitHub.",
         R"d(curl -d "n=3" http://@HOST@/api/station
@@ -877,10 +883,10 @@ static const char PINS_JS[] PROGMEM = R"js(
     todo.reduce(function(pr,r){return pr.then(function(){return fetch('/api/pins',{method:'POST',body:new URLSearchParams({pin:r.pin(),type:r.sel.value,text:r.tx.value,vol:r.vo.value})}).then(function(x){return x.json();}).then(function(j){if(j.ok)n++;else bad=bad||(j.error||'Fehler');}).catch(function(){bad=bad||'Keine Antwort vom Ger\u00e4t';});});},Promise.resolve())
     .then(function(){showRes('pinResult',bad?{ok:false,error:bad}:{ok:true,msg:n+(n===1?' Pin gespeichert':' Pins gespeichert')});if(n>0)load(true);});
   }
-  var sv=document.getElementById('pinSave');if(sv)sv.onclick=saveAll;
   function load(first){fetch('/api/pins',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){var l=j.pins||[];if(first)build(l);else{l.forEach(function(q){LV[q.p]=q.l;});rows.forEach(function(r){r.upd();});}}).catch(function(){});}
-  lists(function(){load(true);});
-  var tab=document.getElementById('tab-pins');if(tab)tab.addEventListener('change',function(){if(tab.checked)lists();});
+  var ready=false;
+  window.pinsInit=function(){var sv=document.getElementById('pinSave');if(sv)sv.onclick=saveAll;ready=true;lists(function(){load(true);});};
+  var tab=document.getElementById('tab-pins');if(tab)tab.addEventListener('change',function(){if(tab.checked&&ready)lists();});
   setInterval(function(){var t=document.getElementById('tab-pins');if(document.hidden||!t||!t.checked)return;load(false);},1000);
 })();
 )js";
@@ -914,6 +920,7 @@ static const char LANG_JS[] PROGMEM = R"js(
       if(!list.length)box.textContent='Keine Sprachdatei im Ger\u00e4t';}
     if(mo&&T){mo.disconnect();if(b)walk(b);if(box)walk(box);watch();}
   }).catch(function(){});}
+  window.langList=langList;
   window.langFetch=function(){var c=(document.getElementById('langCode').value||'').trim().toLowerCase().replace(/\.json$/,'');if(!c){showRes('langResult',{ok:false,error:'Keine Datei gew&auml;hlt'});return;}
     showRes('langResult',{ok:true,msg:'Lade von GitHub &hellip;'});postApi('/api/lang',{fetch:c},'langResult').then(langList);};
   window.langUpload=function(){var f=document.getElementById('langFile').files[0];if(!f){showRes('langResult',{ok:false,error:'Keine Datei gew&auml;hlt'});return;}
@@ -993,8 +1000,10 @@ function rbLoad(){var c=document.getElementById('rbCountry').value,g=document.ge
   }).catch(function(){showRes('stListResult',{ok:false,error:'radio-browser nicht erreichbar'});});}
 function listFetch(){var n=(document.getElementById('stList').value||'').trim();if(!n)return;if(!confirm('Die gespeicherte Senderliste wird durch die Liste von GitHub ersetzt. Fortfahren?'))return;showRes('stListResult',{ok:true,msg:'Lade von GitHub &hellip;'});postApi('/api/stationlist',{list:n},'stListResult').then(function(j){if(j&&j.ok)setTimeout(function(){location.href='/?tab=radio';},1200);});}
 var VOICE_TEXT={'de-de':'Hallo, das ist ein Test dieser Stimme.','en-gb':'Hello, this is a test of this voice.','en-us':'Hello, this is a test of this voice.','fr-fr':'Bonjour, ceci est un test de cette voix.','es-es':'Hola, esta es una prueba de esta voz.','it-it':'Ciao, questo è un test di questa voce.','nl-nl':'Hallo, dit is een test van deze stem.','pt-pt':'Olá, este é um teste desta voz.','pl-pl':'Cześć, to jest test tego głosu.','sv-se':'Hej, det här är ett test av den här rösten.','da-dk':'Hej, dette er en test af denne stemme.'};
+function ttsInfo(){fetch('/api/ttscache',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){var e=document.getElementById('ttsInfo');if(e)e.textContent=j.files+' Dateien, '+Math.round(j.bytes/1024)+' KB';}).catch(function(){});}
+function ttsClear(){if(!confirm('Alle zwischengespeicherten Ansagen von der SD-Karte l\u00f6schen?'))return;postApi('/api/ttscache',{clear:1},'ttsResult').then(ttsInfo);}
 function voiceTest(){var l=document.getElementById('cfgLang').value||DEF_LANG,v=document.getElementById('cfgVoice').value,r=document.querySelector("input[name='vrate']").value;if(v==='__custom__')v='';postApi('/api/say',{text:VOICE_TEXT[l]||VOICE_TEXT['en-gb'],lang:l,voice:v,rate:r},'voiceTestResult');}
-function sayNow(){postApi('/api/say',{text:document.getElementById('sayText').value,lang:document.getElementById('sayLang').value,voice:document.getElementById('sayVoice').value},'sayResult');}
+function sayNow(){var sv=document.getElementById('saySave');postApi('/api/say',{text:document.getElementById('sayText').value,lang:document.getElementById('sayLang').value,voice:document.getElementById('sayVoice').value,save:sv&&sv.checked?1:0},'sayResult').then(function(j){if(j&&j.ok&&sv)sv.checked=false;});}
 function clearLog(){if(!confirm('Log l\u00f6schen?'))return;postApi('/api/log',{clear:'1'},'logResult').then(function(){var p=document.getElementById('logContent');if(p)p.textContent='';});}
 function copyText(t,btn){
   function done(ok){if(btn){var o=btn.getAttribute('data-o')||btn.textContent;btn.setAttribute('data-o',o);btn.textContent=ok?'Kopiert':'Fehler';setTimeout(function(){btn.textContent=o;},1500);}}
@@ -1045,18 +1054,20 @@ function sdLoad(dir){var box=document.getElementById('sdList');if(!box)return;di
     var cur=j.dir==='/'?'':j.dir,tb=document.createElement('table');tb.style.width='100%';
     function cell(tr,t){var td=document.createElement('td');if(t!==null)td.textContent=t;tr.appendChild(td);return td;}
     function btn(td,txt,tip,fn){var b=document.createElement('button');b.type='button';b.className='copy-btn';b.style.cssText='position:static;margin:2px';b.textContent=txt;b.title=tip;b.onclick=fn;td.appendChild(b);}
+    function cp(td,n){btn(td,'URL',apiLink(n),function(){copyText(apiLink(n),this);});btn(td,'curl','curl-Aufruf kopieren',function(){copyText('curl "'+apiLink(n)+'"',this);});}
     function dl(td,p){var a=document.createElement('a');a.className='copy-btn';a.style.cssText='position:static;margin:2px;display:inline-block;text-decoration:none';a.textContent='\u2B07';a.title='Datei herunterladen';a.href='/api/sdfile?path='+encodeURIComponent(p);td.appendChild(a);}
     if(j.dir!=='/'){var up=document.createElement('tr'),ut=cell(up,null),ua=document.createElement('a');ua.href='#';ua.textContent='\u2191 ..';ua.onclick=function(){sdLoad(j.dir.replace(/\/[^\/]*$/,'')||'/');return false;};ut.appendChild(ua);cell(up,'');cell(up,'');tb.appendChild(up);}
     if(j.entries.some(function(e){return !e.d;})){var hr=document.createElement('tr'),hc=cell(hr,null),ha;hc.textContent=j.dir==='/'?'📁 / (Hauptverzeichnis)':'📁 dieser Ordner';cell(hr,'');ha=cell(hr,null);
       btn(ha,'▶ Ordner','Alle MP3-Dateien dieses Ordners nacheinander abspielen',function(){playFile('sd:'+cur+'/','sdResult',{loop:sdLoopOn()});});
       btn(ha,'🔀 Zufall','Alle MP3-Dateien dieses Ordners in zufälliger Reihenfolge abspielen, jede einmal je Sitzung',function(){playFile('sd:'+cur+'/','sdResult',{shuffle:1,loop:sdLoopOn()});});
+      cp(ha,'sd:'+cur+'/');
       tb.appendChild(hr);}
     j.entries.forEach(function(e){var tr=document.createElement('tr'),td=cell(tr,null),p=cur+'/'+e.n,act;
       if(e.d){var a=document.createElement('a');a.href='#';a.textContent='\uD83D\uDCC1 '+e.n;a.onclick=function(){sdLoad(p);return false;};td.appendChild(a);cell(tr,'');act=cell(tr,null);
         btn(act,'\u25B6 Ordner','Alle MP3-Dateien des Ordners nacheinander abspielen',function(){playFile('sd:'+p+'/','sdResult',{loop:sdLoopOn()});});
-        btn(act,'\uD83D\uDD00 Zufall','Alle MP3-Dateien des Ordners in zuf\u00e4lliger Reihenfolge abspielen, jede einmal je Sitzung',function(){playFile('sd:'+p+'/','sdResult',{shuffle:1,loop:sdLoopOn()});});}
+        btn(act,'\uD83D\uDD00 Zufall','Alle MP3-Dateien des Ordners in zuf\u00e4lliger Reihenfolge abspielen, jede einmal je Sitzung',function(){playFile('sd:'+p+'/','sdResult',{shuffle:1,loop:sdLoopOn()});});cp(act,'sd:'+p+'/');}
       else{td.textContent=e.n;cell(tr,Math.round(e.s/1024)+' KB');act=cell(tr,null);
-        btn(act,'\u25B6','Abspielen (reiht sich in die Warteschlange ein)',function(){playFile('sd:'+p,'sdResult');});dl(act,p);}
+        btn(act,'\u25B6','Abspielen (reiht sich in die Warteschlange ein)',function(){playFile('sd:'+p,'sdResult');});dl(act,p);cp(act,'sd:'+p);}
       btn(act,'\u270E','Umbenennen',function(){sdRen(p,e.n,e.d);});
       btn(act,'\u2716',e.d?'Ordner mit Inhalt l\u00f6schen':'Datei l\u00f6schen',function(){sdDel(p,e.d);});
       tb.appendChild(tr);});
@@ -1101,8 +1112,12 @@ function barTick(){var pm=nbs.on?Math.min(1000,nbs.pm+nbs.rate*(Date.now()-nbs.t
   document.querySelectorAll('.nowbar').forEach(function(bar){var f=bar.firstChild;f.style.transition=nbs.jump?'none':'width .25s linear';f.style.width=(pm/10)+'%';
     bar.title=nbs.on&&nbs.dur>0?mmss(pm/1000*nbs.dur)+' / '+mmss(nbs.dur):'';});nbs.jump=false;}
 setInterval(barTick,250);
+var SAVEN=0;try{SAVEN=+sessionStorage.getItem('saveN')||0;}catch(e){}
+function saveBannerShow(t,n){var b=document.getElementById('saveBanner');if(!b||!t||!n||n<=SAVEN)return;document.getElementById('saveBannerText').textContent=t;b.style.display='block';b.setAttribute('data-n',n);}
+function saveBannerClose(){var b=document.getElementById('saveBanner');if(!b)return;SAVEN=+b.getAttribute('data-n')||SAVEN;try{sessionStorage.setItem('saveN',String(SAVEN));}catch(e){}b.style.display='none';}
 function pollPlay(){if(document.hidden)return;fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
   if(j.muted!==undefined)muteShow(!!j.muted);
+  saveBannerShow(j.saveErr,j.saveErrN);
   window.NOWURL=(j.source==='radio'&&j.state==='playing')?(j.url||''):'';if(window.favMarkNow)favMarkNow();
   var el=document.getElementById('playState');if(el)el.textContent='Zustand: '+j.state+(j.error?' ('+j.error+')':'');
   var vs=document.querySelector('.volrange'),ae=document.activeElement;if(vs&&!(ae&&ae.className==='volrange')&&j.volume!==undefined&&+vs.value!==j.volume){volShow(j.volume);}
@@ -1151,11 +1166,27 @@ function testNtp(n){var box=document.getElementById('ntpTestResult'+n);var v=doc
     if(t.indexOf('OK|')===0){box.className='res-ok';box.innerHTML='&#10004; '+t.substring(3);}
     else{box.className='res-bad';box.innerHTML='&#10008; Server nicht erreichbar';}
   }).catch(function(){box.className='res-bad';box.innerHTML='&#10008; Server nicht erreichbar';});}
-fillVoiceSel('sayVoice',document.getElementById('sayLang').value,true);fillVoiceSel('cfgVoice',(document.getElementById('cfgLang')||{}).value,true);
-document.querySelectorAll('.codehost').forEach(function(p){p.textContent=p.textContent.replace(/@HOST@/g,location.host);});
-(function(){var m=location.search.match(/[?&]tab=([a-zA-Z0-9]+)/);if(m){var el=document.getElementById('tab-'+m[1]);if(el)el.checked=true;}
-  rbInit();listIndex();favLoad();loadFiles();sdLoad('/');pollPlay();checkPins();setInterval(pollPlay,3000);if(location.search.indexOf('tab=wlan')>=0)scanWifi();})();
+var TABINIT={};
+TABINIT.sprechen=function(){fillVoiceSel('sayVoice',document.getElementById('sayLang').value,true);};
+TABINIT.audio=function(){fillVoiceSel('cfgVoice',(document.getElementById('cfgLang')||{}).value,true);ttsInfo();};
+TABINIT.radio=function(){rbInit();listIndex();favLoad();};
+TABINIT.mp3=function(){loadFiles();};
+TABINIT.sd=function(){sdLoad('/');};
+TABINIT.pins=function(){checkPins();if(window.pinsInit)pinsInit();};
+TABINIT.wlan=function(){if(location.search.indexOf('tab=wlan')>=0)scanWifi();};
+TABINIT.status=function(){if(window.langList)langList();};
+TABINIT.log=function(){if(window.logInit)logInit();};
+function tabInit(k,p){p.querySelectorAll('.codehost').forEach(function(c){c.textContent=c.textContent.replace(/@HOST@/g,location.host);});if(TABINIT[k])TABINIT[k]();pollPlay();}
+function tabLoad(k){var p=document.querySelector('.panel-'+k);if(!p||p.getAttribute('data-lazy')!=='1')return;p.setAttribute('data-lazy','0');
+  p.innerHTML='<div class="card"><p>Lade \u2026</p></div>';
+  fetch('/panel?tab='+k,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('http');return r.text();}).then(function(t){p.innerHTML=t;p.removeAttribute('data-lazy');tabInit(k,p);})
+    .catch(function(){p.setAttribute('data-lazy','1');p.innerHTML='<div class="card"><p>Tab konnte nicht geladen werden.</p><button type="button" onclick="tabLoad(\''+k+'\')" style="width:auto;padding:8px 14px">Erneut versuchen</button></div>';});}
 (function(){
+  document.querySelectorAll('.tabctrl').forEach(function(r){r.addEventListener('change',function(){if(r.checked)tabLoad(r.id.replace('tab-',''));});});
+  var ap=document.querySelector('.panel-'+ACT_TAB);if(ap)tabInit(ACT_TAB,ap);
+  var cr=document.querySelector('.tabctrl:checked');if(cr)tabLoad(cr.id.replace('tab-',''));
+  setInterval(pollPlay,3000);})();
+window.logInit=function(){
   var cb=document.getElementById('logAutoRefresh');var pre=document.getElementById('logContent');
   var errEl=document.getElementById('logErrorHint');var btn=document.getElementById('logRefreshNow');var timer=null;
   var stored=null;try{stored=localStorage.getItem('netspeakerLogAutoRefresh');}catch(e){}
@@ -1168,7 +1199,7 @@ document.querySelectorAll('.codehost').forEach(function(p){p.textContent=p.textC
   cb.addEventListener('change',function(){try{localStorage.setItem('netspeakerLogAutoRefresh',cb.checked?'1':'0');}catch(e){}if(cb.checked)refreshLog();applyState();});
   document.addEventListener('visibilitychange',function(){if(document.hidden){stopTimer();}else{if(cb.checked)refreshLog();applyState();}});
   refreshLog();applyState();
-})();
+};
 )js";
 
 String flashText(const String& code) {
@@ -1305,7 +1336,71 @@ void sendPumped(int code, const char* type, const String& s) {
     webserver.sendContent("");
 }
 
+// Sendet den Inhalt eines Tabs (ohne den Rahmen <div class='tabpanel'>); die Doku-Seite schiebt das Verkabelungsbild direkt aus dem Flash ein.
+// Sends the content of one tab (without the <div class='tabpanel'> frame); the docs page inserts the wiring picture straight from flash.
+
+void sendPanelBody(const String& k) {
+    if (k == "sprechen") sendChunk(panelSpeak());
+    else if (k == "radio") sendChunk(panelRadio());
+    else if (k == "sd") sendChunk(panelSd());
+    else if (k == "mp3") sendChunk(panelMp3());
+    else if (k == "pins") sendChunk(panelPins());
+    else if (k == "audio") sendChunk(panelAudio());
+    else if (k == "mqtt") sendChunk(panelMqtt());
+    else if (k == "wlan") sendChunk(panelWlan());
+    else if (k == "zeit") sendChunk(panelTime());
+    else if (k == "status") sendChunk(panelStatus());
+    else if (k == "log") sendChunk(panelLog());
+    else if (k == "doku") {
+        String doc = panelDoc();
+        int wv = doc.indexOf("<!--WIRING_VIEW-->");
+        if (wv < 0) {
+            sendChunk(doc);
+            return;
+        }
+        sendChunk(doc.substring(0, wv));
+        doc.remove(0, wv + 18);
+        sendChunk("<div class='card doc' style='max-width:1200px'><h3>Verkabelung (Ansicht)</h3><p>Dieselben Anschl&uuml;sse als Ansicht mit den Bauteilen: Verst&auml;rker und Lautsprecher links, SD-Kartenleser rechts vom Waveshare ESP32-S3-Zero. Das Bild zeigt die Standard-Pins; die Pins im Tab Audio sind &auml;nderbar (das Schaltbild oben passt sich an).</p><div style='background:#fff;border-radius:8px;padding:6px;overflow-x:auto'>");
+        const char* sv = WIRING_VIEW_SVG;
+        size_t left = strlen(sv);
+        while (left > 0) {
+            size_t n = left > 1024 ? 1024 : left;
+            webserver.sendContent(sv, n);
+            sv += n;
+            left -= n;
+            audioPump();
+        }
+        sendChunk("</div></div>");
+        sendChunk(doc);
+    }
+}
+
+bool tabKeyValid(const String& k) {
+    for (int i = 0; i < TAB_COUNT; i++) {
+        if (k == TAB_KEYS[i]) return true;
+    }
+    return false;
+}
+
+// Liefert einen einzelnen Tab zum Nachladen: /panel?tab=audio.
+// Delivers a single tab for lazy loading: /panel?tab=audio.
+
+void handlePanel() {
+    String k = webserver.arg("tab");
+    if (!tabKeyValid(k)) {
+        webserver.send(400, "text/plain; charset=utf-8", "Unknown tab");
+        return;
+    }
+    webserver.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    webserver.sendHeader("Cache-Control", "no-store");
+    webserver.send(200, "text/html; charset=utf-8", "");
+    sendPanelBody(k);
+    webserver.sendContent("");
+}
+
 void handleRoot() {
+    String act = webserver.arg("tab");
+    if (!tabKeyValid(act)) act = TAB_KEYS[0];
     webserver.setContentLength(CONTENT_LENGTH_UNKNOWN);
     webserver.sendHeader("Cache-Control", "no-store");
     webserver.send(200, "text/html; charset=utf-8", "");
@@ -1318,7 +1413,7 @@ void handleRoot() {
     }
     sendChunk(tabCss + "</style></head><body>");
     sendChunk(topbarHtml());
-    sendChunk("<noscript><p>Diese Seite braucht JavaScript.</p></noscript><div class='page'>");
+    sendChunk("<noscript><p>Diese Seite braucht JavaScript.</p></noscript><div class='page'><div class='flash bad' id='saveBanner' style='display:none'><span id='saveBannerText'></span> <button type='button' onclick='saveBannerClose()' style='width:auto;padding:2px 8px;margin-left:8px'>&#10006;</button></div>");
     String msg = flashText(webserver.arg("msg"));
     if (msg.length() > 0) {
         sendChunk("<div class='flash' id='flashBox'>" + msg + "</div><script>setTimeout(function(){var b=document.getElementById('flashBox');if(b)b.style.display='none';},4000);</script>");
@@ -1329,7 +1424,7 @@ void handleRoot() {
 
     String tabs;
     for (int i = 0; i < TAB_COUNT; i++) {
-        tabs += String("<input type='radio' name='tabs' id='tab-") + TAB_KEYS[i] + "' class='tabctrl'" + (i == 0 ? " checked" : "") + ">";
+        tabs += String("<input type='radio' name='tabs' id='tab-") + TAB_KEYS[i] + "' class='tabctrl'" + (act == TAB_KEYS[i] ? " checked" : "") + ">";
     }
     tabs += "<div class='tabnav'>";
     for (int i = 0; i < TAB_COUNT; i++) {
@@ -1337,40 +1432,15 @@ void handleRoot() {
     }
     tabs += "</div>";
     sendChunk(tabs);
-    sendChunk("<div class='tabpanel panel-sprechen'>" + panelSpeak() + "</div>");
-    sendChunk("<div class='tabpanel panel-radio'>" + panelRadio() + "</div>");
-    sendChunk("<div class='tabpanel panel-sd'>" + panelSd() + "</div>");
-    sendChunk("<div class='tabpanel panel-mp3'>" + panelMp3() + "</div>");
-    sendChunk("<div class='tabpanel panel-pins'>" + panelPins() + "</div>");
-    sendChunk("<div class='tabpanel panel-audio'>" + panelAudio() + "</div>");
-    sendChunk("<div class='tabpanel panel-mqtt'>" + panelMqtt() + "</div>");
-    sendChunk("<div class='tabpanel panel-wlan'>" + panelWlan() + "</div>");
-    sendChunk("<div class='tabpanel panel-zeit'>" + panelTime() + "</div>");
-    sendChunk("<div class='tabpanel panel-status'>" + panelStatus() + "</div>");
-    sendChunk("<div class='tabpanel panel-log'>" + panelLog() + "</div>");
-    {
-        String doc = panelDoc();
-        int wv = doc.indexOf("<!--WIRING_VIEW-->");
-        if (wv < 0) {
-            sendChunk("<div class='tabpanel panel-doku'>" + doc + "</div></div>");
-        } else {
-            sendChunk("<div class='tabpanel panel-doku'>" + doc.substring(0, wv));
-            doc.remove(0, wv + 18);
-            sendChunk("<div class='card doc' style='max-width:1200px'><h3>Verkabelung (Ansicht)</h3><p>Dieselben Anschl&uuml;sse als Ansicht mit den Bauteilen: Verst&auml;rker und Lautsprecher links, SD-Kartenleser rechts vom Waveshare ESP32-S3-Zero. Das Bild zeigt die Standard-Pins; die Pins im Tab Audio sind &auml;nderbar (das Schaltbild oben passt sich an).</p><div style='background:#fff;border-radius:8px;padding:6px;overflow-x:auto'>");
-            const char* s = WIRING_VIEW_SVG;
-            size_t left = strlen(s);
-            while (left > 0) {
-                size_t n = left > 1024 ? 1024 : left;
-                webserver.sendContent(s, n);
-                s += n;
-                left -= n;
-                audioPump();
-            }
-            sendChunk("</div></div>");
-            sendChunk(doc + "</div></div>");
-        }
+    for (int i = 0; i < TAB_COUNT; i++) {
+        bool on = act == TAB_KEYS[i];
+        sendChunk(String("<div class='tabpanel panel-") + TAB_KEYS[i] + "'" + (on ? "" : " data-lazy='1'") + ">");
+        if (on) sendPanelBody(TAB_KEYS[i]);
+        sendChunk("</div>");
     }
+    sendChunk("</div>");
     sendChunk("<script>");
+    sendChunk("var ACT_TAB='" + act + "';");
     sendChunk("var DEF_LANG='" + jsonEscape(cfg.vlang) + "';");
     sendChunk("var UI_HOST='" + jsonEscape(cfg.host) + "';");
     sendChunk("var MQTT_BASE='" + jsonEscape(mqttBaseTopic()) + "';var MQTT_ON=" + (cfg.mqttServer.isEmpty() ? "false" : "true") + ";");
@@ -1562,6 +1632,8 @@ void handleSave() {
             cfg.vvoice.trim();
             cfg.vfmt = webserver.arg("vfmt");
             cfg.vrate = constrain(webserver.arg("vrate").toInt(), -10, 10);
+            cfg.ttsCache = webserver.hasArg("ttsc");
+            prefs.putBool("ttsc", cfg.ttsCache);
             prefs.putString("vlang", cfg.vlang);
             prefs.putString("vvoice", cfg.vvoice);
             prefs.putString("vfmt", cfg.vfmt);
@@ -1750,7 +1822,7 @@ void handleExport() {
     for (int i = 0; i < 3; i++) t += "ssid" + String(i + 1) + "=" + cfg.ssid[i] + "\n";
     for (int i = 0; i < 5; i++) t += "ntp" + String(i + 1) + "=" + cfg.ntp[i] + "\n";
     t += "tz=" + cfg.tz + "\n";
-    t += "vlang=" + cfg.vlang + "\nvvoice=" + cfg.vvoice + "\nvfmt=" + cfg.vfmt + "\nvrate=" + String(cfg.vrate) + "\n";
+    t += "vlang=" + cfg.vlang + "\nvvoice=" + cfg.vvoice + "\nvfmt=" + cfg.vfmt + "\nvrate=" + String(cfg.vrate) + "\nttsc=" + String(cfg.ttsCache ? 1 : 0) + "\n";
     t += "vol=" + String(cfg.vol) + "\nbclk=" + String(cfg.bclk) + "\nlrc=" + String(cfg.lrc) + "\ndin=" + String(cfg.din) + "\n";
     t += "mq_srv=" + cfg.mqttServer + "\nmq_port=" + String(cfg.mqttPort) + "\nmq_user=" + cfg.mqttUser + "\nmq_base=" + cfg.mqttBase + "\n";
     for (int i = 0; i < 5; i++) t += "mq_g" + String(i + 1) + "=" + cfg.mqttGroup[i] + "\n";
@@ -1818,6 +1890,7 @@ void handleImport() {
         } else if (k == "tz") { cfg.tz = v.isEmpty() ? "UTC0" : v; prefs.putString("tz", cfg.tz);
         } else if (k == "vlang") { cfg.vlang = v; prefs.putString("vlang", v);
         } else if (k == "vvoice") { cfg.vvoice = v; prefs.putString("vvoice", v);
+        } else if (k == "ttsc") { cfg.ttsCache = v.toInt() != 0; prefs.putBool("ttsc", cfg.ttsCache);
         } else if (k == "vfmt") { cfg.vfmt = v; prefs.putString("vfmt", v);
         } else if (k == "vrate") { cfg.vrate = constrain(v.toInt(), -10, 10); prefs.putInt("vrate", cfg.vrate);
         } else if (k == "vol") { cfg.vol = constrain(importVol(v.toInt()), 0, VOLUME_MAX); prefs.putInt("vol", cfg.vol);
@@ -1916,7 +1989,7 @@ String apiArg(const String& name) {
 }
 
 void handleApiSay() {
-    String err = commandSay(apiArg("text"), apiArg("lang"), apiArg("voice"), numberOr(apiArg("rate"), 99), numberOr(apiArg("vol"), -1));
+    String err = commandSay(apiArg("text"), apiArg("lang"), apiArg("voice"), numberOr(apiArg("rate"), 99), numberOr(apiArg("vol"), -1), flagOn(apiArg("save")));
     if (err.length() > 0) return sendErr(400, err);
     sendOk("Wird angesagt");
 }
@@ -2134,7 +2207,7 @@ void handleApiLog() {
     sendJson(200, String("{\"enabled\":") + (cfg.logEnabled ? "true" : "false") + "}");
 }
 void handleApiStatus() {
-    String j = "{\"state\":\"" + playStateName() + "\",\"error\":\"" + jsonEscape(lastError) + "\",\"volume\":" + String(cfg.vol) + ",\"playVolume\":" + String(currentVolume) + ",\"muted\":" + (muted ? "true" : "false") + ",\"queue\":" + String(annCount) + ",\"sd\":\"" + sdState + "\",\"sdMounted\":" + (sdReady ? "true" : "false") + ",\"resume\":" + (resumeUrl.length() > 0 ? "true" : "false");
+    String j = "{\"state\":\"" + playStateName() + "\",\"error\":\"" + jsonEscape(lastError) + "\",\"volume\":" + String(cfg.vol) + ",\"playVolume\":" + String(currentVolume) + ",\"muted\":" + (muted ? "true" : "false") + (ttsSaveErrN > 0 ? ",\"saveErr\":\"" + jsonEscape(ttsSaveErr) + "\",\"saveErrN\":" + String(ttsSaveErrN) : String()) + ",\"queue\":" + String(annCount) + ",\"sd\":\"" + sdState + "\",\"sdMounted\":" + (sdReady ? "true" : "false") + ",\"resume\":" + (resumeUrl.length() > 0 ? "true" : "false");
     bool idleNow = playState == PS_IDLE || nowKind.isEmpty();
     j += ",\"source\":\"" + String(idleNow ? "" : nowKind.c_str()) + "\",\"name\":\"" + jsonEscape(idleNow ? String() : (nowKind == "radio" ? stationDisplayName() : (nowKind == "file" ? nowFile : String()))) + "\",\"title\":\"" + jsonEscape(nowKind == "radio" && !idleNow ? nowTitle : String()) + "\",\"url\":\"" + jsonEscape(nowKind == "radio" && !idleNow ? streamUrl : String()) + "\"";
     if (!idleNow && nowKind == "file" && playState == PS_PLAYING && audio) j += ",\"pos\":" + String(audio->getAudioCurrentTime()) + ",\"dur\":" + String(audio->getAudioFileDuration());
@@ -2196,6 +2269,18 @@ void handleApiSd() {
         j += "{\"n\":\"" + jsonEscape(list[i].name) + "\",\"d\":" + (list[i].dir ? "1" : "0") + ",\"s\":" + String((unsigned long)list[i].size) + "}";
     }
     sendJson(200, j + "]}");
+}
+
+void handleApiTtsCache() {
+    uint32_t bytes = 0;
+    int n;
+    if (webserver.method() == HTTP_POST && apiArg("clear") == "1") {
+        if (!sdReady) return sendErr(400, "SD-Karte nicht verf\xC3\xBCgbar");
+        n = ttsCacheInfo(bytes, true);
+        return sendOk(String(n) + " Dateien gel\xC3\xB6scht");
+    }
+    n = ttsCacheInfo(bytes, false);
+    sendJson(200, "{\"enabled\":" + String(cfg.ttsCache ? "true" : "false") + ",\"sd\":" + String(sdReady ? "true" : "false") + ",\"files\":" + String(n) + ",\"bytes\":" + String((unsigned long)bytes) + "}");
 }
 
 void handleApiSdMount() {
@@ -3168,6 +3253,8 @@ void setupWeb() {
     webserver.on("/api/files", HTTP_GET, handleApiFiles);
     webserver.on("/api/sd", HTTP_GET, handleApiSd);
     webserver.on("/api/sdmount", handleApiSdMount);
+    webserver.on("/api/ttscache", handleApiTtsCache);
+    webserver.on("/panel", HTTP_GET, handlePanel);
     webserver.on("/api/sdmkdir", handleApiSdMkdir);
     webserver.on("/api/sddelete", handleApiSdDelete);
     webserver.on("/api/sdrename", handleApiSdRename);

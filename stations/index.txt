@@ -16,3 +16,4 @@ usa|Beliebte Sender aus den USA|Popular stations from the USA
 australien|Beliebte Sender aus Australien|Popular stations from Australia
 grossbritannien|Beliebte Sender aus Großbritannien|Popular stations from the UK
 frankreich|Beliebte Sender aus Frankreich|Popular stations from France
+weihnachten|Weihnachtslieder und Weihnachtsradios|Christmas songs and Christmas radios

@@ -75,6 +75,7 @@ struct Settings {
     bool radioAgc;
     int agcDb;
     int prebufSec;
+    bool ttsCache;
     int duckPct;
     int volRampMs;
     bool resumeLast;
@@ -148,7 +149,22 @@ struct Pending {
     int vol = -1;
     bool resume = false;
     bool force = false;
+    bool save = false;
 };
+
+// Fundort einer Sprachdatei (steht hier oben, damit die automatischen Funktionsdeklarationen den Typ kennen).
+// Location of a speech file (placed up here so the automatic function declarations know the type).
+
+struct TtsLoc {
+    int kind;
+    String path;
+};
+
+// Meldung, wenn ein Text nicht gespeichert werden konnte; die Seite zeigt sie als roten Hinweis (Zaehler zaehlt jede neue Meldung).
+// Message when a text could not be saved; the page shows it as a red banner (the counter counts every new message).
+
+String ttsSaveErr;
+uint32_t ttsSaveErrN = 0;
 
 Pending pending;
 
@@ -475,7 +491,7 @@ void loadPinActions() {
     }
 }
 
-String commandSay(const String& textIn, const String& lang, const String& voice, int rate, int vol);
+String commandSay(const String& textIn, const String& lang, const String& voice, int rate, int vol, bool save = false);
 String commandPlayFile(const String& nameIn, int vol, bool shuffle, bool loop);
 String commandPlayUrl(const String& urlIn, int vol);
 String commandPlayStation(const String& selIn, int vol);
@@ -597,6 +613,7 @@ void loadSettings() {
     cfg.switchFadeMs = constrain(prefs.getInt("swfade", SWITCH_FADE_DEFAULT_MS), 0, FADE_MAX_MS);
     cfg.autoStart = prefs.getBool("autostart", false);
     cfg.bootTone = prefs.getBool("btone", true);
+    cfg.ttsCache = prefs.getBool("ttsc", false);
     cfg.mixAnn = prefs.getBool("mix", true);
     cfg.loudNorm = prefs.getBool("loud", true);
     cfg.radioAgc = prefs.getBool("agc", false);
@@ -1659,6 +1676,299 @@ String buildSpeechUrl(const Pending& p) {
     return url;
 }
 
+// Gespeicherte Ansagen und Zwischenspeicher: Eine einmal von VoiceRSS geholte Sprachdatei kann lokal liegen und wird dann ohne VoiceRSS-Anfrage gespielt.
+// Der Dateiname besteht aus einem Hinweis auf den Text und einer Pruefsumme ueber Text, Sprache, Stimme, Tempo und Format
+// (zum Beispiel Achtung_auf_Gleis_3_3fa9c2e1.mp3). Gesucht wird in dieser Reihenfolge: gespeicherte Texte auf der SD-Karte (/ansagen),
+// gespeicherte Texte im Flash (im Ordner der MP3-Dateien) und, wenn eingeschaltet, der Zwischenspeicher der SD-Karte (/tts).
+// Saved announcements and cache: a speech file fetched once from VoiceRSS can be kept locally and is then played without a VoiceRSS request.
+// The file name consists of a hint about the text and a checksum over text, language, voice, rate and format
+// (for example Achtung_auf_Gleis_3_3fa9c2e1.mp3). The search order is: saved texts on the SD card (/ansagen), saved texts in flash
+// (in the folder of the MP3 files) and, if switched on, the cache of the SD card (/tts).
+
+#define TTS_CACHE_DIR "/tts"
+#define TTS_CACHE_MAX 500
+#define TTS_SAVE_DIR "/ansagen"
+#define TTS_FLASH_RESERVE 65536UL
+
+static String ttsName(const Pending& p) {
+    String lang = p.lang.length() > 0 ? p.lang : cfg.vlang;
+    String voice = p.voice.length() > 0 ? p.voice : cfg.vvoice;
+    int rate = p.rate != 99 ? p.rate : cfg.vrate;
+    if (rate < -10) rate = -10;
+    if (rate > 10) rate = 10;
+    String key = lang + "|" + voice + "|" + String(rate) + "|" + cfg.vfmt + "|" + p.text;
+    uint32_t h = 2166136261UL;
+    for (size_t i = 0; i < key.length(); i++) {
+        h ^= (uint8_t)key[i];
+        h *= 16777619UL;
+    }
+    char hex[9];
+    snprintf(hex, sizeof(hex), "%08x", (unsigned)h);
+    String hint = sdCleanName(p.text.substring(0, 60), false);
+    hint.replace(".", "");
+    if (hint.length() > 40) hint = hint.substring(0, 40);
+    while (hint.endsWith("_") || hint.endsWith("-")) hint.remove(hint.length() - 1);
+    while (hint.startsWith("_") || hint.startsWith("-")) hint.remove(0, 1);
+    if (hint.isEmpty()) hint = "speech";
+    return hint + "_" + String(hex) + ".mp3";
+}
+
+static void ttsSaveFail(const String& de, const String& logEn) {
+    ttsSaveErr = de;
+    ttsSaveErrN++;
+    logLine("[VOICERSS] " + logEn);
+}
+
+static bool ttsCacheOn() {
+    return cfg.ttsCache && sdReady;
+}
+
+static bool ttsSdHas(const String& path) {
+    if (!sdReady) return false;
+    if (xSemaphoreTake(sdMutex, pdMS_TO_TICKS(2000)) != pdTRUE) return false;
+    bool ok = SD.exists(path.c_str());
+    xSemaphoreGive(sdMutex);
+    return ok;
+}
+
+// Fundort einer Sprachdatei: 0 = nirgends, 1 = gespeichert auf der Karte, 2 = gespeichert im Flash, 3 = Zwischenspeicher der Karte.
+// Location of a speech file: 0 = nowhere, 1 = saved on the card, 2 = saved in flash, 3 = cache of the card.
+
+static TtsLoc ttsLocate(const Pending& p) {
+    TtsLoc r{0, ""};
+    String name = ttsName(p);
+    String a = String(TTS_SAVE_DIR) + "/" + name;
+    if (ttsSdHas(a)) return TtsLoc{1, a};
+    String f = String(MP3_DIR) + "/" + name;
+    if (fsReady && LittleFS.exists(f)) return TtsLoc{2, f};
+    if (cfg.ttsCache) {
+        String c = String(TTS_CACHE_DIR) + "/" + name;
+        if (ttsSdHas(c)) return TtsLoc{3, c};
+    }
+    return r;
+}
+
+// Kopiert eine Datei zwischen Flash und Karte; bei der Karte haelt der Aufrufer die Sperre.
+// Copies a file between flash and card; for the card the caller holds the lock.
+
+static size_t ttsCopy(File& src, File& dst) {
+    uint8_t* buf = (uint8_t*)malloc(1024);
+    if (!buf) return 0;
+    size_t total = 0;
+    while (src.available()) {
+        int n = src.read(buf, 1024);
+        if (n <= 0) break;
+        if (dst.write(buf, n) != (size_t)n) {
+            total = 0;
+            break;
+        }
+        total += n;
+        esp_task_wdt_reset();
+    }
+    free(buf);
+    return total;
+}
+
+static bool ttsRestore(const TtsLoc& loc) {
+    bool sd = loc.kind == 1 || loc.kind == 3;
+    if (sd && xSemaphoreTake(sdMutex, pdMS_TO_TICKS(3000)) != pdTRUE) return false;
+    size_t n = 0;
+    File src = sd ? SD.open(loc.path.c_str(), FILE_READ) : LittleFS.open(loc.path, FILE_READ);
+    if (src) {
+        LittleFS.remove(TTS_FILE);
+        File dst = LittleFS.open(TTS_FILE, FILE_WRITE);
+        if (dst) {
+            n = ttsCopy(src, dst);
+            dst.close();
+        }
+        src.close();
+    }
+    if (sd) xSemaphoreGive(sdMutex);
+    if (n == 0) {
+        LittleFS.remove(TTS_FILE);
+        return false;
+    }
+    const char* from = loc.kind == 1 ? "saved text on SD card" : (loc.kind == 2 ? "saved text in flash" : "cache");
+    logLine("[VOICERSS] from " + String(from) + " " + loc.path.substring(loc.path.lastIndexOf('/') + 1));
+    return true;
+}
+
+// Haelt hoechstens TTS_CACHE_MAX Dateien: die aeltesten (nach Schreibzeit) werden geloescht; der Aufrufer haelt die Sperre.
+// Keeps at most TTS_CACHE_MAX files: the oldest ones (by write time) are deleted; the caller holds the lock.
+
+static void ttsCachePrune() {
+    struct Ent {
+        String name;
+        time_t t;
+    };
+    std::vector<Ent> list;
+    File d = SD.open(TTS_CACHE_DIR);
+    if (!d || !d.isDirectory()) {
+        if (d) d.close();
+        return;
+    }
+    File e = d.openNextFile();
+    while (e && list.size() < 2000) {
+        if (!e.isDirectory()) {
+            String n = String(e.name());
+            list.push_back(Ent{n.substring(n.lastIndexOf('/') + 1), e.getLastWrite()});
+        }
+        e.close();
+        esp_task_wdt_reset();
+        e = d.openNextFile();
+    }
+    if (e) e.close();
+    d.close();
+    if ((int)list.size() <= TTS_CACHE_MAX) return;
+    std::sort(list.begin(), list.end(), [](const Ent& a, const Ent& b) { return a.t < b.t; });
+    int drop = (int)list.size() - TTS_CACHE_MAX;
+    for (int i = 0; i < drop; i++) {
+        SD.remove((String(TTS_CACHE_DIR) + "/" + list[i].name).c_str());
+        esp_task_wdt_reset();
+    }
+    logLine("[VOICERSS] cache pruned, " + String(drop) + " old files removed");
+}
+
+// Legt TTS_FILE auf der Karte ab: im Zwischenspeicher (dir = /tts) oder als gespeicherten Text (dir = /ansagen).
+// Stores TTS_FILE on the card: in the cache (dir = /tts) or as a saved text (dir = /ansagen).
+
+static bool ttsStoreSd(const String& dir, const String& name, bool prune) {
+    if (!sdReady) return false;
+    String path = dir + "/" + name;
+    if (xSemaphoreTake(sdMutex, pdMS_TO_TICKS(3000)) != pdTRUE) return false;
+    bool ok = false;
+    File src = LittleFS.open(TTS_FILE, FILE_READ);
+    if (src) {
+        if (!SD.exists(dir.c_str())) SD.mkdir(dir.c_str());
+        SD.remove(path.c_str());
+        File dst = SD.open(path.c_str(), FILE_WRITE);
+        size_t n = 0;
+        if (dst) {
+            n = ttsCopy(src, dst);
+            dst.close();
+        }
+        if (n == 0) {
+            SD.remove(path.c_str());
+        } else {
+            ok = true;
+            if (prune) ttsCachePrune();
+        }
+        src.close();
+    }
+    xSemaphoreGive(sdMutex);
+    return ok;
+}
+
+static void ttsCacheStore(const Pending& p) {
+    if (!ttsCacheOn()) return;
+    String name = ttsName(p);
+    if (ttsStoreSd(TTS_CACHE_DIR, name, true)) logLine("[VOICERSS] stored in cache " + name);
+    else logLine("[VOICERSS] could not store in cache");
+}
+
+// Speichert den Text dauerhaft: bevorzugt auf der SD-Karte, sonst im Flash (Ordner der MP3-Dateien, sichtbar im Tab MP3 (Flash)).
+// Saves the text permanently: preferably on the SD card, otherwise in flash (folder of the MP3 files, visible in the MP3 (Flash) tab).
+
+static void ttsSaveText(const Pending& p) {
+    String name = ttsName(p);
+    if (sdReady) {
+        if (ttsStoreSd(TTS_SAVE_DIR, name, false)) logLine("[VOICERSS] text saved on SD card " + name);
+        else ttsSaveFail("Text konnte nicht auf der SD-Karte gespeichert werden", "text could not be saved on SD card");
+        return;
+    }
+    if (!fsReady) {
+        ttsSaveFail("Text nicht gespeichert: kein Speicher verf\xC3\xBCgbar", "text not saved: no storage");
+        return;
+    }
+    File src = LittleFS.open(TTS_FILE, FILE_READ);
+    if (!src) return;
+    size_t size = src.size();
+    size_t freeB = LittleFS.totalBytes() - LittleFS.usedBytes();
+    if (freeB < size + TTS_FLASH_RESERVE) {
+        src.close();
+        ttsSaveFail("Text nicht gespeichert: Flash voll (mindestens 64 KB m\xC3\xBCssen frei bleiben)", "text not saved: flash is full (at least 64 KB must stay free)");
+        return;
+    }
+    String path = String(MP3_DIR) + "/" + name;
+    LittleFS.remove(path);
+    File dst = LittleFS.open(path, FILE_WRITE);
+    size_t n = 0;
+    if (dst) {
+        n = ttsCopy(src, dst);
+        dst.close();
+    }
+    src.close();
+    if (n == 0) {
+        LittleFS.remove(path);
+        ttsSaveFail("Text konnte nicht im Flash gespeichert werden", "text could not be saved in flash");
+    } else {
+        logLine("[VOICERSS] text saved in flash " + name);
+    }
+}
+
+// Anzahl und Groesse der Dateien im Zwischenspeicher; mit clear werden sie geloescht (Rueckgabe: Anzahl vorher).
+// Number and size of the files in the cache; with clear they are deleted (returns the number before).
+
+int ttsCacheInfo(uint32_t& bytes, bool clear) {
+    bytes = 0;
+    if (!sdReady) return 0;
+    if (xSemaphoreTake(sdMutex, pdMS_TO_TICKS(3000)) != pdTRUE) return 0;
+    int count = 0;
+    std::vector<String> names;
+    File d = SD.open(TTS_CACHE_DIR);
+    if (d && d.isDirectory()) {
+        File e = d.openNextFile();
+        while (e) {
+            if (!e.isDirectory()) {
+                String n = String(e.name());
+                names.push_back(n.substring(n.lastIndexOf('/') + 1));
+                bytes += (uint32_t)e.size();
+                count++;
+            }
+            e.close();
+            esp_task_wdt_reset();
+            e = d.openNextFile();
+        }
+    }
+    if (d) d.close();
+    if (clear) {
+        for (size_t i = 0; i < names.size(); i++) {
+            SD.remove((String(TTS_CACHE_DIR) + "/" + names[i]).c_str());
+            esp_task_wdt_reset();
+        }
+    }
+    xSemaphoreGive(sdMutex);
+    return count;
+}
+
+// Holt die Sprachdatei nach TTS_FILE: von lokal gespeicherten Texten oder dem Zwischenspeicher, sonst von VoiceRSS.
+// Mit p.save wird der Text danach dauerhaft gespeichert, sonst (Zwischenspeicher an) im Zwischenspeicher abgelegt.
+// Fetches the speech file into TTS_FILE: from locally saved texts or the cache, otherwise from VoiceRSS.
+// With p.save the text is then saved permanently, otherwise (cache on) stored in the cache.
+
+static bool fetchSpeech(const Pending& p, String& err) {
+    TtsLoc loc = ttsLocate(p);
+    bool got = loc.kind != 0 && ttsRestore(loc);
+    if (!got) {
+        if (cfg.vkey.isEmpty()) {
+            err = "VoiceRSS API key is not set";
+            return false;
+        }
+        if (WiFi.status() != WL_CONNECTED) {
+            err = "No WiFi connection";
+            return false;
+        }
+        if (cfg.ttsCache || p.save) logLine("[VOICERSS] not stored locally, fetching from VoiceRSS");
+        if (!downloadSpeech(buildSpeechUrl(p), err)) return false;
+    }
+    if (p.save) {
+        if (!(got && loc.kind <= 2)) ttsSaveText(p);
+    } else if (!got) {
+        ttsCacheStore(p);
+    }
+    return true;
+}
+
 // Mischer: Eine Ansage oder MP3-Datei wird in einem eigenen Task dekodiert und im Audio-Task zum laufenden Webradio addiert.
 // Das Radio laeuft ohne Unterbrechung weiter und ist waehrenddessen leiser (Ducking).
 // Es gibt zwei Mischspuren: Spur 0 traegt eine Datei der SD-Karte ueber dem Radio, Spur 1 eine Ansage (Flash-MP3 oder Sprechen).
@@ -2243,11 +2553,12 @@ void duckWorkerStop() {
 // Mix an announcement over the radio: download the text, then lay it over the running radio with the mixer. false = normal way.
 
 bool speakMixed(const Pending& p) {
-    if (cfg.vkey.isEmpty()) {
+    bool cached = ttsLocate(p).kind != 0;
+    if (!cached && cfg.vkey.isEmpty()) {
         announceFail("VoiceRSS API key is not set");
         return true;
     }
-    if (WiFi.status() != WL_CONNECTED) {
+    if (!cached && WiFi.status() != WL_CONNECTED) {
         announceFail("No WiFi connection");
         return true;
     }
@@ -2269,7 +2580,7 @@ bool speakMixed(const Pending& p) {
     publishStatus(true);
     String err;
     duckWorkerStart();
-    bool ok = downloadSpeech(buildSpeechUrl(p), err);
+    bool ok = fetchSpeech(p, err);
     duckWorkerStop();
     voiceBusy = false;
     voiceLastOk = ok;
@@ -2346,11 +2657,12 @@ void stopIfUsing(const String& name) {
 }
 
 void speakText(const Pending& p) {
-    if (cfg.vkey.isEmpty()) {
+    bool cached = ttsLocate(p).kind != 0;
+    if (!cached && cfg.vkey.isEmpty()) {
         failPlayback("VoiceRSS API key is not set");
         return;
     }
-    if (WiFi.status() != WL_CONNECTED) {
+    if (!cached && WiFi.status() != WL_CONNECTED) {
         failPlayback("No WiFi connection");
         return;
     }
@@ -2362,9 +2674,8 @@ void speakText(const Pending& p) {
     playState = PS_LOADING;
     loadStartMillis = millis();
     publishStatus(true);
-    String url = buildSpeechUrl(p);
     String err;
-    bool ok = downloadSpeech(url, err);
+    bool ok = fetchSpeech(p, err);
     voiceBusy = false;
     voiceLastOk = ok;
     if (!ok) {
@@ -3062,12 +3373,11 @@ void checkSerialWifi() {
 // Gemeinsame Befehle fuer REST-API und MQTT: pruefen, in die Warteschlange stellen; Rueckgabe leer = angenommen, sonst Fehlertext.
 // Shared commands for the REST API and MQTT: validate, queue; empty return = accepted, otherwise the error text.
 
-String commandSay(const String& textIn, const String& lang, const String& voice, int rate, int vol) {
+String commandSay(const String& textIn, const String& lang, const String& voice, int rate, int vol, bool save) {
     String text = textIn;
     text.trim();
     if (text.isEmpty()) return "Kein Text angegeben";
     if (text.length() > TTS_MAX_CHARS) return "Text zu lang (max. " + String(TTS_MAX_CHARS) + " Zeichen)";
-    if (cfg.vkey.isEmpty()) return "Kein VoiceRSS-API-Schluessel gespeichert";
     Pending q;
     q.type = PEND_SAY;
     q.text = text;
@@ -3075,6 +3385,12 @@ String commandSay(const String& textIn, const String& lang, const String& voice,
     q.voice = voice;
     q.rate = rate;
     q.vol = vol;
+    q.save = save;
+
+    // Ohne API-Schluessel nur, wenn der Text lokal gespeichert vorliegt.
+    // Without an API key only if the text is stored locally.
+
+    if (cfg.vkey.isEmpty() && ttsLocate(q).kind == 0) return "Kein VoiceRSS-API-Schluessel gespeichert";
     if (!annPush(q)) return "Warteschlange voll (max. " + String(ANN_QUEUE_LEN) + ")";
     return "";
 }
@@ -3462,7 +3778,7 @@ void onMqttMessage(char* topic, uint8_t* payload, unsigned int length) {
         }
     }
     if (t == base + "/say") {
-        if (isJson) err = commandSay(jsonGet(body, "text"), jsonGet(body, "lang"), jsonGet(body, "voice"), numberOr(jsonGet(body, "rate"), 99), numberOr(jsonGet(body, "vol"), -1));
+        if (isJson) err = commandSay(jsonGet(body, "text"), jsonGet(body, "lang"), jsonGet(body, "voice"), numberOr(jsonGet(body, "rate"), 99), numberOr(jsonGet(body, "vol"), -1), flagOn(jsonGet(body, "save")));
         else err = commandSay(body, "", "", 99, -1);
     } else if (t == base + "/play" || t == base + "/url" || t == base + "/file") {
         String url = body, file = body;

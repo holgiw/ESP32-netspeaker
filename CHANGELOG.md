@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-11-13 - Version 1.5.3
+
+**Deutsch**
+
+- Geändert: Die Tabs der Weboberfläche werden einzeln nachgeladen (`/panel?tab=<name>`). Die Startseite enthält nur Rahmen, Statusleiste und den aktiven Tab; jeder weitere Tab holt sich beim ersten Anklicken seinen Inhalt. Das spart Arbeitsspeicher und Zeit beim Öffnen der Seite und belastet die Hauptschleife weniger.
+- Neu: Genre *Weihnachten* bei *Von radio-browser laden* (Tab *Webradio*): holt die beliebtesten Weihnachtssender des gewählten Landes.
+- Neu: Fertige Senderliste `weihnachten` (24 Sender mit Weihnachtsliedern) im Ordner `stations/`; sie erscheint nach dem Neuladen der Seite bei *Fertige Liste*, ohne neues Flashen.
+- Neu: Einstellung *Ansagen auf der SD-Karte zwischenspeichern* (Tab *Audio*, Sprachausgabe, Standard aus): Ein von VoiceRSS geholter Text wird als MP3 im Ordner `/tts` der SD-Karte abgelegt (Name: Texthinweis und Prüfsumme, zum Beispiel `Achtung_auf_Gleis_3_3fa9c2e1.mp3`) und beim nächsten Mal von dort gespielt, auch ohne Internet. Höchstens 500 Dateien; Knopf *Zwischenspeicher leeren*, REST `GET`/`POST /api/ttscache`, Export `ttsc`. Im Log steht bei eingeschaltetem Zwischenspeicher, ob der Text aus dem Cache oder von VoiceRSS kommt. Im Tab *Sprechen* speichert der Haken *Text speichern* die Sprachdatei des nächsten Sprechens dauerhaft (bevorzugt SD-Karte, Ordner `/ansagen`, sonst Flash, sichtbar im Tab *MP3 (Flash)*) und entfernt sich danach selbst; gespeicherte Texte werden vor VoiceRSS verwendet (REST: `save=1` bei `/api/say`, MQTT-JSON `save`). Der Tab *SD-Karte* hat einen Knopf *Aktualisieren* und je Datei und Ordner die Knöpfe *URL* und *curl* zum Kopieren des REST-Aufrufs.
+
+**English**
+
+- Changed: the tabs of the web interface are loaded one by one (`/panel?tab=<name>`). The start page only contains the frame, the status bar and the active tab; every other tab fetches its content the first time it is clicked. This saves memory and time when opening the page and puts less load on the main loop.
+- New: genre *Christmas* for *Von radio-browser laden* (*Webradio* tab): fetches the most popular Christmas stations of the chosen country.
+- New: ready-made station list `weihnachten` (24 stations with Christmas songs) in the `stations/` folder; it appears after reloading the page under *Fertige Liste*, no flashing needed.
+- New: setting *Cache announcements on the SD card* (*Audio* tab, speech output, default off): a text fetched from VoiceRSS is stored as MP3 in the folder `/tts` of the SD card (name: text hint and checksum, for example `Achtung_auf_Gleis_3_3fa9c2e1.mp3`) and played from there next time, even without internet. At most 500 files; button *Zwischenspeicher leeren* (clear cache), REST `GET`/`POST /api/ttscache`, export `ttsc`. With the cache on, the log shows whether the text comes from the cache or from VoiceRSS. In the *Sprechen* tab the checkbox *Text speichern* (save text) saves the speech file of the next utterance permanently (preferably SD card, folder `/ansagen`, otherwise flash, visible in the *MP3 (Flash)* tab) and clears itself afterwards; saved texts are used before VoiceRSS (REST: `save=1` on `/api/say`, MQTT JSON `save`). The *SD card* tab has a *Refresh* button and, for every file and folder, the buttons *URL* and *curl* to copy the REST call.
+
 ## 2026-11-11 - Version 1.5.2
 
 **Deutsch**
