@@ -35,6 +35,7 @@
 #include <time.h>
 
 #include "config.h"
+#include "effects.h"
 
 // ---------------------------------------------------------------------------
 // Einstellungen / settings
@@ -76,6 +77,11 @@ struct Settings {
     int agcDb;
     int prebufSec;
     bool ttsCache;
+    int fxMode;
+    int fxWet;
+    bool fxAnn;
+    int eqBass;
+    int eqTreble;
     int duckPct;
     int volRampMs;
     bool resumeLast;
@@ -158,7 +164,21 @@ struct Pending {
 struct TtsLoc {
     int kind;
     String path;
+    String suffix;   // Effektangaben im Dateinamen hinter der Pruefsumme, zum Beispiel _halle40_b3_t-2 / effect part of the file name behind the checksum
 };
+
+// Effektwerte einer Ansage (Hall/Echo/Klangregler) und die eigene Effekt-Instanz fuer gespeicherte Texte.
+// Effect values of an announcement (reverb/echo/tone control) and the own effect instance for saved texts.
+
+struct FxParams {
+    int mode;
+    int wet;
+    int bass;
+    int treble;
+};
+
+FxEngine annFx;
+volatile bool annOwn = false;
 
 // Meldung, wenn ein Text nicht gespeichert werden konnte; die Seite zeigt sie als roten Hinweis (Zaehler zaehlt jede neue Meldung).
 // Message when a text could not be saved; the page shows it as a red banner (the counter counts every new message).
@@ -614,6 +634,11 @@ void loadSettings() {
     cfg.autoStart = prefs.getBool("autostart", false);
     cfg.bootTone = prefs.getBool("btone", true);
     cfg.ttsCache = prefs.getBool("ttsc", false);
+    cfg.fxMode = constrain(prefs.getInt("fxmode", 0), 0, 4);
+    cfg.fxWet = constrain(prefs.getInt("fxwet", 30), 0, 100);
+    cfg.fxAnn = prefs.getBool("fxann", true);
+    cfg.eqBass = constrain(prefs.getInt("eqb", 0), -12, 12);
+    cfg.eqTreble = constrain(prefs.getInt("eqt", 0), -12, 12);
     cfg.mixAnn = prefs.getBool("mix", true);
     cfg.loudNorm = prefs.getBool("loud", true);
     cfg.radioAgc = prefs.getBool("agc", false);
@@ -1690,7 +1715,7 @@ String buildSpeechUrl(const Pending& p) {
 #define TTS_SAVE_DIR "/ansagen"
 #define TTS_FLASH_RESERVE 65536UL
 
-static String ttsName(const Pending& p) {
+static String ttsBase(const Pending& p) {
     String lang = p.lang.length() > 0 ? p.lang : cfg.vlang;
     String voice = p.voice.length() > 0 ? p.voice : cfg.vvoice;
     int rate = p.rate != 99 ? p.rate : cfg.vrate;
@@ -1710,13 +1735,65 @@ static String ttsName(const Pending& p) {
     while (hint.endsWith("_") || hint.endsWith("-")) hint.remove(hint.length() - 1);
     while (hint.startsWith("_") || hint.startsWith("-")) hint.remove(0, 1);
     if (hint.isEmpty()) hint = "speech";
-    return hint + "_" + String(hex) + ".mp3";
+    return hint + "_" + String(hex);
+}
+
+static String ttsName(const Pending& p) {
+    return ttsBase(p) + ".mp3";
+}
+
+// Effektwerte im Dateinamen: _halle40_b3_t-2 (Effekt mit Anteil, Bass, Hoehen); ohne Effekt und ohne Klangregler bleibt der Name ohne Zusatz.
+// Effect values in the file name: _halle40_b3_t-2 (effect with amount, bass, treble); without effect and tone control the name has no addition.
+
+static const char* const FX_NAMES[] = {"aus", "zimmer", "halle", "kirche", "echo"};
+
+static String ttsFxSuffix(const FxParams& f) {
+    if (f.mode == 0 && f.bass == 0 && f.treble == 0) return "";
+    String s = String("_") + FX_NAMES[f.mode];
+    if (f.mode != 0) s += String(f.wet);
+    if (f.bass != 0) s += "_b" + String(f.bass);
+    if (f.treble != 0) s += "_t" + String(f.treble);
+    return s;
+}
+
+static FxParams ttsFxParse(const String& suf) {
+    FxParams f{0, 0, 0, 0};
+    int i = 0;
+    while (i < (int)suf.length()) {
+        int e = suf.indexOf('_', i + 1);
+        if (e < 0) e = suf.length();
+        String tok = suf.substring(i + 1, e);
+        i = e;
+        if (tok.length() >= 2 && tok[0] == 'b' && (isdigit(tok[1]) || tok[1] == '-')) {
+            f.bass = constrain(tok.substring(1).toInt(), -12, 12);
+        } else if (tok.length() >= 2 && tok[0] == 't' && (isdigit(tok[1]) || tok[1] == '-')) {
+            f.treble = constrain(tok.substring(1).toInt(), -12, 12);
+        } else {
+            for (int m = 0; m < 5; m++) {
+                String n = FX_NAMES[m];
+                if (tok.startsWith(n)) {
+                    f.mode = m;
+                    f.wet = constrain(tok.substring(n.length()).toInt(), 0, 100);
+                    break;
+                }
+            }
+        }
+    }
+    return f;
 }
 
 static void ttsSaveFail(const String& de, const String& logEn) {
     ttsSaveErr = de;
     ttsSaveErrN++;
     logLine("[VOICERSS] " + logEn);
+}
+
+// Die Effektwerte, die ein jetzt gespeicherter Text bekommt: die aktuellen Einstellungen, ohne Effekt wenn Ansagen davon ausgenommen sind.
+// The effect values a text saved now gets: the current settings, without effect if announcements are excluded.
+
+static FxParams ttsFxCurrent() {
+    if (!cfg.fxAnn) return FxParams{0, 0, 0, 0};
+    return FxParams{cfg.fxMode, cfg.fxWet, cfg.eqBass, cfg.eqTreble};
 }
 
 static bool ttsCacheOn() {
@@ -1734,16 +1811,49 @@ static bool ttsSdHas(const String& path) {
 // Fundort einer Sprachdatei: 0 = nirgends, 1 = gespeichert auf der Karte, 2 = gespeichert im Flash, 3 = Zwischenspeicher der Karte.
 // Location of a speech file: 0 = nowhere, 1 = saved on the card, 2 = saved in flash, 3 = cache of the card.
 
+// Sucht eine gespeicherte Datei mit dem Namensanfang base: base.mp3 oder base_<Effektangaben>.mp3; liefert den ganzen Namen oder leer.
+// Looks for a saved file starting with the name base: base.mp3 or base_<effect values>.mp3; returns the whole name or empty.
+
+static String ttsFindSaved(bool sd, const String& dir, const String& base) {
+    String found;
+    if (sd) {
+        if (!sdReady) return "";
+        if (xSemaphoreTake(sdMutex, pdMS_TO_TICKS(2000)) != pdTRUE) return "";
+    } else if (!fsReady) {
+        return "";
+    }
+    File d = sd ? SD.open(dir.c_str()) : LittleFS.open(dir);
+    if (d && d.isDirectory()) {
+        File e = d.openNextFile();
+        while (e) {
+            String n = String(e.name());
+            n = n.substring(n.lastIndexOf('/') + 1);
+            e.close();
+            String l = n;
+            l.toLowerCase();
+            if (n.startsWith(base) && l.endsWith(".mp3") && n.length() > base.length() && (n[base.length()] == '.' || n[base.length()] == '_')) {
+                found = n;
+                break;
+            }
+            esp_task_wdt_reset();
+            e = d.openNextFile();
+        }
+    }
+    if (d) d.close();
+    if (sd) xSemaphoreGive(sdMutex);
+    return found;
+}
+
 static TtsLoc ttsLocate(const Pending& p) {
-    TtsLoc r{0, ""};
-    String name = ttsName(p);
-    String a = String(TTS_SAVE_DIR) + "/" + name;
-    if (ttsSdHas(a)) return TtsLoc{1, a};
-    String f = String(MP3_DIR) + "/" + name;
-    if (fsReady && LittleFS.exists(f)) return TtsLoc{2, f};
+    TtsLoc r{0, "", ""};
+    String base = ttsBase(p);
+    String n = ttsFindSaved(true, TTS_SAVE_DIR, base);
+    if (!n.isEmpty()) return TtsLoc{1, String(TTS_SAVE_DIR) + "/" + n, n.substring(base.length(), n.length() - 4)};
+    n = ttsFindSaved(false, MP3_DIR, base);
+    if (!n.isEmpty()) return TtsLoc{2, String(MP3_DIR) + "/" + n, n.substring(base.length(), n.length() - 4)};
     if (cfg.ttsCache) {
-        String c = String(TTS_CACHE_DIR) + "/" + name;
-        if (ttsSdHas(c)) return TtsLoc{3, c};
+        String c = String(TTS_CACHE_DIR) + "/" + ttsName(p);
+        if (ttsSdHas(c)) return TtsLoc{3, c, ""};
     }
     return r;
 }
@@ -1869,8 +1979,8 @@ static void ttsCacheStore(const Pending& p) {
 // Speichert den Text dauerhaft: bevorzugt auf der SD-Karte, sonst im Flash (Ordner der MP3-Dateien, sichtbar im Tab MP3 (Flash)).
 // Saves the text permanently: preferably on the SD card, otherwise in flash (folder of the MP3 files, visible in the MP3 (Flash) tab).
 
-static void ttsSaveText(const Pending& p) {
-    String name = ttsName(p);
+static void ttsSaveText(const Pending& p, const FxParams& fxp) {
+    String name = ttsBase(p) + ttsFxSuffix(fxp) + ".mp3";
     if (sdReady) {
         if (ttsStoreSd(TTS_SAVE_DIR, name, false)) logLine("[VOICERSS] text saved on SD card " + name);
         else ttsSaveFail("Text konnte nicht auf der SD-Karte gespeichert werden", "text could not be saved on SD card");
@@ -1947,8 +2057,15 @@ int ttsCacheInfo(uint32_t& bytes, bool clear) {
 // With p.save the text is then saved permanently, otherwise (cache on) stored in the cache.
 
 static bool fetchSpeech(const Pending& p, String& err) {
+    annOwn = false;
     TtsLoc loc = ttsLocate(p);
     bool got = loc.kind != 0 && ttsRestore(loc);
+    FxParams own{0, 0, 0, 0};
+    bool useOwn = false;
+    if (got && loc.kind <= 2) {
+        own = ttsFxParse(loc.suffix);
+        useOwn = true;
+    }
     if (!got) {
         if (cfg.vkey.isEmpty()) {
             err = "VoiceRSS API key is not set";
@@ -1962,9 +2079,36 @@ static bool fetchSpeech(const Pending& p, String& err) {
         if (!downloadSpeech(buildSpeechUrl(p), err)) return false;
     }
     if (p.save) {
-        if (!(got && loc.kind <= 2)) ttsSaveText(p);
+        // Neu speichern, wenn der Text noch nicht gespeichert ist oder mit anderen Effektwerten gespeichert war; die alte Datei entfaellt.
+        // Save again if the text is not saved yet or was saved with other effect values; the old file is removed.
+
+        FxParams cur = ttsFxCurrent();
+        String curSuffix = ttsFxSuffix(cur);
+        if (!(got && loc.kind <= 2 && loc.suffix == curSuffix)) {
+            ttsSaveText(p, cur);
+            if (got && loc.kind <= 2) {
+                if (loc.kind == 1) {
+                    if (xSemaphoreTake(sdMutex, pdMS_TO_TICKS(2000)) == pdTRUE) {
+                        SD.remove(loc.path.c_str());
+                        xSemaphoreGive(sdMutex);
+                    }
+                } else {
+                    LittleFS.remove(loc.path);
+                }
+            }
+        }
+        own = cur;
+        useOwn = true;
     } else if (!got) {
         ttsCacheStore(p);
+    }
+    if (useOwn) {
+        annFx.mode = own.mode;
+        annFx.wet = own.wet;
+        annFx.bass = own.bass;
+        annFx.treble = own.treble;
+        annFx.flush();
+        annOwn = true;
     }
     return true;
 }
@@ -2156,9 +2300,32 @@ uint32_t nvsFreeEntries() {
 
 volatile bool muteMain = true;
 
+// Klangeffekte (Hall, Echo, Klangregler): eine Instanz fuer den ganzen Ausgang. Mit "Auch auf Ansagen" liegt sie hinter allen Spuren, sonst vor der
+// Ansagenspur; Sprache im Hauptstrom (ohne Radio) bleibt dann unbearbeitet.
+// Sound effects (reverb, echo, tone control): one instance for the whole output. With "Also on announcements" it sits behind all tracks, otherwise
+// before the announcement track; speech in the main stream (without radio) then stays unprocessed.
+
+FxEngine fx;
+volatile bool fxOnAnn = true;
+volatile bool fxMainOk = true;
+volatile bool fxSpeechMain = false;
+int32_t* fxTmp = nullptr;
+#define FX_TMP_WORDS 8192
+
+void fxApplyCfg() {
+    fx.mode = cfg.fxMode;
+    fx.wet = cfg.fxWet;
+    fx.bass = cfg.eqBass;
+    fx.treble = cfg.eqTreble;
+    fxOnAnn = cfg.fxAnn;
+    fx.resetLoad();
+}
+
 void muteWatch() {
     bool flash = nowKind == "file" && !nowFile.startsWith("sd:");
     muteMain = !flash;
+    fxMainOk = cfg.fxAnn || nowKind != "speech";
+    fxSpeechMain = nowKind == "speech";
 
     // Solange eine Flash-MP3 laeuft, wird die Verstaerkung nicht mitgefuehrt: sie springt auf den Zielwert, damit es danach nicht erst ein- oder ausblendet.
     // While a flash MP3 plays the gain is not followed: it jumps to the target so nothing fades in or out afterwards.
@@ -2208,7 +2375,35 @@ void audio_process_i2s(int32_t* buf, int16_t words, bool* continueI2S) {
     }
     mixAddTrack(mixT[MIX_LAYER], buf, words);
     if (muteMain) muteApply(buf, words);
+    uint32_t sr = audio ? audio->getSampleRate() : 0;
+
+    // Gespeicherter Text mit eigenen Effektwerten: die Ansage bekommt die eigene Effekt-Instanz, der Rest (Radio, Dateien) die allgemeine.
+    // Saved text with its own effect values: the announcement gets the own effect instance, the rest (radio, files) the general one.
+
+    if (annOwn) {
+        if (fxSpeechMain) {
+            annFx.process(buf, words, sr);
+            return;
+        }
+        if (mixT[MIX_ANN].active) {
+            if (!fxTmp) fxTmp = (int32_t*)heap_caps_malloc(FX_TMP_WORDS * sizeof(int32_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+            if (fxTmp && words <= FX_TMP_WORDS) {
+                fx.process(buf, words, sr);
+                memset(fxTmp, 0, words * sizeof(int32_t));
+                mixAddTrack(mixT[MIX_ANN], fxTmp, words);
+                annFx.process(fxTmp, words, sr);
+                for (int i = 0; i < words; i++) {
+                    int64_t v = (int64_t)buf[i] + fxTmp[i];
+                    buf[i] = v > INT32_MAX ? INT32_MAX : (v < INT32_MIN ? INT32_MIN : (int32_t)v);
+                }
+                return;
+            }
+        }
+    }
+    bool all = fxOnAnn;
+    if (!all && fxMainOk) fx.process(buf, words, sr);
     mixAddTrack(mixT[MIX_ANN], buf, words);
+    if (all) fx.process(buf, words, sr);
 }
 
 // Lese-Task: MP3 aus dem Dateisystem lesen, mit dem Dekoder der Bibliothek in PCM wandeln und in den Ringpuffer schreiben.
@@ -2614,6 +2809,7 @@ bool fileMixed(const Pending& p) {
     // Eine Datei der Karte ueber dem Radio liegt auf Spur 0 und wird von einer Ansage abgesenkt; alles andere ist eine Ansage (Spur 1).
     // A file of the card over the radio goes on track 0 and is lowered by an announcement; everything else is an announcement (track 1).
 
+    annOwn = false;
     if (!mixStart((r.sd && streamActive) ? MIX_LAYER : MIX_ANN, r.path, p.vol >= 0 ? p.vol : cfg.vol, r.sd)) return false;
 
     // Laeuft schon eine Datei, bleibt sie die angezeigte; nur ueber einem Radio steht die gemischte Datei in nowFile.
@@ -4388,6 +4584,7 @@ void setup() {
     fsReady = LittleFS.begin(true);
     if (fsReady) LittleFS.mkdir(MP3_DIR);
     loadSettings();
+    fxApplyCfg();
     loadPinActions();
     logLine("[BOOT] " PROJECT_TITLE " " + String(FIRMWARE_MARKER + FIRMWARE_MARKER_PREFIX_LEN));
     bootCrashes = prefs.getInt("crashes", 0);

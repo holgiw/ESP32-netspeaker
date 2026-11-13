@@ -265,9 +265,19 @@ String panelSpeak() {
     h += "<textarea id='sayText' maxlength='" + String(TTS_MAX_CHARS) + "' placeholder='Text zum Ansagen'></textarea>";
     h += "<div class='row'><select id='sayLang' onchange=\"fillVoiceSel('sayVoice',this.value,false)\" style='width:210px'><option value=''>Standard (" + htmlEsc(cfg.vlang) + ")</option>" + selectOptions(LANG_VALUES, LANG_LABELS, LANG_COUNT, "") + "</select> " + infoTip("Sprache der Ansage; Standard ist die Sprache aus dem Tab Audio") + "";
     h += "<select id='sayVoice' onchange='voiceChosen(this)' style='width:210px'><option value=''>Standard (VoiceRSS)</option></select> " + infoTip("Stimme f&uuml;r diese Ansage; Standard = gespeicherte Stimme bzw. Standardstimme der Sprache") + "</div>";
-    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='saySave' style='width:auto;margin:0;'>Text speichern</label> " + infoTip("Speichert die Sprachdatei dieses Textes beim n&auml;chsten Sprechen dauerhaft, bevorzugt auf der SD-Karte (Ordner /ansagen), sonst im Ger&auml;t (Tab MP3 (Flash)). Danach wird der Haken wieder entfernt. Gespeicherte Texte werden bei gleicher Sprache, Stimme und gleichem Tempo gespielt, ohne VoiceRSS zu fragen, auch ohne Internet") + "</div>";
+    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='saySave' style='width:auto;margin:0;'>Text speichern</label> " + infoTip("Speichert die Sprachdatei dieses Textes beim n&auml;chsten Sprechen dauerhaft, bevorzugt auf der SD-Karte (Ordner /ansagen), sonst im Ger&auml;t (Tab MP3 (Flash)). Danach wird der Haken wieder entfernt. Gespeicherte Texte werden bei gleicher Sprache, Stimme und gleichem Tempo gespielt, ohne VoiceRSS zu fragen, auch ohne Internet. Die aktuellen Klangeffekte werden mit gespeichert (im Dateinamen, zum Beispiel _halle40_b3_t-2) und gelten nur f&uuml;r diesen Text, unabh&auml;ngig von den sp&auml;teren Einstellungen") + "</div>";
     h += "<div class='row'><button type='button' onclick='sayNow()' style='width:150px'>Sprechen</button> " + infoTip("Sprechen: sagt den Text jetzt an, ein laufendes Webradio l&auml;uft danach weiter") + "</div>";
     h += "<div id='sayResult'></div><div class='row'><small id='playState'></small></div></div>";
+    h += "<div class='card'><h3>Klangeffekte " + infoTip("Hall, Echo und Klangregler wirken auf den ganzen Ausgang (Webradio, Dateien, Ansagen). &Auml;nderungen gelten sofort und bleiben gespeichert. Der Verst&auml;rker spielt in Mono, der Raumeindruck ist deshalb begrenzt") + "</h3>";
+    static const char* const FXN[] = {"Aus", "Zimmer", "Halle", "Kirche", "Echo"};
+    h += "<div class='row'>Effekt <select id='fxMode' onchange='fxSend()' style='width:150px'>";
+    for (int i = 0; i < 5; i++) h += String("<option value='") + i + "'" + (cfg.fxMode == i ? " selected" : "") + ">" + FXN[i] + "</option>";
+    h += "</select> " + infoTip("Zimmer, Halle und Kirche sind Hall mit zunehmender Nachhallzeit; Echo wiederholt den Ton nach etwa 0,35 Sekunden. Aus: kein Effekt") + "</div>";
+    h += "<div class='row'>Anteil <input type='range' id='fxWet' min='0' max='100' value='" + String(cfg.fxWet) + "' oninput=\"document.getElementById('fxWetV').textContent=this.value\" onchange='fxSend()' style='width:200px'> <span id='fxWetV'>" + String(cfg.fxWet) + "</span> % " + infoTip("Wie stark der Effekt zum Originalton gemischt wird, 0 bis 100 Prozent") + "</div>";
+    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='fxAnn' onchange='fxSend()'" + String(cfg.fxAnn ? " checked" : "") + " style='width:auto;margin:0;'>Auch auf Ansagen anwenden</label> " + infoTip("Ein: der Effekt wirkt auch auf Ansagen und gesprochenen Text. Aus: Ansagen bleiben ohne Effekt") + "</div>";
+    h += "<div class='row'>B&auml;sse <input type='range' id='eqBass' min='-12' max='12' value='" + String(cfg.eqBass) + "' oninput=\"document.getElementById('eqBassV').textContent=this.value\" onchange='fxSend()' style='width:200px'> <span id='eqBassV'>" + String(cfg.eqBass) + "</span> dB " + infoTip("Tiefen unter etwa 200 Hz anheben oder absenken; 0 = unver&auml;ndert") + "</div>";
+    h += "<div class='row'>H&ouml;hen <input type='range' id='eqTreble' min='-12' max='12' value='" + String(cfg.eqTreble) + "' oninput=\"document.getElementById('eqTrebleV').textContent=this.value\" onchange='fxSend()' style='width:200px'> <span id='eqTrebleV'>" + String(cfg.eqTreble) + "</span> dB " + infoTip("H&ouml;hen ab etwa 4 kHz anheben oder absenken; 0 = unver&auml;ndert") + "</div>";
+    h += "<div id='fxResult'></div></div>";
     return h;
 }
 
@@ -794,6 +804,12 @@ curl -F "file=@en.json" "http://@HOST@/upload?target=lang"
 curl -d "fetch=en" http://@HOST@/api/lang
 curl -d "delete=en" http://@HOST@/api/lang
 curl "http://@HOST@/lang.json?l=en")d");
+    h += docCard("Klangeffekte",
+        "<code>GET /api/effect</code> liefert <code>mode</code> (off, room, hall, church, echo), <code>wet</code> (0-100), <code>ann</code>, <code>bass</code>, <code>treble</code> (dB) und <code>load</code> (Rechenlast des Effekts in Prozent). <code>POST /api/effect</code> setzt die angegebenen Werte; <code>mode</code> auch als Zahl 0-4 oder auf Deutsch (aus, zimmer, halle, kirche, echo), <code>ann=1</code> wirkt auch auf Ansagen, <code>bass</code> und <code>treble</code> -12 bis 12 dB. Die Werte bleiben gespeichert; im Tab Sprechen einstellbar.",
+        R"d(curl http://@HOST@/api/effect
+curl -d "mode=hall&wet=35" http://@HOST@/api/effect
+curl -d "bass=4&treble=-2" http://@HOST@/api/effect
+curl -d "mode=off" http://@HOST@/api/effect)d");
     h += docCard("Weitere Aufrufe",
         "<code>/api/scan</code> (WLAN-Suche), <code>/api/scanwifi</code> (Suche im Hintergrund mit Signalst&auml;rke, Ergebnis aus dem Zwischenspeicher) und <code>/api/rescanwifi</code> (POST, neu suchen),<code>/api/testNtp?server=...</code> (NTP-Test, nur im Tab Zeit n&ouml;tig), <code>/api/topbarStatus</code> (Statusleiste), <code>/api/version</code> (Firmware-Stand), <code>/export</code> und <code>/import</code> (Einstellungen ohne WLAN-Passw&ouml;rter, mit API-Schl&uuml;ssel), <code>/restart</code> (POST, Neustart).",
         R"d(curl http://@HOST@/api/version
@@ -1003,6 +1019,7 @@ var VOICE_TEXT={'de-de':'Hallo, das ist ein Test dieser Stimme.','en-gb':'Hello,
 function ttsInfo(){fetch('/api/ttscache',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){var e=document.getElementById('ttsInfo');if(e)e.textContent=j.files+' Dateien, '+Math.round(j.bytes/1024)+' KB';}).catch(function(){});}
 function ttsClear(){if(!confirm('Alle zwischengespeicherten Ansagen von der SD-Karte l\u00f6schen?'))return;postApi('/api/ttscache',{clear:1},'ttsResult').then(ttsInfo);}
 function voiceTest(){var l=document.getElementById('cfgLang').value||DEF_LANG,v=document.getElementById('cfgVoice').value,r=document.querySelector("input[name='vrate']").value;if(v==='__custom__')v='';postApi('/api/say',{text:VOICE_TEXT[l]||VOICE_TEXT['en-gb'],lang:l,voice:v,rate:r},'voiceTestResult');}
+function fxSend(){var g=function(i){return document.getElementById(i);};postApi('/api/effect',{mode:g('fxMode').value,wet:g('fxWet').value,ann:g('fxAnn').checked?1:0,bass:g('eqBass').value,treble:g('eqTreble').value},'fxResult');}
 function sayNow(){var sv=document.getElementById('saySave');postApi('/api/say',{text:document.getElementById('sayText').value,lang:document.getElementById('sayLang').value,voice:document.getElementById('sayVoice').value,save:sv&&sv.checked?1:0},'sayResult').then(function(j){if(j&&j.ok&&sv)sv.checked=false;});}
 function clearLog(){if(!confirm('Log l\u00f6schen?'))return;postApi('/api/log',{clear:'1'},'logResult').then(function(){var p=document.getElementById('logContent');if(p)p.textContent='';});}
 function copyText(t,btn){
@@ -1182,9 +1199,10 @@ function tabLoad(k){var p=document.querySelector('.panel-'+k);if(!p||p.getAttrib
   fetch('/panel?tab='+k,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('http');return r.text();}).then(function(t){p.innerHTML=t;p.removeAttribute('data-lazy');tabInit(k,p);})
     .catch(function(){p.setAttribute('data-lazy','1');p.innerHTML='<div class="card"><p>Tab konnte nicht geladen werden.</p><button type="button" onclick="tabLoad(\''+k+'\')" style="width:auto;padding:8px 14px">Erneut versuchen</button></div>';});}
 (function(){
-  document.querySelectorAll('.tabctrl').forEach(function(r){r.addEventListener('change',function(){if(r.checked)tabLoad(r.id.replace('tab-',''));});});
+  function tabUrl(k){try{history.replaceState(null,'','?tab='+k);}catch(e){}}
+  document.querySelectorAll('.tabctrl').forEach(function(r){r.addEventListener('change',function(){if(r.checked){var k=r.id.replace('tab-','');tabLoad(k);tabUrl(k);}});});
   var ap=document.querySelector('.panel-'+ACT_TAB);if(ap)tabInit(ACT_TAB,ap);
-  var cr=document.querySelector('.tabctrl:checked');if(cr)tabLoad(cr.id.replace('tab-',''));
+  var cr=document.querySelector('.tabctrl:checked');if(cr){var ck=cr.id.replace('tab-','');tabLoad(ck);tabUrl(ck);}
   setInterval(pollPlay,3000);})();
 window.logInit=function(){
   var cb=document.getElementById('logAutoRefresh');var pre=document.getElementById('logContent');
@@ -1822,7 +1840,7 @@ void handleExport() {
     for (int i = 0; i < 3; i++) t += "ssid" + String(i + 1) + "=" + cfg.ssid[i] + "\n";
     for (int i = 0; i < 5; i++) t += "ntp" + String(i + 1) + "=" + cfg.ntp[i] + "\n";
     t += "tz=" + cfg.tz + "\n";
-    t += "vlang=" + cfg.vlang + "\nvvoice=" + cfg.vvoice + "\nvfmt=" + cfg.vfmt + "\nvrate=" + String(cfg.vrate) + "\nttsc=" + String(cfg.ttsCache ? 1 : 0) + "\n";
+    t += "vlang=" + cfg.vlang + "\nvvoice=" + cfg.vvoice + "\nvfmt=" + cfg.vfmt + "\nvrate=" + String(cfg.vrate) + "\nttsc=" + String(cfg.ttsCache ? 1 : 0) + "\nfxmode=" + String(cfg.fxMode) + "\nfxwet=" + String(cfg.fxWet) + "\nfxann=" + String(cfg.fxAnn ? 1 : 0) + "\neqb=" + String(cfg.eqBass) + "\neqt=" + String(cfg.eqTreble) + "\n";
     t += "vol=" + String(cfg.vol) + "\nbclk=" + String(cfg.bclk) + "\nlrc=" + String(cfg.lrc) + "\ndin=" + String(cfg.din) + "\n";
     t += "mq_srv=" + cfg.mqttServer + "\nmq_port=" + String(cfg.mqttPort) + "\nmq_user=" + cfg.mqttUser + "\nmq_base=" + cfg.mqttBase + "\n";
     for (int i = 0; i < 5; i++) t += "mq_g" + String(i + 1) + "=" + cfg.mqttGroup[i] + "\n";
@@ -1890,6 +1908,11 @@ void handleImport() {
         } else if (k == "tz") { cfg.tz = v.isEmpty() ? "UTC0" : v; prefs.putString("tz", cfg.tz);
         } else if (k == "vlang") { cfg.vlang = v; prefs.putString("vlang", v);
         } else if (k == "vvoice") { cfg.vvoice = v; prefs.putString("vvoice", v);
+        } else if (k == "fxmode") { cfg.fxMode = constrain(v.toInt(), 0, 4); prefs.putInt("fxmode", cfg.fxMode); fxApplyCfg();
+        } else if (k == "fxwet") { cfg.fxWet = constrain(v.toInt(), 0, 100); prefs.putInt("fxwet", cfg.fxWet); fxApplyCfg();
+        } else if (k == "fxann") { cfg.fxAnn = v.toInt() != 0; prefs.putBool("fxann", cfg.fxAnn); fxApplyCfg();
+        } else if (k == "eqb") { cfg.eqBass = constrain(v.toInt(), -12, 12); prefs.putInt("eqb", cfg.eqBass); fxApplyCfg();
+        } else if (k == "eqt") { cfg.eqTreble = constrain(v.toInt(), -12, 12); prefs.putInt("eqt", cfg.eqTreble); fxApplyCfg();
         } else if (k == "ttsc") { cfg.ttsCache = v.toInt() != 0; prefs.putBool("ttsc", cfg.ttsCache);
         } else if (k == "vfmt") { cfg.vfmt = v; prefs.putString("vfmt", v);
         } else if (k == "vrate") { cfg.vrate = constrain(v.toInt(), -10, 10); prefs.putInt("vrate", cfg.vrate);
@@ -2247,7 +2270,7 @@ String cleanFileName(String name) {
     lower.toLowerCase();
     bool okExt = lower.endsWith(".mp3");
     if (!okExt || out.startsWith(".")) return "";
-    if (out.length() > 40) out = out.substring(0, 36) + ".mp3";
+    if (out.length() > 100) out = out.substring(0, 96) + ".mp3";
     return out;
 }
 
@@ -2281,6 +2304,53 @@ void handleApiTtsCache() {
     }
     n = ttsCacheInfo(bytes, false);
     sendJson(200, "{\"enabled\":" + String(cfg.ttsCache ? "true" : "false") + ",\"sd\":" + String(sdReady ? "true" : "false") + ",\"files\":" + String(n) + ",\"bytes\":" + String((unsigned long)bytes) + "}");
+}
+
+// Klangeffekte lesen und setzen: mode (0-4 oder aus, zimmer, halle, kirche, echo), wet (0-100), ann (0/1), bass, treble (-12 bis 12 dB).
+// Read and set the sound effects: mode (0-4 or off, room, hall, church, echo), wet (0-100), ann (0/1), bass, treble (-12 to 12 dB).
+
+int fxModeFrom(String v, int def) {
+    v.trim();
+    v.toLowerCase();
+    if (v.isEmpty()) return def;
+    if (v == "aus" || v == "off") return 0;
+    if (v == "zimmer" || v == "room") return 1;
+    if (v == "halle" || v == "hall") return 2;
+    if (v == "kirche" || v == "church") return 3;
+    if (v == "echo") return 4;
+    if (v.length() == 1 && v[0] >= '0' && v[0] <= '4') return v.toInt();
+    return def;
+}
+
+void handleApiEffect() {
+    if (webserver.method() == HTTP_POST) {
+        String m = apiArg("mode");
+        if (!m.isEmpty()) {
+            int mode = fxModeFrom(m, -1);
+            if (mode < 0) return sendErr(400, "mode: aus, zimmer, halle, kirche, echo oder 0-4");
+            cfg.fxMode = mode;
+            prefs.putInt("fxmode", cfg.fxMode);
+        }
+        if (!apiArg("wet").isEmpty()) {
+            cfg.fxWet = constrain(apiArg("wet").toInt(), 0, 100);
+            prefs.putInt("fxwet", cfg.fxWet);
+        }
+        if (!apiArg("ann").isEmpty()) {
+            cfg.fxAnn = flagOn(apiArg("ann"));
+            prefs.putBool("fxann", cfg.fxAnn);
+        }
+        if (!apiArg("bass").isEmpty()) {
+            cfg.eqBass = constrain(apiArg("bass").toInt(), -12, 12);
+            prefs.putInt("eqb", cfg.eqBass);
+        }
+        if (!apiArg("treble").isEmpty()) {
+            cfg.eqTreble = constrain(apiArg("treble").toInt(), -12, 12);
+            prefs.putInt("eqt", cfg.eqTreble);
+        }
+        fxApplyCfg();
+    }
+    static const char* const names[] = {"off", "room", "hall", "church", "echo"};
+    sendJson(200, String("{\"ok\":true,\"msg\":\"Gespeichert\",\"mode\":\"") + names[cfg.fxMode] + "\",\"wet\":" + String(cfg.fxWet) + ",\"ann\":" + (cfg.fxAnn ? "true" : "false") + ",\"bass\":" + String(cfg.eqBass) + ",\"treble\":" + String(cfg.eqTreble) + ",\"load\":" + String(fx.loadPercent(), 1) + "}");
 }
 
 void handleApiSdMount() {
@@ -3254,6 +3324,7 @@ void setupWeb() {
     webserver.on("/api/sd", HTTP_GET, handleApiSd);
     webserver.on("/api/sdmount", handleApiSdMount);
     webserver.on("/api/ttscache", handleApiTtsCache);
+    webserver.on("/api/effect", handleApiEffect);
     webserver.on("/panel", HTTP_GET, handlePanel);
     webserver.on("/api/sdmkdir", handleApiSdMkdir);
     webserver.on("/api/sddelete", handleApiSdDelete);

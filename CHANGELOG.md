@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-11-13 - Version 1.6.0
+
+**Deutsch**
+
+- Neu: **Klangeffekte** im Tab *Sprechen* (Karte *Klangeffekte*): Hall (*Zimmer*, *Halle*, *Kirche*), *Echo* und Klangregler (*Bässe* und *Höhen*, je ±12 dB), mit *Anteil* und dem Haken *Auch auf Ansagen anwenden*. Die Effekte wirken auf den ganzen Ausgang, gelten sofort und bleiben gespeichert. REST `GET`/`POST /api/effect` (`mode`, `wet`, `ann`, `bass`, `treble`; `GET` zeigt auch die Rechenlast `load`), Export `fxmode`, `fxwet`, `fxann`, `eqb`, `eqt`. Der Hall belastet den Audio-Kern mit rund 40 %, Echo etwa 6 %, die Klangregler etwa 3 %; der Speicher (rund 136 KB) liegt im PSRAM.
+- Neu: Die Adresszeile zeigt den aktuellen Tab (`?tab=<name>`); Neuladen und Lesezeichen bleiben im Tab.
+- Neu: *Text speichern* legt die aktuellen Effektwerte mit dem Text ab (im Dateinamen, zum Beispiel `Achtung_auf_Gleis_3_3fa9c2e1_halle40_b3_t-2.mp3`). Ein gespeicherter Text wird später mit genau diesen Werten über eine eigene Effekt-Instanz gespielt, unabhängig von den allgemeinen Einstellungen; Radio und Dateien behalten ihre. Speichert man denselben Text mit anderen Werten erneut, ersetzt die neue Datei die alte.
+- Behoben: Die Dateiverwaltung im Flash kürzte Dateinamen über 40 Zeichen; gespeicherte Texte ließen sich dadurch nicht löschen oder abspielen. Die Grenze liegt jetzt bei 100 Zeichen.
+- Behoben: Englische Texte zu mehreren Tooltips und Meldungen ergänzt.
+
+**English**
+
+- New: **sound effects** in the *Sprechen* (speak) tab (card *Klangeffekte*): reverb (*Zimmer* room, *Halle* hall, *Kirche* church), *Echo* and tone control (*Bässe* bass and *Höhen* treble, each ±12 dB), with *Anteil* (amount) and the checkbox *Auch auf Ansagen anwenden* (also apply to announcements). The effects act on the whole output, apply at once and are saved. REST `GET`/`POST /api/effect` (`mode`, `wet`, `ann`, `bass`, `treble`; `GET` also shows the processing load `load`), export `fxmode`, `fxwet`, `fxann`, `eqb`, `eqt`. The reverb loads the audio core with about 40 %, echo about 6 %, the tone control about 3 %; the memory (about 136 KB) lives in PSRAM.
+- New: the address bar shows the current tab (`?tab=<name>`); reloading and bookmarks stay in the tab.
+- New: *Text speichern* (save text) stores the current effect values with the text (in the file name, for example `Achtung_auf_Gleis_3_3fa9c2e1_halle40_b3_t-2.mp3`). A saved text is later played with exactly these values through an effect instance of its own, regardless of the general settings; radio and files keep theirs. Saving the same text again with other values replaces the old file with the new one.
+- Fixed: the file management in flash shortened file names over 40 characters; saved texts could not be deleted or played because of this. The limit is now 100 characters.
+- Fixed: English texts added for several tooltips and messages.
+
 ## 2026-11-13 - Version 1.5.3
 
 **Deutsch**
