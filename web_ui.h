@@ -478,7 +478,7 @@ String panelMqtt() {
     h += "<span style='display:inline-flex;align-items:center;gap:6px'><label for='mq_port' style='white-space:nowrap'>Port " + infoTip("Port des Brokers, meist 1883") + "</label><input id='mq_port' type='number' name='mq_port' min='1' max='65535' value='" + String(cfg.mqttPort) + "' style='width:100px;margin:4px 0'></span></div>";
     h += "<div class='row' style='justify-content:flex-start;gap:6px 18px'>";
     h += "<span style='display:inline-flex;align-items:center;gap:6px'><label for='mq_user' style='white-space:nowrap'>Benutzer " + infoTip("Benutzername f&uuml;r den MQTT-Broker (optional); leer = ohne Anmeldung") + "</label><input id='mq_user' name='mq_user' autocomplete='off' placeholder='optional' value='" + htmlEsc(cfg.mqttUser) + "' style='width:min(100%,200px);margin:4px 0'></span>";
-    h += "<span style='display:inline-flex;align-items:center;gap:6px'><label for='mq_pass' style='white-space:nowrap'>Passwort " + infoTip("Passwort f&uuml;r den MQTT-Broker (optional); es wird nicht angezeigt. Leer lassen, um das gespeicherte zu behalten; ohne Benutzer wird es gel&ouml;scht") + "</label><input id='mq_pass' name='mq_pass' type='password' autocomplete='new-password' placeholder='" + String(cfg.mqttPass.length() > 0 ? "gespeichert (leer lassen = behalten)" : "optional") + "' value='' style='width:min(100%,260px);margin:4px 0'></span></div>";
+    h += "<span style='display:inline-flex;align-items:center;gap:6px'><label for='mq_pass' style='white-space:nowrap'>Passwort " + infoTip("Passwort f&uuml;r den MQTT-Broker (optional); es wird nicht angezeigt, steht aber verschl&uuml;sselt in der Sicherung. Leer lassen, um das gespeicherte zu behalten; ohne Benutzer wird es gel&ouml;scht") + "</label><input id='mq_pass' name='mq_pass' type='password' autocomplete='new-password' placeholder='" + String(cfg.mqttPass.length() > 0 ? "gespeichert (leer lassen = behalten)" : "optional") + "' value='' style='width:min(100%,260px);margin:4px 0'></span></div>";
     h += "<div class='row' style='justify-content:flex-start'><span style='display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap'><label for='mq_base' style='white-space:nowrap'>Basis-Topic " + infoTip("Basis-Topic; darunter liegen say, play, url, file, station, stop, volume, restart, status") + "</label><input id='mq_base' name='mq_base' placeholder='" + htmlEsc(String(PROJECT_NAME) + "/" + cfg.host) + "' value='" + htmlEsc(cfg.mqttBase) + "' style='width:min(100%,420px);margin:4px 0'></span></div>";
     h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' name='mq_ha' value='1'" + String(cfg.haDisc ? " checked" : "") + " style='width:auto;margin:0;'>Home Assistant Discovery</label> " + infoTip("Meldet das Ger&auml;t bei Home Assistant an (MQTT Discovery): Status, Titel, Lautst&auml;rke, Ansage, Stopp und Senderauswahl erscheinen dort von selbst. Nur n&ouml;tig, wenn du Home Assistant benutzt") + "</div>";
     int grpVisible = 1;
@@ -823,7 +823,7 @@ curl -d "mode=off" http://@HOST@/api/effect)d");
 curl -o glocke.mp3 "http://@HOST@/api/fileget?file=glocke.mp3"
 curl --data-binary @netspeaker-settings.txt -H "Content-Type: text/plain" http://@HOST@/import)d");
     h += docCard("Weitere Aufrufe",
-        "<code>/api/scan</code> (WLAN-Suche), <code>/api/scanwifi</code> (Suche im Hintergrund mit Signalst&auml;rke, Ergebnis aus dem Zwischenspeicher) und <code>/api/rescanwifi</code> (POST, neu suchen),<code>/api/testNtp?server=...</code> (NTP-Test, nur im Tab Zeit n&ouml;tig), <code>/api/topbarStatus</code> (Statusleiste), <code>/api/version</code> (Firmware-Stand), <code>/export</code> und <code>/import</code> (Einstellungen; WLAN-Passw&ouml;rter nur verschl&uuml;sselt und nur mit <code>/export?wifi=1</code>, der VoiceRSS-Schl&uuml;ssel immer verschl&uuml;sselt, das MQTT-Passwort nie, siehe Karte Sicherung), <code>/restart</code> (POST, Neustart).",
+        "<code>/api/scan</code> (WLAN-Suche), <code>/api/scanwifi</code> (Suche im Hintergrund mit Signalst&auml;rke, Ergebnis aus dem Zwischenspeicher) und <code>/api/rescanwifi</code> (POST, neu suchen),<code>/api/testNtp?server=...</code> (NTP-Test, nur im Tab Zeit n&ouml;tig), <code>/api/topbarStatus</code> (Statusleiste), <code>/api/version</code> (Firmware-Stand), <code>/export</code> und <code>/import</code> (Einstellungen; WLAN-Passw&ouml;rter nur verschl&uuml;sselt und nur mit <code>/export?wifi=1</code>, der VoiceRSS-Schl&uuml;ssel und das MQTT-Passwort immer verschl&uuml;sselt, siehe Karte Sicherung), <code>/restart</code> (POST, Neustart).",
         R"d(curl http://@HOST@/api/version
 curl -o netspeaker-settings.txt http://@HOST@/export
 curl -X POST http://@HOST@/restart)d");
@@ -2010,7 +2010,7 @@ void handleExport() {
     bool withWifi = flagOn(webserver.arg("wifi")) && isPrivateClient();
     String t = "# " PROJECT_NAME " settings export (";
     t += withWifi ? "with encrypted WiFi passwords" : "WiFi passwords omitted";
-    t += ", MQTT password omitted)\n";
+    t += ")\n";
     t += "host=" + cfg.host + "\n";
     if (isPrivateClient() && cfg.vkey.length() > 0) t += "vkey=" + backupEncrypt(cfg.vkey) + "\n";
     for (int i = 0; i < 3; i++) {
@@ -2022,6 +2022,7 @@ void handleExport() {
     t += "vlang=" + cfg.vlang + "\nvvoice=" + cfg.vvoice + "\nvfmt=" + cfg.vfmt + "\nvrate=" + String(cfg.vrate) + "\nttsc=" + String(cfg.ttsCache ? 1 : 0) + "\nfxmode=" + String(cfg.fxMode) + "\nfxwet=" + String(cfg.fxWet) + "\neqb=" + String(cfg.eqBass) + "\neqt=" + String(cfg.eqTreble) + "\npanm=" + String(cfg.panMode) + "\npand=" + String(cfg.panDs) + "\n";
     t += "vol=" + String(cfg.vol) + "\nbclk=" + String(cfg.bclk) + "\nlrc=" + String(cfg.lrc) + "\ndin=" + String(cfg.din) + "\n";
     t += "mq_srv=" + cfg.mqttServer + "\nmq_port=" + String(cfg.mqttPort) + "\nmq_user=" + cfg.mqttUser + "\nmq_base=" + cfg.mqttBase + "\n";
+    if (isPrivateClient() && cfg.mqttUser.length() > 0 && cfg.mqttPass.length() > 0) t += "mq_pass=" + backupEncrypt(cfg.mqttPass) + "\n";
     for (int i = 0; i < 5; i++) t += "mq_g" + String(i + 1) + "=" + cfg.mqttGroup[i] + "\n";
     t += "mq_ha=" + String(cfg.haDisc ? 1 : 0) + "\n";
     t += "fade=" + String(cfg.fadeMs) + "\nswfade=" + String(cfg.switchFadeMs) + "\nautostart=" + String(cfg.autoStart ? 1 : 0) + "\nbtone=" + String(cfg.bootTone ? 1 : 0) + "\nresume=" + String(cfg.resumeLast ? 1 : 0) + "\nsdon=" + String(cfg.sdOn ? 1 : 0) + "\nsdcs=" + String(cfg.sdCs) + "\nsdsck=" + String(cfg.sdSck) + "\nsdmosi=" + String(cfg.sdMosi) + "\nsdmiso=" + String(cfg.sdMiso) + "\nvolmax=" + String(VOLUME_MAX) + "\nvramp=" + String(cfg.volRampMs) + "\nmix=" + String(cfg.mixAnn ? 1 : 0) + "\nloud=" + String(cfg.loudNorm ? 1 : 0) + "\nagc=" + String(cfg.radioAgc ? 1 : 0) + "\nagcdb=" + String(cfg.agcDb) + "\nprebuf=" + String(cfg.prebufSec) + "\nduck=" + String(cfg.duckPct) + "\ntmatch=" + cfg.titleMatch + "\ntvol=" + String(cfg.titleVol) + "\ntmax=" + String(cfg.titleMaxS) + "\n";
@@ -2116,7 +2117,9 @@ void handleImport() {
             *target = pin;
             prefs.putInt(k.c_str(), pin);
         } else if (k == "mq_user") { cfg.mqttUser = v; prefs.putString("mq_usr", v);
-        } else if (k == "mq_pass") { cfg.mqttPass = v; prefs.putString("mq_pw", v);
+        } else if (k == "mq_pass") {
+            String mp;
+            if (isPrivateClient() && backupDecrypt(v, mp)) { cfg.mqttPass = mp; prefs.putString("mq_pw", mp); }
         } else if (k == "mq_srv") { cfg.mqttServer = v; prefs.putString("mq_srv", v);
         } else if (k == "mq_port") { int p = v.toInt(); cfg.mqttPort = (p >= 1 && p <= 65535) ? p : 1883; prefs.putInt("mq_port", cfg.mqttPort);
         } else if (k == "mq_base") { cfg.mqttBase = v; prefs.putString("mq_base", v);
