@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-14 - Version 1.6.11
+
+**Deutsch**
+
+- Neu: Das MQTT-Passwort steht jetzt in der Sicherung (verschlüsselt wie die WLAN-Passwörter und der VoiceRSS-Schlüssel, nur beim Export aus dem lokalen Netz) und wird beim Import wieder eingelesen, ebenfalls nur aus dem lokalen Netz. Es erscheint nur, wenn ein Benutzer und ein Passwort gespeichert sind.
+
+**English**
+
+- New: the MQTT password is now part of the backup (encrypted like the WiFi passwords and the VoiceRSS key, only when exporting from the local network) and is read again on import, also only from the local network. It appears only if a user and a password are stored.
+
 ## 2026-11-14 - Version 1.6.10
 
 **Deutsch**
