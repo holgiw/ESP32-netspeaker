@@ -15,7 +15,7 @@
 // Release-Nummer; wird vor dem Bauen eines Releases hochgesetzt und steht im Tab Status, im Log und im Status der API.
 // Release number; raised before building a release and shown in the Status tab, in the log and in the status of the API.
 
-#define PROJECT_VERSION "1.6.8"
+#define PROJECT_VERSION "1.6.9"
 #define PROJECT_TAG "SPEAKER"
 
 // Der Text steht im Binary; checkDevices.ps1 liest ihn als Soll-Stand der .bin.

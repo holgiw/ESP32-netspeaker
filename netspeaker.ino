@@ -31,6 +31,8 @@
 #include <atomic>
 #include "mp3_decoder/mp3_decoder.h"
 #include <esp_task_wdt.h>
+#include <mbedtls/aes.h>
+#include <mbedtls/sha256.h>
 #include <driver/i2s_std.h>
 #include <time.h>
 

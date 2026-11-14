@@ -666,7 +666,7 @@ String panelStatus() {
 String panelBackup() {
     String h = "<div class='card' style='max-width:900px'><h3>Sicherung erstellen</h3>";
     h += "<p>Speichert die Einstellungen (mit Favoriten und Senderliste) als Datei auf deinem Computer. Mit Dateien im Flash entsteht eine ZIP-Datei.</p>";
-    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='bkWifi' style='width:auto;margin:0;'>WLAN-Zugangsdaten einschlie&szlig;en</label> " + infoTip("Nimmt die WLAN-Passw&ouml;rter in die Sicherung auf, im Klartext; die Datei gut aufbewahren. Ohne den Haken enth&auml;lt die Sicherung nur die Namen der Netze. Nur aus dem lokalen Netz m&ouml;glich") + "</div>";
+    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='bkWifi' style='width:auto;margin:0;'>WLAN-Zugangsdaten einschlie&szlig;en</label> " + infoTip("Nimmt die WLAN-Passw&ouml;rter verschl&uuml;sselt in die Sicherung auf, sie stehen nicht im Klartext in der Datei. Der Schl&uuml;ssel steckt in der Firmware; die Datei trotzdem gut aufbewahren. Ohne den Haken enth&auml;lt die Sicherung nur die Namen der Netze. Nur aus dem lokalen Netz m&ouml;glich") + "</div>";
     h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='bkFiles' style='width:auto;margin:0;'>Dateien im Flash einschlie&szlig;en</label> <small id='bkFilesInfo'></small> " + infoTip("Nimmt die MP3-Dateien aus dem Speicher des Ger&auml;ts (Tab MP3 (Flash), auch gespeicherte Texte) in eine ZIP-Datei auf. Die Dateien der SD-Karte sind nie dabei") + "</div>";
     h += "<div class='row'><button type='button' onclick='bkCreate()' style='width:auto;padding:8px 14px'>Sicherung erstellen</button></div><div id='bkResult'></div></div>";
     h += "<div class='card' style='max-width:900px'><h3>Sicherung einlesen</h3>";
@@ -818,12 +818,12 @@ curl -d "mode=hall&wet=35" http://@HOST@/api/effect
 curl -d "bass=4&treble=-2" http://@HOST@/api/effect
 curl -d "mode=off" http://@HOST@/api/effect)d");
     h += docCard("Sicherung",
-        "Im Tab Sicherung entsteht die Sicherung im Browser: <code>GET /export</code> liefert die Einstellungen als Textdatei, mit <code>wifi=1</code> auch die WLAN-Passw&ouml;rter (nur aus dem lokalen Netz). <code>GET /api/files</code> listet die MP3-Dateien im Flash, <code>GET /api/fileget?file=name.mp3</code> l&auml;dt eine herunter. Mit Dateien packt der Browser alles in eine ZIP-Datei (<code>settings.txt</code> und <code>mp3/&lt;Name&gt;</code>). Zum Einlesen sendet er <code>POST /import</code> (Text) und <code>POST /upload</code> je Datei. Die Dateien der SD-Karte sind nie Teil der Sicherung.",
+        "Im Tab Sicherung entsteht die Sicherung im Browser: <code>GET /export</code> liefert die Einstellungen als Textdatei, mit <code>wifi=1</code> auch die WLAN-Passw&ouml;rter, verschl&uuml;sselt (nur aus dem lokalen Netz). <code>GET /api/files</code> listet die MP3-Dateien im Flash, <code>GET /api/fileget?file=name.mp3</code> l&auml;dt eine herunter. Mit Dateien packt der Browser alles in eine ZIP-Datei (<code>settings.txt</code> und <code>mp3/&lt;Name&gt;</code>). Zum Einlesen sendet er <code>POST /import</code> (Text) und <code>POST /upload</code> je Datei. Die Dateien der SD-Karte sind nie Teil der Sicherung.",
         R"d(curl -o netspeaker-settings.txt "http://@HOST@/export?wifi=1"
 curl -o glocke.mp3 "http://@HOST@/api/fileget?file=glocke.mp3"
 curl --data-binary @netspeaker-settings.txt -H "Content-Type: text/plain" http://@HOST@/import)d");
     h += docCard("Weitere Aufrufe",
-        "<code>/api/scan</code> (WLAN-Suche), <code>/api/scanwifi</code> (Suche im Hintergrund mit Signalst&auml;rke, Ergebnis aus dem Zwischenspeicher) und <code>/api/rescanwifi</code> (POST, neu suchen),<code>/api/testNtp?server=...</code> (NTP-Test, nur im Tab Zeit n&ouml;tig), <code>/api/topbarStatus</code> (Statusleiste), <code>/api/version</code> (Firmware-Stand), <code>/export</code> und <code>/import</code> (Einstellungen; WLAN-Passw&ouml;rter nur mit <code>/export?wifi=1</code>, API-Schl&uuml;ssel und MQTT-Passwort nie, siehe Karte Sicherung), <code>/restart</code> (POST, Neustart).",
+        "<code>/api/scan</code> (WLAN-Suche), <code>/api/scanwifi</code> (Suche im Hintergrund mit Signalst&auml;rke, Ergebnis aus dem Zwischenspeicher) und <code>/api/rescanwifi</code> (POST, neu suchen),<code>/api/testNtp?server=...</code> (NTP-Test, nur im Tab Zeit n&ouml;tig), <code>/api/topbarStatus</code> (Statusleiste), <code>/api/version</code> (Firmware-Stand), <code>/export</code> und <code>/import</code> (Einstellungen; WLAN-Passw&ouml;rter nur verschl&uuml;sselt und nur mit <code>/export?wifi=1</code>, API-Schl&uuml;ssel und MQTT-Passwort nie, siehe Karte Sicherung), <code>/restart</code> (POST, Neustart).",
         R"d(curl http://@HOST@/api/version
 curl -o netspeaker-settings.txt http://@HOST@/export
 curl -X POST http://@HOST@/restart)d");
@@ -1937,15 +1937,84 @@ void handleFavoritesImport() {
 
 bool isPrivateClient();
 
+// WLAN-Passwoerter in der Sicherung: AES-256-CTR, Schluessel aus der Firmware (SHA-256), Format enc:<IV hex>:<Daten hex>.
+// Der Schluessel ist in allen Geraeten gleich, damit sich eine Sicherung auf jedes Geraet einspielen laesst; er haelt die Passwoerter nur aus der Klartextansicht.
+// WiFi passwords in the backup: AES-256-CTR, key from the firmware (SHA-256), format enc:<IV hex>:<data hex>.
+// The key is the same in all devices so a backup can be restored to any device; it only keeps the passwords out of plain sight.
+
+static void backupKey(uint8_t key[32]) {
+    const char* secret = "NetSpeaker settings backup v1 / WiFi passwords";
+    mbedtls_sha256((const unsigned char*)secret, strlen(secret), key, 0);
+}
+
+static void backupCrypt(const uint8_t iv[16], const uint8_t* in, uint8_t* out, size_t len) {
+    uint8_t key[32], nonce[16], block[16];
+    memcpy(nonce, iv, 16);
+    backupKey(key);
+    size_t off = 0;
+    mbedtls_aes_context ctx;
+    mbedtls_aes_init(&ctx);
+    mbedtls_aes_setkey_enc(&ctx, key, 256);
+    mbedtls_aes_crypt_ctr(&ctx, len, &off, nonce, block, in, out);
+    mbedtls_aes_free(&ctx);
+}
+
+static String backupEncrypt(const String& plain) {
+    if (plain.isEmpty()) return String();
+    uint8_t iv[16];
+    esp_fill_random(iv, 16);
+    size_t n = plain.length();
+    std::vector<uint8_t> out(n);
+    backupCrypt(iv, (const uint8_t*)plain.c_str(), out.data(), n);
+    String r = "enc:";
+    char h[3];
+    for (int i = 0; i < 16; i++) { snprintf(h, sizeof(h), "%02x", iv[i]); r += h; }
+    r += ":";
+    for (size_t i = 0; i < n; i++) { snprintf(h, sizeof(h), "%02x", out[i]); r += h; }
+    return r;
+}
+
+static int hexNib(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+}
+
+// Klartext (alte Sicherungen) bleibt lesbar / plain text (old backups) stays readable
+static bool backupDecrypt(const String& v, String& out) {
+    if (!v.startsWith("enc:")) { out = v; return true; }
+    if (v.length() < 4 + 32 + 1) return false;
+    if (v[36] != ':') return false;
+    uint8_t iv[16];
+    for (int i = 0; i < 16; i++) {
+        int a = hexNib(v[4 + 2 * i]), b = hexNib(v[5 + 2 * i]);
+        if (a < 0 || b < 0) return false;
+        iv[i] = (uint8_t)(a * 16 + b);
+    }
+    size_t n = (v.length() - 37) / 2;
+    if ((v.length() - 37) % 2) return false;
+    std::vector<uint8_t> in(n), res(n + 1);
+    for (size_t i = 0; i < n; i++) {
+        int a = hexNib(v[37 + 2 * i]), b = hexNib(v[38 + 2 * i]);
+        if (a < 0 || b < 0) return false;
+        in[i] = (uint8_t)(a * 16 + b);
+    }
+    backupCrypt(iv, in.data(), res.data(), n);
+    res[n] = 0;
+    out = String((const char*)res.data());
+    return true;
+}
+
 void handleExport() {
     bool withWifi = flagOn(webserver.arg("wifi")) && isPrivateClient();
     String t = "# " PROJECT_NAME " settings export (";
-    t += withWifi ? "with WiFi passwords" : "WiFi passwords omitted";
+    t += withWifi ? "with encrypted WiFi passwords" : "WiFi passwords omitted";
     t += ", MQTT password and API key omitted)\n";
     t += "host=" + cfg.host + "\n";
     for (int i = 0; i < 3; i++) {
         t += "ssid" + String(i + 1) + "=" + cfg.ssid[i] + "\n";
-        if (withWifi) t += "pass" + String(i + 1) + "=" + cfg.pass[i] + "\n";
+        if (withWifi) t += "pass" + String(i + 1) + "=" + backupEncrypt(cfg.pass[i]) + "\n";
     }
     for (int i = 0; i < 5; i++) t += "ntp" + String(i + 1) + "=" + cfg.ntp[i] + "\n";
     t += "tz=" + cfg.tz + "\n";
@@ -2017,8 +2086,10 @@ void handleImport() {
 
             if (!isPrivateClient()) continue;
             int i = k.substring(4).toInt() - 1;
-            cfg.pass[i] = v;
-            prefs.putString(k.c_str(), v);
+            String pw;
+            if (!backupDecrypt(v, pw)) continue;
+            cfg.pass[i] = pw;
+            prefs.putString(k.c_str(), pw);
         } else if (k.length() == 4 && k.startsWith("ntp") && k[3] >= '1' && k[3] <= '5') {
             int i = k[3] - '1';
             cfg.ntp[i] = (i == 0 && v.isEmpty()) ? String("pool.ntp.org") : v;

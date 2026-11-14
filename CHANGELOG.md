@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-14 - Version 1.6.9
+
+**Deutsch**
+
+- Geändert: Die WLAN-Passwörter stehen in der Sicherung (Export mit `wifi=1`) nicht mehr im Klartext, sondern verschlüsselt (AES-256, Format `enc:<IV>:<Daten>`). Der Schlüssel steckt in der Firmware und ist in allen Geräten gleich, eine Sicherung lässt sich also auf jedem Gerät einspielen. Alte Sicherungen mit Klartext-Passwörtern lassen sich weiter einlesen.
+
+**English**
+
+- Changed: the WiFi passwords in the backup (export with `wifi=1`) are no longer in plain text but encrypted (AES-256, format `enc:<IV>:<data>`). The key is part of the firmware and the same in all devices, so a backup can be restored on any device. Old backups with plain-text passwords can still be imported.
+
 ## 2026-11-14 - Version 1.6.8
 
 **Deutsch**
