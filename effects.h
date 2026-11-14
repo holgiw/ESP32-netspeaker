@@ -42,7 +42,7 @@ class FxEngine {
     volatile int wet = 30;       // 0..100 %
     volatile int bass = 0;       // -12..12 dB
     volatile int treble = 0;     // -12..12 dB
-    volatile int pan = 0;        // Wandern: 0 aus, 1 links->rechts, 2 rechts->links, 3 hin und her / sweep: 0 off, 1 left->right, 2 right->left, 3 back and forth
+    volatile int pan = 0;        // Wandern: 0 aus, 1 links->rechts, 2 rechts->links, 3 hin und her, 4 fest links, 5 fest rechts / sweep: 0 off, 1 left->right, 2 right->left, 3 back and forth, 4 fixed left, 5 fixed right
     volatile int panDs = 30;     // Dauer eines Durchgangs in 0,1 s (5..200) / duration of one pass in 0.1 s (5..200)
     volatile uint32_t cpuUs = 0; // Rechenzeit seit dem letzten Zuruecksetzen / processing time since the last reset
     volatile uint32_t cpuFrames = 0;
@@ -175,7 +175,10 @@ class FxEngine {
     // Startposition der Bewegung: bei rechts->links beginnt sie rechts, sonst links.
     // Start position of the sweep: right->left starts at the right, otherwise at the left.
     void panReset() {
-        if (curPan == 2) {
+        if (curPan == 4 || curPan == 5) {   // feste Position: 4 links, 5 rechts / fixed position: 4 left, 5 right
+            panPos = curPan == 5 ? 1.0f : 0.0f;
+            panDir = 0.0f;
+        } else if (curPan == 2) {
             panPos = 1.0f;
             panDir = -1.0f;
         } else {

@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-14 - Version 1.6.6
+
+**Deutsch**
+
+- Neu: Dateiaufrufe über REST und MQTT nehmen die Stereo-Position an: `pan` (`off`, `left` links, `right` rechts, `lr` links nach rechts, `rl` rechts nach links, `pp` hin und her) und `pansec` (Dauer eines Durchgangs in Sekunden), auch für Ordner. Ohne Angabe gilt die Einstellung im Tab *Ansage*. Die Knöpfe *URL* und *curl* in den Tabs *MP3 (Flash)* und *SD-Karte* kopieren `pan=off&pansec=3` mit.
+- Neu: Eine gespeicherte Ansage mit Effektangaben im Namen (zum Beispiel `…_522f18df_halle34.mp3`) spielt beim direkten Abspielen als Datei mit diesen Werten (Hall, Echo, Bässe, Höhen, Wandern); `pan` und `pansec` des Aufrufs haben Vorrang. Normale Dateien bleiben ohne Hall und Echo.
+
+**English**
+
+- New: file calls via REST and MQTT accept the stereo position: `pan` (`off`, `left`, `right`, `lr` left to right, `rl` right to left, `pp` back and forth) and `pansec` (duration of one pass in seconds), also for folders. Without it the setting in the *Ansage* tab applies. The *URL* and *curl* buttons in the *MP3 (Flash)* and *SD-Karte* tabs copy `pan=off&pansec=3`.
+- New: a saved announcement with effect values in its name (for example `…_522f18df_halle34.mp3`) plays with these values (reverb, echo, bass, treble, sweep) when played directly as a file; `pan` and `pansec` of the call take precedence. Normal files stay without reverb and echo.
+
 ## 2026-11-13 - Version 1.6.5
 
 **Deutsch**

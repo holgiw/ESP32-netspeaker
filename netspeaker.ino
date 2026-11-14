@@ -163,6 +163,8 @@ struct Pending {
     bool force = false;
     bool save = false;
     bool noFx = false;   // Ansage ohne Klangeffekt / announcement without sound effect
+    int pan = -1;        // Stereo-Position einer Datei: -1 allgemeine Einstellung, 0 aus, 1 lr, 2 rl, 3 pp, 4 links, 5 rechts / stereo position of a file: -1 general setting, 0 off, 1 lr, 2 rl, 3 pp, 4 left, 5 right
+    int panDs = -1;      // Dauer eines Durchgangs in 0,1 s, -1 allgemeine Einstellung / duration of one pass in 0.1 s, -1 general setting
 };
 
 // Fundort einer Sprachdatei (steht hier oben, damit die automatischen Funktionsdeklarationen den Typ kennen).
@@ -258,6 +260,8 @@ struct DirSession {
     bool shuffle = false;
     bool loop = false;
     int vol = -1;
+    int pan = -1;
+    int panDs = -1;
     String dir;
     std::vector<String> names;
     size_t pos = 0;
@@ -1828,6 +1832,42 @@ static FxParams fxFileParams() {
     return f;
 }
 
+// Effektwerte einer Datei mit den Werten des Aufrufs (pan, pansec) statt der allgemeinen Stereo-Einstellung.
+// Effect values of a file with the values of the call (pan, pansec) instead of the general stereo setting.
+
+// Effektwerte aus dem Namen einer gespeicherten Ansage (Name_<8 Zeichen Pruefsumme>_halle40_b3.mp3); false, wenn der Name keine Effektangaben hat.
+// Effect values from the name of a saved announcement (Name_<8 characters checksum>_halle40_b3.mp3); false if the name has no effect values.
+
+static bool fileNameFx(const String& name, FxParams& out) {
+    String n = name.substring(name.lastIndexOf('/') + 1);
+    String l = n;
+    l.toLowerCase();
+    if (!l.endsWith(".mp3")) return false;
+    n = n.substring(0, n.length() - 4);
+    for (int i = (int)n.length() - 9; i >= 0; i--) {
+        if (n[i] != '_') continue;
+        bool hex = true;
+        for (int k = 1; k <= 8; k++) {
+            if (!isxdigit((unsigned char)n[i + k])) hex = false;
+        }
+        if (!hex || (i + 9 < (int)n.length() && n[i + 9] != '_')) continue;
+        String suf = n.substring(i + 9);
+        if (suf.isEmpty()) return false;
+        out = ttsFxParse(suf);
+        return true;
+    }
+    return false;
+}
+
+static FxParams fxFileParamsFor(const Pending& p) {
+    FxParams f = fxFileParams();
+    FxParams nm{0, 0, 0, 0};
+    if (fileNameFx(p.text, nm)) f = nm;
+    if (p.pan >= 0) f.pan = p.pan;
+    if (p.panDs >= 0) f.panDs = p.panDs;
+    return f;
+}
+
 static FxParams ttsFxCurrent(const Pending& p) {
     return p.noFx ? FxParams{0, 0, 0, 0} : fxGlobalParams();
 }
@@ -2938,7 +2978,7 @@ bool fileMixed(const Pending& p) {
     // Die Effektwerte der Ansagen nur setzen, wenn die Datei auf die Ansagenspur kommt; eine laufende Ansage behaelt sonst ihre Werte.
     // Set the effect values of the announcements only if the file goes on the announcement track; otherwise a running announcement keeps its values.
 
-    if (!layer) annSetParams(fxFileParams());
+    if (!layer) annSetParams(fxFileParamsFor(p));
     if (!mixStart(layer ? MIX_LAYER : MIX_ANN, r.path, p.vol >= 0 ? p.vol : cfg.vol, r.sd, !together, !(nowKind == "file" && !streamActive))) return false;
 
     // Laeuft schon eine Datei, bleibt sie die angezeigte; nur ueber einem Radio steht die gemischte Datei in nowFile.
@@ -3251,7 +3291,19 @@ void processPending() {
             wantRadioLive = true;
             startUrl(p.text);
             break;
-        case PEND_FILE: startFile(p.text); break;
+        case PEND_FILE:
+            {
+                FxParams fp = fxFileParamsFor(p);
+                fxApplyCfg();
+                fx.mode = fp.mode;
+                fx.wet = fp.wet;
+                fx.bass = fp.bass;
+                fx.treble = fp.treble;
+                fx.pan = fp.pan;
+                fx.panDs = fp.panDs;
+            }
+            startFile(p.text);
+            break;
         case PEND_STOP:
             saveRadioState("", -1);
             annClear();
@@ -3895,24 +3947,68 @@ void dirFeed() {
     q.type = PEND_FILE;
     q.text = dirSess.names[dirSess.pos++];
     q.vol = dirSess.vol;
+    q.pan = dirSess.pan;
+    q.panDs = dirSess.panDs;
     dirSess.lastPlayed = q.text;
     dirSess.lastFeed = millis();
     annPush(q);
 }
 String commandPlayDirFlash(const String& refIn, int vol, bool shuffle, bool loop);
 
-String commandPlayFile(const String& nameIn, int vol, bool shuffle = false, bool loop = false) {
+// Stereo-Position eines Aufrufs lesen: pan = off, left, right, lr, rl oder pp; pansec = Dauer eines Durchgangs in Sekunden (0,5 bis 20). Leer = allgemeine Einstellung.
+// Read the stereo position of a call: pan = off, left, right, lr, rl or pp; pansec = duration of one pass in seconds (0.5 to 20). Empty = general setting.
+
+String panArgs(String pan, String sec, int& pn, int& pds) {
+    pn = -1;
+    pds = -1;
+    pan.trim();
+    pan.toLowerCase();
+    if (!pan.isEmpty()) {
+        if (pan == "off" || pan == "aus" || pan == "0") pn = 0;
+        else if (pan == "lr") pn = 1;
+        else if (pan == "rl") pn = 2;
+        else if (pan == "pp" || pan == "wandern") pn = 3;
+        else if (pan == "left" || pan == "links" || pan == "l") pn = 4;
+        else if (pan == "right" || pan == "rechts" || pan == "r") pn = 5;
+        else return "pan: off, left, right, lr, rl oder pp";
+    }
+    sec.trim();
+    if (!sec.isEmpty()) pds = constrain((int)(sec.toFloat() * 10.0f + 0.5f), 5, 200);
+    return "";
+}
+
+String commandPlayFileFx(const String& nameIn, int vol, bool shuffle, bool loop, int pan, int panDs) {
     String name = nameIn;
     name.trim();
     if (name.isEmpty()) return "Kein Dateiname angegeben";
-    if (name.startsWith("sd:") && name.endsWith("/")) return commandPlayDir(name, vol, shuffle, loop);
-    if (!name.startsWith("sd:") && name.endsWith("/")) return commandPlayDirFlash(name, vol, shuffle, loop);
+    if (name.startsWith("sd:") && name.endsWith("/")) {
+        String r = commandPlayDir(name, vol, shuffle, loop);
+        if (r.isEmpty()) {
+            dirSess.pan = pan;
+            dirSess.panDs = panDs;
+        }
+        return r;
+    }
+    if (!name.startsWith("sd:") && name.endsWith("/")) {
+        String r = commandPlayDirFlash(name, vol, shuffle, loop);
+        if (r.isEmpty()) {
+            dirSess.pan = pan;
+            dirSess.panDs = panDs;
+        }
+        return r;
+    }
     Pending q;
     q.type = PEND_FILE;
     q.text = name;
     q.vol = vol;
+    q.pan = pan;
+    q.panDs = panDs;
     if (!annPush(q)) return "Warteschlange voll (max. " + String(ANN_QUEUE_LEN) + ")";
     return "";
+}
+
+String commandPlayFile(const String& nameIn, int vol, bool shuffle = false, bool loop = false) {
+    return commandPlayFileFx(nameIn, vol, shuffle, loop, -1, -1);
 }
 
 // Gespeicherten Platz abspielen: sel ist die Nummer 1 bis RADIO_SLOTS oder der Name (Gross-/Kleinschreibung egal).
@@ -4203,17 +4299,20 @@ void onMqttMessage(char* topic, uint8_t* payload, unsigned int length) {
         String url = body, file = body;
         int v = -1;
         bool shuffle = false, loop = false;
+        int pn = -1, pds = -1;
+        String panErr;
         if (isJson) {
             url = jsonGet(body, "url");
             file = jsonGet(body, "file");
             v = numberOr(jsonGet(body, "vol"), -1);
             shuffle = flagOn(jsonGet(body, "shuffle"));
             loop = flagOn(jsonGet(body, "loop"));
+            panErr = panArgs(jsonGet(body, "pan"), jsonGet(body, "pansec"), pn, pds);
         }
         bool wantUrl = t == base + "/url" || (t == base + "/play" && (url.startsWith("http://") || url.startsWith("https://")));
         if (t == base + "/file") wantUrl = false;
         if (wantUrl) err = commandPlayUrl(url, v);
-        else err = commandPlayFile(file, v, shuffle, loop);
+        else err = panErr.isEmpty() ? commandPlayFileFx(file, v, shuffle, loop, pn, pds) : panErr;
     } else if (t == base + "/station") {
         if (isJson) err = commandPlayStation(jsonGet(body, "name").length() > 0 ? jsonGet(body, "name") : jsonGet(body, "n"), numberOr(jsonGet(body, "vol"), -1));
         else err = commandPlayStation(body, -1);

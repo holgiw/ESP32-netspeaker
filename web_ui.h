@@ -511,7 +511,7 @@ String panelMqtt() {
     h += mqttRow(base, "/say", true, "Text, der angesagt wird. Oder JSON mit <code>text</code> und optional <code>lang</code>, <code>voice</code>, <code>rate</code>, <code>vol</code>, <code>save</code>, <code>fx</code> (0 = ohne Klangeffekt).", exSay, 2);
     h += mqttRow(base, "/play", true, "URL (Webradio, MP3) <em>oder</em> Dateiname aus dem Tab MP3 (Flash) oder <code>sd:/Pfad.mp3</code> von der SD-Karte. Das Ger&auml;t erkennt selbst, was es ist. JSON: <code>url</code> oder <code>file</code>, optional <code>vol</code>; bei einem Ordner (<code>sd:/Pfad/</code>) auch <code>shuffle</code> (zuf&auml;llige Reihenfolge) und <code>loop</code> (endlos), z. B. <code>{&quot;file&quot;:&quot;sd:/Musik/&quot;,&quot;shuffle&quot;:1,&quot;loop&quot;:1}</code>.", exPlay, 3);
     h += mqttRow(base, "/url", true, "URL (http:// oder https://). JSON: <code>url</code>, optional <code>vol</code>.", exUrl, 1);
-    h += mqttRow(base, "/file", true, "Dateiname einer hochgeladenen Datei, <code>sd:/Pfad.mp3</code> oder ein Ordner <code>sd:/Ordner/</code>. JSON: <code>file</code>, optional <code>vol</code>, <code>shuffle</code> und <code>loop</code>.", exFile, 1);
+    h += mqttRow(base, "/file", true, "Dateiname einer hochgeladenen Datei, <code>sd:/Pfad.mp3</code> oder ein Ordner <code>sd:/Ordner/</code>. JSON: <code>file</code>, optional <code>vol</code>, <code>shuffle</code> und <code>loop</code>. Stereo-Position (nur im Stereo-Aufbau h&ouml;rbar): optional <code>pan</code> (<code>off</code>, <code>left</code> links, <code>right</code> rechts, <code>lr</code> links nach rechts, <code>rl</code> rechts nach links, <code>pp</code> hin und her) und <code>pansec</code> (Dauer eines Durchgangs in Sekunden); gilt auch f&uuml;r <code>/play</code> und <code>/api/file</code>. Ohne Angabe gilt die Einstellung im Tab Ansage.", exFile, 1);
     h += mqttRow(base, "/station", true, "Gespeicherter Sender: Platznummer 1-30 oder Name. JSON: <code>n</code> oder <code>name</code>, optional <code>vol</code>.", exStation, 3);
     h += mqttRow(base, "/stop", true, "Keine Nutzlast: beendet die Wiedergabe, auch ein Webradio.", exStop, 1);
     h += mqttRow(base, "/volume", true, "Allgemeine Lautst&auml;rke 0 bis 100 (wird gespeichert); sie wandert sanft zum neuen Wert. Als JSON l&auml;sst sich die Dauer je Aufruf in Millisekunden angeben: <code>{\"v\":60,\"ms\":3000}</code>.", exVol, 2);
@@ -752,6 +752,7 @@ curl "http://@HOST@/api/url?url=http://stream.example.com/radio.mp3&vol=10")d");
         R"d(curl -d "file=sd:/Musik/lied.mp3" http://@HOST@/api/play
 curl -d "file=sd:/Musik/Album/" http://@HOST@/api/play
 curl -d "file=sd:/Musik/&shuffle=1&loop=1" http://@HOST@/api/play
+curl "http://@HOST@/api/file?file=sd:/Musik/lied.mp3&pan=lr&pansec=5"
 curl "http://@HOST@/api/sd?dir=/Musik"
 curl -F "file=@lied.mp3" "http://@HOST@/upload?target=sd&dir=/Musik"
 curl -d "dir=/Musik&name=Neu" http://@HOST@/api/sdmkdir
@@ -1116,7 +1117,7 @@ function callBox(row,lines){var old=row.nextSibling;if(old&&old.className==='cal
   for(i=0;i<lines.length;i++)callLine(b,lines[i][0],lines[i][1]);if(!MQTT_ON){var s=document.createElement('small');s.textContent='MQTT: Broker im Tab MQTT eintragen.';b.appendChild(s);}row.parentNode.insertBefore(b,row.nextSibling);}
 function stationCall(n,btn){var row=btn.closest('.stationrow'),nm=row?(row.querySelector("input[name='rn"+n+"']")||{}).value:'';callBox(row,[['REST:',location.origin+'/api/station?n='+n+'&vol=60'],nm?['REST (Name):',location.origin+'/api/station?name='+encodeURIComponent(nm)+'&vol=60']:null,['MQTT Thema:',MQTT_BASE+'/station'],['MQTT Nutzlast:',String(n)],['MQTT Nutzlast (JSON):','{"n":'+n+',"vol":60}']].filter(Boolean));}
 function favCall(f,btn){callBox(btn.parentNode,[['REST:','curl -d "url='+f.url+'&vol=60" '+location.origin+'/api/play'],['MQTT Thema:',MQTT_BASE+'/play'],['MQTT Nutzlast:',f.url],['MQTT Nutzlast (JSON):','{"url":"'+f.url+'","vol":60}']]);}
-function apiLink(n){return location.origin+'/api/file?file='+encodeURIComponent(n)+'&vol=60&shuffle=0&loop=0';}
+function apiLink(n){return location.origin+'/api/file?file='+encodeURIComponent(n)+'&vol=60&shuffle=0&loop=0&pan=off&pansec=3';}
 var VOICES={'de-de':['Hanna','Lina','Jonas'],'en-gb':['Alice','Nancy','Lily','Harry'],'en-us':['Linda','Amy','Mary','John','Mike'],'fr-fr':['Bette','Iva','Zola'],'es-es':['Camila','Sofia','Luna'],'it-it':['Bria','Mia','Pietro'],'pl-pl':['Julia','Jan'],'sv-se':['Molly','Hugo']};
 function fillVoiceSel(id,lang,keep){var s=document.getElementById(id);if(!s)return;var cur=s.value;var v=VOICES[lang||DEF_LANG]||[];s.innerHTML='';
   function add(val,txt){var o=document.createElement('option');o.value=val;o.textContent=txt;s.appendChild(o);}
@@ -2153,7 +2154,9 @@ void handleApiPlay() {
     String url = apiArg("url");
     String file = apiArg("file");
     int vol = numberOr(apiArg("vol"), -1);
-    String err = url.length() > 0 ? commandPlayUrl(url, vol) : (file.length() > 0 ? commandPlayFile(file, vol, flagOn(apiArg("shuffle")), flagOn(apiArg("loop"))) : String("url oder file angeben"));
+    int pn, pds;
+    String panErr = panArgs(apiArg("pan"), apiArg("pansec"), pn, pds);
+    String err = url.length() > 0 ? commandPlayUrl(url, vol) : (file.length() > 0 ? (panErr.isEmpty() ? commandPlayFileFx(file, vol, flagOn(apiArg("shuffle")), flagOn(apiArg("loop")), pn, pds) : panErr) : String("url oder file angeben"));
     if (err.length() > 0) return sendErr(400, err);
     sendOk("Wird abgespielt");
 }
@@ -2165,7 +2168,9 @@ void handleApiUrl() {
 }
 
 void handleApiFile() {
-    String err = commandPlayFile(apiArg("file"), numberOr(apiArg("vol"), -1), flagOn(apiArg("shuffle")), flagOn(apiArg("loop")));
+    int pn, pds;
+    String panErr = panArgs(apiArg("pan"), apiArg("pansec"), pn, pds);
+    String err = panErr.isEmpty() ? commandPlayFileFx(apiArg("file"), numberOr(apiArg("vol"), -1), flagOn(apiArg("shuffle")), flagOn(apiArg("loop")), pn, pds) : panErr;
     if (err.length() > 0) return sendErr(400, err);
     sendOk("Wird abgespielt");
 }
