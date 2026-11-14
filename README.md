@@ -90,11 +90,11 @@ Den kostenlosen API-Schlüssel gibt es bei voicerss.org. Im Tab *Audio* spricht 
 
 | | |
 |---|---|
-| ![Sprechen mit laufendem Webradio](docs/screenshots/01-sprechen.jpg) | ![Webradio mit Stream-Info](docs/screenshots/02-webradio.jpg) |
+| ![Ansage mit laufendem Webradio](docs/screenshots/01-ansage.jpg) | ![Webradio mit Stream-Info](docs/screenshots/02-webradio.jpg) |
 | ![SD-Karte](docs/screenshots/03-sd-karte.jpg) | ![MP3 im Flash](docs/screenshots/04-mp3-flash.jpg) |
 | ![Eingänge](docs/screenshots/05-eingaenge.jpg) | ![Zeit mit NTP-Servern](docs/screenshots/06-zeit.jpg) |
 
-Weitere Bilder: [Doku mit Verkabelungsplan](docs/screenshots/07-doku.jpg), [Webradio mit englischer Oberfläche](docs/screenshots/08-webradio-english.jpg). Die Bilder zeigen den Hostnamen und die IP-Adresse eines Testgeräts.
+Weitere Bilder: [Sicherung](docs/screenshots/09-sicherung.jpg), [Doku mit Verkabelungsplan](docs/screenshots/07-doku.jpg), [Webradio mit englischer Oberfläche](docs/screenshots/08-webradio-english.jpg). Die Bilder zeigen den Hostnamen und die IP-Adresse eines Testgeräts.
 
 ## HTTP-API
 
@@ -300,7 +300,7 @@ The free API key is available at voicerss.org. VoiceRSS errors (wrong key, daily
 
 ### Screenshots
 
-The screenshots in the German section above (folder `docs/screenshots/`) show the web interface; [`08-webradio-english.jpg`](docs/screenshots/08-webradio-english.jpg) shows it in English after loading `lang/en.json`.
+The screenshots in the German section above (folder `docs/screenshots/`) show the web interface; [`08-webradio-english.jpg`](docs/screenshots/08-webradio-english.jpg) shows it in English (the translation is built into the firmware).
 
 ### HTTP API and MQTT
 
