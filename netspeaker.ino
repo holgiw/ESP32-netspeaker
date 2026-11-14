@@ -4964,7 +4964,20 @@ void setup() {
     audioEvtQueue = xQueueCreate(AUDIO_EVT_QUEUE_LEN, sizeof(AudioEvt));
     fsReady = LittleFS.begin(true);
     if (fsReady) LittleFS.mkdir(MP3_DIR);
-    if (fsReady) LittleFS.remove("/_silence.mp3");   // Rest einer fruehen Testfassung / leftover of an early test version
+    if (fsReady) {   // Sprachdateien fruehrerer Versionen entfernen, die Uebersetzung steckt jetzt in der Firmware / remove language files of earlier versions, the translation is part of the firmware now
+        LittleFS.remove("/_silence.mp3");
+        std::vector<String> oldLang;
+        File ld = LittleFS.open("/");
+        File le = ld ? ld.openNextFile() : File();
+        while (le) {
+            String n = String(le.name());
+            n = n.substring(n.lastIndexOf('/') + 1);
+            if (!le.isDirectory() && n.startsWith("lang_") && n.endsWith(".json")) oldLang.push_back(n);
+            le = ld.openNextFile();
+        }
+        if (ld) ld.close();
+        for (size_t i = 0; i < oldLang.size(); i++) LittleFS.remove("/" + oldLang[i]);
+    }   // Rest einer fruehen Testfassung / leftover of an early test version
     loadSettings();
     fxApplyCfg();
     loadPinActions();

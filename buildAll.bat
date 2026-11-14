@@ -31,6 +31,8 @@ if not exist "netspeaker.ino" (
 if not exist "%OUT%" mkdir "%OUT%"
 rem Verkabelungsbild fuer die Doku der Weboberflaeche aus verkabelung.svg erzeugen / create the wiring picture for the doc of the web interface from verkabelung.svg
 if exist "makeWiringHeader.ps1" powershell -NoProfile -ExecutionPolicy Bypass -File "makeWiringHeader.ps1" >nul
+rem Englische Uebersetzung aus lang\en.json in die Firmware einbauen / build the English translation from lang\en.json into the firmware
+if exist "makeLangHeader.ps1" powershell -NoProfile -ExecutionPolicy Bypass -File "makeLangHeader.ps1" >nul
 
 set "WANT="
 for %%A in (%*) do set "WANT=!WANT! %%A"

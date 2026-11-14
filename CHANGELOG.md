@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-14 - Version 1.6.8
+
+**Deutsch**
+
+- Geändert: Die englische Übersetzung ist in die Firmware eingebaut und nach dem Flashen sofort da; `makeLangHeader.ps1` erzeugt sie beim Bauen aus `lang/en.json`. Das Hochladen und das Laden von GitHub entfallen samt der zugehörigen Aufrufe (`/upload?target=lang`, `POST /api/lang` mit `fetch`/`delete`); `/lang.json?l=en` und `GET /api/lang` bleiben. Gespeicherte Sprachdateien früherer Versionen löscht das Gerät beim Start.
+
+**English**
+
+- Changed: the English translation is built into the firmware and available right after flashing; `makeLangHeader.ps1` creates it from `lang/en.json` at build time. Uploading and loading from GitHub are gone together with the related calls (`/upload?target=lang`, `POST /api/lang` with `fetch`/`delete`); `/lang.json?l=en` and `GET /api/lang` stay. The device deletes stored language files of earlier versions at start.
+
 ## 2026-11-14 - Version 1.6.7
 
 **Deutsch**

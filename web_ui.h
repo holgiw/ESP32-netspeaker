@@ -94,6 +94,7 @@ pre.code{text-align:left;white-space:pre-wrap;word-break:break-all;font-family:v
 
 #include "wiring_svg.h"
 #include "wiring_view_svg.h"
+#include "lang_en_json.h"
 
 static const char TAB_KEYS[][12] = {"mp3", "ansage", "sd", "radio", "pins", "audio", "mqtt", "wlan", "zeit", "sicherung", "status", "log", "doku"};
 static const char* const TAB_LABELS[] = {"MP3 (Flash)", "Ansage", "SD-Karte", "Webradio", "Eing&auml;nge", "Audio", "MQTT", "WLAN", "Zeit", "Sicherung", "Status", "Log", "Doku"};
@@ -658,9 +659,7 @@ String panelStatus() {
     h += statusRow("VoiceRSS Key", cfg.vkey.length() > 0 ? String("set") : String("not set"));
     h += statusRow("MQTT Status", cfg.mqttServer.isEmpty() ? String("disabled") : (mqttClient.connected() ? String("connected") : String("disconnected")));
     h += "</table></div>";
-    h += "<div class='card'><h3>Sprache / Language</h3><p>Weitere Sprachen kommen als Datei (zum Beispiel <code>en.json</code>) in den Speicher des Ger&auml;ts und werden im Browser angewendet. Mit der Schaltfl&auml;che in der Statuszeile wechselst du die Sprache.</p><div id='langList'></div>";
-    h += "<div class='row'><input type='file' id='langFile' accept='.json,application/json' style='width:60%'><button type='button' onclick='langUpload()' style='width:auto;padding:8px 14px'>Hochladen</button></div>";
-    h += "<div class='row'><input type='text' id='langCode' value='en.json' maxlength='24' style='width:130px'><button type='button' onclick='langFetch()' style='width:auto;padding:8px 14px'>Von GitHub laden</button> " + infoTip("L&auml;dt die Sprachdatei (zum Beispiel en.json) aus dem Ordner lang des Projekts auf GitHub (holgiw/ESP32-netspeaker) in das Ger&auml;t; dazu braucht das Ger&auml;t Internet. Eine vorhandene Datei gleichen Namens wird ersetzt") + "</div><div id='langResult'></div></div>";
+    h += "<div class='card'><h3>Sprache / Language</h3><p>Die englische &Uuml;bersetzung ist in die Firmware eingebaut. Mit der Schaltfl&auml;che in der Statuszeile wechselst du zwischen DE und EN.</p></div>";
     return h;
 }
 
@@ -809,11 +808,8 @@ curl -d "pin=6&type=file&text=gong.mp3&vol=60" http://@HOST@/api/pins
 curl -d "pin=7&type=station&text=RSA" http://@HOST@/api/pins
 curl -d "pin=5&type=" http://@HOST@/api/pins)d");
     h += docCard("Sprachen",
-        "Sprachdateien (zum Beispiel <code>en.json</code>) liegen im Speicher des Ger&auml;ts. <code>/upload?target=lang</code> (Formular, Feld <code>file</code>) l&auml;dt eine hoch, <code>GET /api/lang</code> listet die vorhandenen Sprachen, <code>POST /api/lang</code> mit <code>fetch=en</code> l&auml;dt die Datei vom Projekt auf GitHub, mit <code>delete=en</code> l&ouml;scht sie, und <code>/lang.json?l=en</code> liefert die Datei.",
+        "Die englische &Uuml;bersetzung ist in die Firmware eingebaut. <code>/lang.json?l=en</code> liefert sie, <code>GET /api/lang</code> listet die Sprachen.",
         R"d(curl http://@HOST@/api/lang
-curl -F "file=@en.json" "http://@HOST@/upload?target=lang"
-curl -d "fetch=en" http://@HOST@/api/lang
-curl -d "delete=en" http://@HOST@/api/lang
 curl "http://@HOST@/lang.json?l=en")d");
     h += docCard("Klangeffekte",
         "<code>GET /api/effect</code> liefert <code>mode</code> (off, room, hall, church, echo), <code>wet</code> (0-100), <code>bass</code>, <code>treble</code> (dB), <code>pan</code> (off, lr = links&rarr;rechts, rl = rechts&rarr;links, pp = hin und her), <code>pansec</code> (Dauer eines Durchgangs, 0,5-20 s) und <code>load</code> (Rechenlast des Effekts in Prozent). <code>POST /api/effect</code> setzt die angegebenen Werte; <code>mode</code> auch als Zahl 0-4 oder auf Deutsch (aus, zimmer, halle, kirche, echo), <code>bass</code> und <code>treble</code> -12 bis 12 dB. Hall und Echo wirken nur auf Ansagen, Klangregler und Wandern auch auf abgespielte Dateien, nie auf Webradio. Die Werte bleiben gespeichert; im Tab Ansage einstellbar. Mit <code>fx=0</code> bei <code>/api/say</code> l&auml;uft eine einzelne Ansage ohne Effekt.",
@@ -944,20 +940,10 @@ static const char LANG_JS[] PROGMEM = R"js(
   function watch(){mo.observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:ATTR});}
   function onMut(ms){mo.disconnect();ms.forEach(function(m){if(m.type==='childList')m.addedNodes.forEach(walk);else if(m.type==='characterData')walk(m.target);else trAttrs(m.target);});watch();}
   function dialogs(){['confirm','prompt','alert'].forEach(function(n){var o=window[n];window[n]=function(m,d){return o.call(window,typeof m==='string'?trText(m):m,d);};});}
-  function langList(){fetch('/api/lang',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
-    var list=j.langs||[],b=document.getElementById('langBtn'),box=document.getElementById('langList');
-    if(b){if(list.length||code){b.style.display='';b.textContent=code?'DE':list[0].toUpperCase();b.onclick=function(){try{if(code)localStorage.removeItem('uilang');else localStorage.setItem('uilang',list[0]);}catch(e){}location.reload();return false;};}else b.style.display='none';}
-    if(box){box.textContent='';list.forEach(function(c){var d=document.createElement('div');d.className='row';var s=document.createElement('span');s.textContent=c+'.json';d.appendChild(s);
-      var u=document.createElement('button');u.type='button';u.className='copy-btn';u.style.cssText='position:static;margin:2px';u.textContent='\u2716';u.title='Sprache l\u00f6schen';u.onclick=function(){if(confirm(c+'.json l\u00f6schen?'))postApi('/api/lang',{'delete':c},'langResult').then(langList);};d.appendChild(u);box.appendChild(d);});
-      if(!list.length)box.textContent='Keine Sprachdatei im Ger\u00e4t';}
-    if(mo&&T){mo.disconnect();if(b)walk(b);if(box)walk(box);watch();}
-  }).catch(function(){});}
+  function langList(){var b=document.getElementById('langBtn');
+    if(b){b.style.display='';b.textContent=code?'DE':'EN';b.onclick=function(){try{if(code)localStorage.removeItem('uilang');else localStorage.setItem('uilang','en');}catch(e){}location.reload();return false;};}
+    if(mo&&T&&b){mo.disconnect();walk(b);watch();}}
   window.langList=langList;
-  window.langFetch=function(){var c=(document.getElementById('langCode').value||'').trim().toLowerCase().replace(/\.json$/,'');if(!c){showRes('langResult',{ok:false,error:'Keine Datei gew&auml;hlt'});return;}
-    showRes('langResult',{ok:true,msg:'Lade von GitHub &hellip;'});postApi('/api/lang',{fetch:c},'langResult').then(langList);};
-  window.langUpload=function(){var f=document.getElementById('langFile').files[0];if(!f){showRes('langResult',{ok:false,error:'Keine Datei gew&auml;hlt'});return;}
-    var fd=new FormData();fd.append('file',f,f.name);
-    fetch('/upload?target=lang',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(j){showRes('langResult',j);document.getElementById('langFile').value='';langList();}).catch(function(){showRes('langResult',{ok:false,error:'Fehler'});});};
   if(code){
     fetch('/lang.json?l='+encodeURIComponent(code),{cache:'no-cache'}).then(function(r){return r.json();}).then(function(j){
       T=j.t||{};R=(j.r||[]).map(function(x){return [new RegExp(x[0]),x[1]];});
@@ -2809,29 +2795,25 @@ void handleApiDelete() {
 File uploadFile;
 String uploadError;
 bool uploadOnSd = false;
-bool uploadOnLang = false;
 
-// Sprachdateien: /lang_<code>.json im Speicher des Geraets; der Code sind zwei bis acht Kleinbuchstaben (zum Beispiel en).
-// Language files: /lang_<code>.json in the device storage; the code is two to eight lowercase letters (for example en).
-
-String langCode(String s) {
-    s.toLowerCase();
-    if (s.endsWith(".json")) s.remove(s.length() - 5);
-    if (s.length() < 2 || s.length() > 8) return "";
-    for (size_t i = 0; i < s.length(); i++) {
-        if (s[i] < 'a' || s[i] > 'z') return "";
-    }
-    return s;
-}
+// Die englische Uebersetzung ist in die Firmware eingebaut (lang_en_json.h, beim Bauen aus lang/en.json erzeugt).
+// The English translation is built into the firmware (lang_en_json.h, generated from lang/en.json at build time).
 
 void handleLangJson() {
-    String c = langCode(webserver.arg("l"));
-    String path = "/lang_" + c + ".json";
-    if (c.isEmpty() || !fsReady || !LittleFS.exists(path)) return sendErr(404, "Sprache nicht gefunden");
-    File f = LittleFS.open(path, FILE_READ);
+    if (webserver.arg("l") != "en") return sendErr(404, "Sprache nicht gefunden");
     webserver.sendHeader("Cache-Control", "no-cache");
-    webserver.streamFile(f, "application/json");
-    f.close();
+    webserver.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    webserver.send(200, "application/json", "");
+    const char* p = LANG_EN_JSON;
+    size_t left = sizeof(LANG_EN_JSON) - 1;
+    while (left > 0) {
+        size_t n = left > 1024 ? 1024 : left;
+        webserver.sendContent_P(p, n);
+        p += n;
+        left -= n;
+        audioPump();
+    }
+    webserver.sendContent("");
 }
 
 void handleApiPins() {
@@ -2865,99 +2847,6 @@ void handleApiPins() {
         j += "{\"p\":" + String(pin) + ",\"l\":" + String(digitalRead(pin) == LOW ? 0 : 1) + ",\"t\":\"" + pinType[pin] + "\",\"x\":\"" + jsonEscape(pinText[pin]) + "\",\"v\":" + String(pinVol[pin]) + "}";
     }
     sendJson(200, j + "]}");
-}
-
-// Sprachdatei vom Projekt auf GitHub laden (feste Adresse, nur der Sprachcode kommt von aussen) und als /lang_<code>.json ablegen.
-// Load a language file from the project on GitHub (fixed address, only the language code comes from outside) and store it as /lang_<code>.json.
-
-#define LANG_GITHUB_BASE "https://raw.githubusercontent.com/holgiw/ESP32-netspeaker/main/lang/"
-
-bool langFetch(const String& code, String& err) {
-    if (WiFi.status() != WL_CONNECTED) {
-        err = "Keine WLAN-Verbindung";
-        return false;
-    }
-    if (ESP.getFreeHeap() < 70000) {
-        err = "Zu wenig freier Speicher (Webradio kurz stoppen)";
-        return false;
-    }
-    WiFiClientSecure client;
-    client.setInsecure();
-    HTTPClient http;
-    http.useHTTP10(true);
-    http.setTimeout(10000);
-    http.setConnectTimeout(10000);
-    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-    if (!http.begin(client, String(LANG_GITHUB_BASE) + code + ".json")) {
-        err = "HTTP begin failed";
-        return false;
-    }
-    esp_task_wdt_reset();
-    int rc = http.GET();
-    esp_task_wdt_reset();
-    if (rc != HTTP_CODE_OK) {
-        err = rc == 404 ? String("Sprachdatei nicht gefunden: ") + code + ".json" : "GitHub HTTP " + String(rc);
-        http.end();
-        return false;
-    }
-    LittleFS.remove("/lang_tmp.json");
-    File f = LittleFS.open("/lang_tmp.json", FILE_WRITE);
-    if (!f) {
-        err = "Datei kann nicht angelegt werden";
-        http.end();
-        return false;
-    }
-    WiFiClient* s = http.getStreamPtr();
-    uint8_t buf[1024];
-    size_t total = 0;
-    uint8_t first = 0, last = 0;
-    unsigned long deadline = millis() + 30000UL;
-    bool ok = true;
-    while ((http.connected() || s->available()) && millis() < deadline) {
-        int n = s->available();
-        if (n <= 0) {
-            delay(5);
-            esp_task_wdt_reset();
-            continue;
-        }
-        if (n > (int)sizeof(buf)) n = sizeof(buf);
-        n = s->readBytes(buf, n);
-        if (n <= 0) break;
-        for (int i = 0; i < n; i++) {
-            if (buf[i] > ' ') {
-                if (first == 0) first = buf[i];
-                last = buf[i];
-            }
-        }
-        total += n;
-        if (total > 262144) {
-            ok = false;
-            err = "Datei zu gross";
-            break;
-        }
-        if (f.write(buf, n) != (size_t)n) {
-            ok = false;
-            err = "Speicher voll";
-            break;
-        }
-        if (audio) audio->loop();
-        esp_task_wdt_reset();
-    }
-    f.close();
-    http.end();
-    if (ok && (total < 10 || first != '{' || last != '}')) {
-        ok = false;
-        err = "Keine gueltige Sprachdatei";
-    }
-    if (!ok) {
-        LittleFS.remove("/lang_tmp.json");
-        return false;
-    }
-    String dest = "/lang_" + code + ".json";
-    LittleFS.remove(dest);
-    LittleFS.rename("/lang_tmp.json", dest);
-    logLine("[LANG] " + code + ".json loaded from GitHub (" + String((unsigned long)total) + " bytes)");
-    return true;
 }
 
 #define STATIONS_GITHUB_BASE "https://raw.githubusercontent.com/holgiw/ESP32-netspeaker/main/stations/"
@@ -3120,34 +3009,7 @@ void handleApiFavoritesToList() {
     sendErr(400, res.startsWith("FAIL|") ? res.substring(5) : res);
 }
 void handleApiLang() {
-    if (webserver.method() == HTTP_POST) {
-        String d = langCode(apiArg("delete"));
-        if (!d.isEmpty() && fsReady) LittleFS.remove("/lang_" + d + ".json");
-        if (apiArg("fetch").length() > 0) {
-            String fc = langCode(apiArg("fetch"));
-            String err;
-            if (fc.isEmpty() || !fsReady) return sendErr(400, "Dateiname wie en.json (zwei bis acht Kleinbuchstaben)");
-            if (!langFetch(fc, err)) return sendErr(502, err);
-            return sendOk("Geladen");
-        }
-    }
-    String j = "{\"langs\":[";
-    bool first = true;
-    if (fsReady) {
-        File dir = LittleFS.open("/");
-        File f = dir ? dir.openNextFile() : File();
-        while (f) {
-            String n = String(f.name());
-            n = n.substring(n.lastIndexOf('/') + 1);
-            if (!f.isDirectory() && n.startsWith("lang_") && n.endsWith(".json")) {
-                if (!first) j += ",";
-                first = false;
-                j += "\"" + n.substring(5, n.length() - 5) + "\"";
-            }
-            f = dir.openNextFile();
-        }
-    }
-    sendJson(200, j + "]}");
+    sendJson(200, "{\"langs\":[\"en\"]}");
 }
 
 void handleUploadData() {
@@ -3155,16 +3017,7 @@ void handleUploadData() {
     if (up.status == UPLOAD_FILE_START) {
         uploadError = "";
         uploadOnSd = webserver.arg("target") == "sd";
-        uploadOnLang = webserver.arg("target") == "lang";
-        if (uploadOnLang) {
-            String c = langCode(up.filename);
-            if (c.isEmpty()) {
-                uploadError = "Dateiname wie en.json (zwei bis acht Kleinbuchstaben)";
-            } else {
-                uploadFile = LittleFS.open("/lang_" + c + ".json", FILE_WRITE);
-                if (!uploadFile) uploadError = "Datei kann nicht angelegt werden";
-            }
-        } else if (uploadOnSd) {
+        if (uploadOnSd) {
             String dir = webserver.arg("dir");
             if (dir.isEmpty()) dir = "/";
             String name = sdCleanName(up.filename, true);
