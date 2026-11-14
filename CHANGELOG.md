@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-14 - Version 1.6.7
+
+**Deutsch**
+
+- Neu: Kommt ein MP3-Aufruf, während nur noch die zweite Datei läuft (die erste ist zu Ende), wird der neue Sound sofort die neue Hauptdatei, mit allen Effekten, und die zweite läuft ohne Lücke weiter. Ein dritter gleichzeitiger Sound wartet weiter in der Warteschlange.
+
+**English**
+
+- New: if an MP3 call arrives while only the second file is still running (the first has ended), the new sound immediately becomes the new main file, with all effects, and the second one keeps playing without a gap. A third simultaneous sound still waits in the queue.
+
 ## 2026-11-14 - Version 1.6.6
 
 **Deutsch**

@@ -144,6 +144,8 @@ struct MixTrack {
     volatile bool muteIt = false;
     volatile uint32_t underFrames = 0;   // Frames ohne Daten (Aussetzer) / frames without data (dropouts)
     volatile uint32_t maxDecUs = 0;      // laengste Dekodierzeit eines Frames / longest decode time of a frame
+    volatile uint32_t maxRdUs = 0;       // laengstes Lesen aus der Datei (mit Warten auf die Sperre) / longest read from the file (including waiting for the lock)
+    volatile uint32_t firstUnderAt = 0;  // Zeitpunkt des ersten Aussetzers / time of the first dropout
     bool pending = false;
     unsigned long activateAt = 0;
     uint32_t lastRd = 0;
@@ -1530,19 +1532,24 @@ void fileFadeWatch() {
     }
 }
 
-void startFile(String name) {
+static void startFileImpl(String name, bool keepMix) {
     FileRef r = resolveFile(name);
     if (!r.ok) {
         failPlayback(String(r.sd && !sdReady ? "SD card not available: " : "File not found: ") + r.path);
         return;
     }
     String path = r.path;
-    stopPlayback();
+    if (keepMix) {   // laufende Mischspur und Ausgabe bleiben / the running mix track and the output stay
+        silenceCarrier = false;
+        titleBoostEnd();
+    } else {
+        stopPlayback();
+    }
     lastError = "";
     ensureAudio();
     fileFadePrepare(path, r.sd);
     fs::FS& useFs = r.sd ? (fs::FS&)SD : (fs::FS&)LittleFS;
-    if (audio->connecttoFS(useFs, path.c_str())) {
+    if (keepMix ? audio->connecttoFSkeep(useFs, path.c_str()) : audio->connecttoFS(useFs, path.c_str())) {
         fileFadeStart();
         loudBegin(path, r.sd);
         playStartMillis = millis();
@@ -1554,6 +1561,10 @@ void startFile(String name) {
     } else {
         failPlayback("Cannot play file " + path);
     }
+}
+
+void startFile(String name) {
+    startFileImpl(name, false);
 }
 
 void startUrl(const String& url) {
@@ -2267,7 +2278,10 @@ static void mixAddTrack(MixTrack& m, int32_t* buf, int16_t words) {
             wr = m.wr.load(std::memory_order_acquire);
             if (wr - rd < 2) {
                 if (m.producerDone) m.drained = true;
-                else m.underFrames = m.underFrames + (uint32_t)(frames - i);
+                else {
+                    if (m.underFrames == 0) m.firstUnderAt = millis();
+                    m.underFrames = m.underFrames + (uint32_t)(frames - i);
+                }
                 break;
             }
         }
@@ -2463,6 +2477,8 @@ void muteApply(int32_t* buf, int16_t words) {
 
 volatile uint32_t hookGaps = 0;
 volatile uint32_t hookGapMax = 0;
+volatile uint32_t hookGapAt[8];
+volatile uint16_t hookGapLen[8];
 
 void audio_process_i2s(int32_t* buf, int16_t words, bool* continueI2S) {
     static int64_t lastHook = 0;
@@ -2470,6 +2486,10 @@ void audio_process_i2s(int32_t* buf, int16_t words, bool* continueI2S) {
     if (lastHook != 0) {
         int64_t gap = nowHook - lastHook;
         if (gap > 60000 && gap < 1500000) {
+            if (hookGaps < 8) {
+                hookGapAt[hookGaps] = millis();
+                hookGapLen[hookGaps] = (uint16_t)(gap / 1000);
+            }
             hookGaps = hookGaps + 1;
             if ((uint32_t)(gap / 1000) > hookGapMax) hookGapMax = (uint32_t)(gap / 1000);
         }
@@ -2484,9 +2504,13 @@ void audio_process_i2s(int32_t* buf, int16_t words, bool* continueI2S) {
             buf[i] = (int32_t)v;
         }
     }
+    uint32_t sr = audio ? audio->getSampleRate() : 0;
+    if (sr) {   // wechselt die Hauptdatei die Abtastrate, folgen die Mischspuren / if the main file changes the sample rate the mix tracks follow
+        if (mixT[MIX_LAYER].outRate != sr) mixT[MIX_LAYER].outRate = sr;
+        if (mixT[MIX_ANN].outRate != sr) mixT[MIX_ANN].outRate = sr;
+    }
     mixAddTrack(mixT[MIX_LAYER], buf, words);
     if (muteMain) muteApply(buf, words);
-    uint32_t sr = audio ? audio->getSampleRate() : 0;
 
     // Sprache im Hauptstrom bekommt die Ansage-Effekte, eine Datei im Hauptstrom die allgemeinen; Webradio bleibt immer unbearbeitet.
     // Speech in the main stream gets the announcement effects, a file in the main stream the general ones; web radio is never processed.
@@ -2562,7 +2586,10 @@ void mixTask(void* arg) {
         int errors = 0;
         while (!m.abortFlag) {
             if (have < MIX_REFILL_BELOW && !eof) {
+                int64_t rt0 = esp_timer_get_time();
                 int n = mixRead(m.onSd, f, in + have, MIX_IN_BYTES - have);
+                uint32_t rtu = (uint32_t)(esp_timer_get_time() - rt0);
+                if (rtu > m.maxRdUs) m.maxRdUs = rtu;
                 if (n <= 0) eof = true;
                 else have += n;
             }
@@ -2698,7 +2725,12 @@ void mixStop(int t) {
     {
         MixTrack& mm = mixT[t];
         uint32_t ur = mm.outRate ? (uint32_t)((uint64_t)mm.underFrames * 1000 / mm.outRate) : 0;
-        logLine("[MIX] track " + String(t) + " ended: dropouts " + String(ur) + " ms, longest decode " + String(mm.maxDecUs / 1000.0, 1) + " ms, output gaps " + String(hookGaps) + " (longest " + String(hookGapMax) + " ms)");
+        logLine("[MIX] track " + String(t) + " ended: dropouts " + String(ur) + " ms, longest decode " + String(mm.maxDecUs / 1000.0, 1) + " ms, longest read " + String(mm.maxRdUs / 1000.0, 1) + " ms" + (mm.firstUnderAt ? ", first dropout " + String((millis() - mm.firstUnderAt) / 1000.0, 1) + " s before the end" : String()) + ", output gaps " + String(hookGaps) + " (longest " + String(hookGapMax) + " ms)");
+        {
+            String gl;
+            for (uint32_t i = 0; i < hookGaps && i < 8; i++) gl += " " + String(hookGapLen[i]) + "ms@-" + String((millis() - hookGapAt[i]) / 1000.0, 1) + "s";
+            if (!gl.isEmpty()) logLine("[MIX] gaps (length, time before the end):" + gl);
+        }
         hookGaps = 0;
         hookGapMax = 0;
     }
@@ -2754,6 +2786,8 @@ bool mixStart(int t, const String& path, int vol, bool sd = false, bool duckLaye
     m.abortFlag = false;
     m.underFrames = 0;
     m.maxDecUs = 0;
+    m.maxRdUs = 0;
+    m.firstUnderAt = 0;
     hookGaps = 0;
     hookGapMax = 0;
     m.outRate = audio->getSampleRate();
@@ -2763,7 +2797,7 @@ bool mixStart(int t, const String& path, int vol, bool sd = false, bool duckLaye
     // Die Dekodier-Tasks laufen auf Kern 1: auf Kern 0 (WLAN) war die Dekodierzeit bis 207 ms und es gab Aussetzer von zusammen ueber 10 s.
     // The decoder tasks run on core 1: on core 0 (WiFi) the decode time was up to 207 ms and there were dropouts of over 10 s in total.
 
-    if (m.outRate == 0 || xTaskCreatePinnedToCore(mixTask, t == MIX_LAYER ? "mixlay" : "mixann", 12288, &m, 1, nullptr, 1) != pdPASS) {
+    if (m.outRate == 0 || xTaskCreatePinnedToCore(mixTask, t == MIX_LAYER ? "mixlay" : "mixann", 12288, &m, 2, nullptr, 1) != pdPASS) {
         m.taskRunning = false;
         mixStop(t);
         return false;
@@ -3141,6 +3175,17 @@ bool preempts(const Pending& p) {
     return p.type == PEND_SAY || flashMp3(p);
 }
 
+// Laeuft die erste Datei nicht mehr (Ausgabe mit Stille) und spielt nur noch die zweite, wird eine neue MP3-Datei die neue Hauptdatei, ohne die zweite zu unterbrechen.
+// If the first file is no longer running (output with silence) and only the second one plays, a new MP3 file becomes the new main file without interrupting the second one.
+
+bool holdTakeover(const Pending& p) {
+    if (!silenceCarrier || !mixT[MIX_ANN].inUse || p.type != PEND_FILE || playState != PS_PLAYING) return false;
+    String l = p.text;
+    l.toLowerCase();
+    if (!l.endsWith(".mp3") || l.endsWith("/")) return false;
+    return resolveFile(p.text).ok;
+}
+
 bool flashOverSd(const Pending& p) {
     return nowKind == "file" && nowFile.startsWith("sd:") && mixPossible() && flashMp3(p);
 }
@@ -3169,7 +3214,7 @@ void processQueue() {
     }
 
     for (int i = 0; i < annCount; i++) {
-        if (fileConcurrentOk(annQueue[i]) && annTake(i, next)) {
+        if ((holdTakeover(annQueue[i]) || fileConcurrentOk(annQueue[i])) && annTake(i, next)) {
             pending = next;
             return;
         }
@@ -3206,6 +3251,20 @@ void processPending() {
     if (!p.resume) {
         fadeInWaiting = false;
         fadeInActive = false;
+    }
+
+    if (holdTakeover(p)) {
+        FxParams fp = fxFileParamsFor(p);
+        fxApplyCfg();
+        fx.mode = fp.mode;
+        fx.wet = fp.wet;
+        fx.bass = fp.bass;
+        fx.treble = fp.treble;
+        fx.pan = fp.pan;
+        fx.panDs = fp.panDs;
+        logLine("[MIX] new file while the second one plays on: " + p.text);
+        startFileImpl(p.text, true);
+        return;
     }
 
     // Laeuft ein Webradio, wird eine Ansage oder MP3-Datei leise darueber gemischt; das Radio laeuft ohne Unterbrechung weiter.
@@ -3340,7 +3399,7 @@ void playbackWatch() {
         logLine("[MIX] first file ended, second file continues alone: " + holdName);
         publishStatus(true);
     }
-    if (silenceCarrier && !mixT[MIX_ANN].inUse) {
+    if (silenceCarrier && !mixAny()) {
         silenceCarrier = false;
         logLine("[MIX] second file finished");
         if (audio) audio->stopSong();

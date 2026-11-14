@@ -802,16 +802,18 @@ void Audio::setDefaults() {
     initInBuff(); // initialize InputBuffer if not already done
 
     InBuff.reset();
-    SamplesBuff.reset();
+    if (!m_keepOutput) SamplesBuff.reset();
     m_streamTitle.reset();
     m_streamURL.reset();
     m_playlistBuff.reset();
     m_m3u8_host.reset();
 
-    m_outBuff.clear();       // Clear OutputBuffer
-    m_resamplesBuff.clear(); // Clear ResamplesBuff
+    if (!m_keepOutput) {
+        m_outBuff.clear();       // Clear OutputBuffer
+        m_resamplesBuff.clear(); // Clear ResamplesBuff
+    }
     m_syltTimeStamp.clear();
-    memset(m_audio_items.state_biquad, 0, sizeof(m_audio_items.state_biquad)); // clear biquad history
+    if (!m_keepOutput) memset(m_audio_items.state_biquad, 0, sizeof(m_audio_items.state_biquad)); // clear biquad history
 
     m_playlistURL.clear();
     m_playlistURL.shrink_to_fit();
@@ -853,7 +855,7 @@ void Audio::setDefaults() {
     m_f_stream = false;
     m_f_decode_ready = false;
     m_f_eof = false;
-    m_f_holdSilence = false;
+    if (!m_keepOutput) m_f_holdSilence = false;
     m_f_ID3v1TagFound = false;
     m_f_lockInBuffer = false;
     m_f_acceptRanges = false;
@@ -885,7 +887,7 @@ void Audio::setDefaults() {
     m_M4A_objectType = 0;
     m_M4A_sampleRate = 0;
     m_lastGranulePosition = 0;
-    m_validSamples = 0;
+    if (!m_keepOutput) m_validSamples = 0;
 }
 // —————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
 void Audio::setConnectionTimeout(uint16_t timeout_ms, uint16_t timeout_ms_ssl) {
@@ -1442,6 +1444,17 @@ bool Audio::connecttoFS(fs::FS& fs, const char* path, int32_t fileStartTime) {
     res = true;
 
 exit:
+    return res;
+}
+// —————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
+// Wie connecttoFS; laeuft die Ausgabe gerade mit Stille weiter (nach dem Ende einer Datei), bleibt das so, bis die neue Datei Daten liefert.
+// Like connecttoFS; if the output is running with silence (after the end of a file) it stays so until the new file delivers data.
+bool Audio::connecttoFSkeep(fs::FS& fs, const char* path) {
+    bool keep = m_f_holdSilence;
+    m_keepOutput = keep; // the output keeps running with silence meanwhile, so its buffers stay untouched
+    bool res = connecttoFS(fs, path);
+    m_keepOutput = false;
+    if (res && keep) m_f_holdSilence = true;
     return res;
 }
 // —————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
@@ -4649,6 +4662,7 @@ void Audio::processLocalFile() {
             return;
         } else {
             m_f_stream = true;
+            m_f_holdSilence = false; // the new file delivers data now
             info(*this, evt_info, "stream ready");
         }
     }
@@ -5171,7 +5185,12 @@ void Audio::processWebStreamHLS() {
 // —————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————————
 void Audio::playAudioData() {
 
+    if (m_f_eof && !m_f_holdSilence && m_dataMode == AUDIO_LOCALFILE && audio_hold_after_eof()) m_f_holdSilence = true; // decide at once, the main loop would take too long
     if (m_f_holdSilence) { // end of file reached, output continues with silence
+        if (m_f_lockInBuffer) {
+            vTaskDelay(1);
+            return;
+        }
         if (SamplesBuff.bufferFilled()) { playChunk(); }
         if (m_validSamples) {
             cacheSamples();
