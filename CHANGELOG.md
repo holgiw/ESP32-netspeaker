@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-14 - Version 1.6.10
+
+**Deutsch**
+
+- Neu: Der VoiceRSS-Schlüssel steht jetzt in der Sicherung (verschlüsselt wie die WLAN-Passwörter, nur beim Export aus dem lokalen Netz) und wird beim Import wieder eingelesen. Das MQTT-Passwort bleibt weiter draußen.
+
+**English**
+
+- New: the VoiceRSS key is now part of the backup (encrypted like the WiFi passwords, only when exporting from the local network) and is read again on import. The MQTT password stays out.
+
 ## 2026-11-14 - Version 1.6.9
 
 **Deutsch**

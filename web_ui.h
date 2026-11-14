@@ -446,7 +446,7 @@ String panelAudio() {
     h += "</div>";
     h += "<div class='card wide'><h3>Sprachausgabe (VoiceRSS)</h3>";
     h += "<div class='row'><input type='text' name='vkey' maxlength='64' placeholder='API-Schl&uuml;ssel' value='" + htmlEsc(cfg.vkey) + "' autocomplete='off' style='width:260px'> " + infoTip("API-Schl&uuml;ssel von voicerss.org; ein leeres Feld l&ouml;scht ihn") + "</div>";
-    h += "<small>Der Schl&uuml;ssel wird angezeigt; ein leeres Feld l&ouml;scht ihn. Er steht nicht im Export der Einstellungen und muss auf einem neuen Ger&auml;t neu eingetragen werden. Kostenloser Schl&uuml;ssel: voicerss.org</small>";
+    h += "<small>Der Schl&uuml;ssel wird angezeigt; ein leeres Feld l&ouml;scht ihn. Er steht verschl&uuml;sselt im Export der Einstellungen (nur aus dem lokalen Netz) und kommt mit dem Import auf ein neues Ger&auml;t. Kostenloser Schl&uuml;ssel: voicerss.org</small>";
     h += "<div class='row'><select name='vlang' id='cfgLang' onchange=\"fillVoiceSel('cfgVoice',this.value,false)\" style='width:260px'>" + selectOptions(LANG_VALUES, LANG_LABELS, LANG_COUNT, cfg.vlang) + "</select> " + infoTip("Standardsprache f&uuml;r Ansagen") + "</div>";
     h += "<div class='row'><select name='vvoice' id='cfgVoice' onchange='voiceChosen(this)' style='width:260px'><option value=''>Standard (VoiceRSS)</option>" + (cfg.vvoice.length() > 0 ? "<option value='" + htmlEsc(cfg.vvoice) + "' selected>" + htmlEsc(cfg.vvoice) + "</option>" : String()) + "</select> " + infoTip("Standardstimme f&uuml;r Ansagen; Standard = Standardstimme der Sprache") + "</div>";
     h += "<div class='row'>Tempo (-10 bis 10): " + infoTip("Sprechtempo: -10 = sehr langsam, 0 = normal, 10 = sehr schnell") + " <input type='number' name='vrate' min='-10' max='10' value='" + String(cfg.vrate) + "' style='width:90px'></div>";
@@ -823,7 +823,7 @@ curl -d "mode=off" http://@HOST@/api/effect)d");
 curl -o glocke.mp3 "http://@HOST@/api/fileget?file=glocke.mp3"
 curl --data-binary @netspeaker-settings.txt -H "Content-Type: text/plain" http://@HOST@/import)d");
     h += docCard("Weitere Aufrufe",
-        "<code>/api/scan</code> (WLAN-Suche), <code>/api/scanwifi</code> (Suche im Hintergrund mit Signalst&auml;rke, Ergebnis aus dem Zwischenspeicher) und <code>/api/rescanwifi</code> (POST, neu suchen),<code>/api/testNtp?server=...</code> (NTP-Test, nur im Tab Zeit n&ouml;tig), <code>/api/topbarStatus</code> (Statusleiste), <code>/api/version</code> (Firmware-Stand), <code>/export</code> und <code>/import</code> (Einstellungen; WLAN-Passw&ouml;rter nur verschl&uuml;sselt und nur mit <code>/export?wifi=1</code>, API-Schl&uuml;ssel und MQTT-Passwort nie, siehe Karte Sicherung), <code>/restart</code> (POST, Neustart).",
+        "<code>/api/scan</code> (WLAN-Suche), <code>/api/scanwifi</code> (Suche im Hintergrund mit Signalst&auml;rke, Ergebnis aus dem Zwischenspeicher) und <code>/api/rescanwifi</code> (POST, neu suchen),<code>/api/testNtp?server=...</code> (NTP-Test, nur im Tab Zeit n&ouml;tig), <code>/api/topbarStatus</code> (Statusleiste), <code>/api/version</code> (Firmware-Stand), <code>/export</code> und <code>/import</code> (Einstellungen; WLAN-Passw&ouml;rter nur verschl&uuml;sselt und nur mit <code>/export?wifi=1</code>, der VoiceRSS-Schl&uuml;ssel immer verschl&uuml;sselt, das MQTT-Passwort nie, siehe Karte Sicherung), <code>/restart</code> (POST, Neustart).",
         R"d(curl http://@HOST@/api/version
 curl -o netspeaker-settings.txt http://@HOST@/export
 curl -X POST http://@HOST@/restart)d");
@@ -2010,8 +2010,9 @@ void handleExport() {
     bool withWifi = flagOn(webserver.arg("wifi")) && isPrivateClient();
     String t = "# " PROJECT_NAME " settings export (";
     t += withWifi ? "with encrypted WiFi passwords" : "WiFi passwords omitted";
-    t += ", MQTT password and API key omitted)\n";
+    t += ", MQTT password omitted)\n";
     t += "host=" + cfg.host + "\n";
+    if (isPrivateClient() && cfg.vkey.length() > 0) t += "vkey=" + backupEncrypt(cfg.vkey) + "\n";
     for (int i = 0; i < 3; i++) {
         t += "ssid" + String(i + 1) + "=" + cfg.ssid[i] + "\n";
         if (withWifi) t += "pass" + String(i + 1) + "=" + backupEncrypt(cfg.pass[i]) + "\n";
@@ -2147,7 +2148,9 @@ void handleImport() {
         } else if (k == "autostart") { cfg.autoStart = v.toInt() != 0; prefs.putBool("autostart", cfg.autoStart);
         } else if (k == "swfade") { cfg.switchFadeMs = constrain(v.toInt(), 0, FADE_MAX_MS); prefs.putInt("swfade", cfg.switchFadeMs);
         } else if (k == "fade") { cfg.fadeMs = constrain(v.toInt(), 0, FADE_MAX_MS); prefs.putInt("fade", cfg.fadeMs);
-        } else if (k == "vkey" && v.length() > 0) { cfg.vkey = v; prefs.putString("vkey", v);
+        } else if (k == "vkey" && v.length() > 0) {
+            String vk;
+            if (backupDecrypt(v, vk) && vk.length() > 0) { cfg.vkey = vk; prefs.putString("vkey", vk); }
         } else if (k == "logmin") { cfg.logAutoMin = constrain(v.toInt(), 0, 1440); prefs.putInt("logmin", cfg.logAutoMin);
         } else if (k == "log") { cfg.logEnabled = v.toInt() != 0; prefs.putBool("log", cfg.logEnabled);
         } else if (k.startsWith("rv") && k.substring(2).toInt() >= 1 && k.substring(2).toInt() <= RADIO_SLOTS) {
