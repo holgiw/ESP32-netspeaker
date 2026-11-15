@@ -1916,7 +1916,10 @@ static bool ttsSdHas(const String& path) {
 // Sucht eine gespeicherte Datei mit dem Namensanfang base: base.mp3 oder base_<Effektangaben>.mp3; liefert den ganzen Namen oder leer.
 // Looks for a saved file starting with the name base: base.mp3 or base_<effect values>.mp3; returns the whole name or empty.
 
-static String ttsFindSaved(bool sd, const String& dir, const String& base) {
+// Mit want (Effektzusatz, zum Beispiel "_halle40") zaehlt nur genau diese Datei; ohne want die erste passende.
+// With want (effect part, for example "_halle40") only exactly this file counts; without want the first matching one.
+
+static String ttsFindSaved(bool sd, const String& dir, const String& base, const String* want = nullptr) {
     String found;
     if (sd) {
         if (!sdReady) return "";
@@ -1934,8 +1937,13 @@ static String ttsFindSaved(bool sd, const String& dir, const String& base) {
             String l = n;
             l.toLowerCase();
             if (n.startsWith(base) && l.endsWith(".mp3") && n.length() > base.length() && (n[base.length()] == '.' || n[base.length()] == '_')) {
-                found = n;
-                break;
+                String w = base;
+                if (want) w += *want;
+                w += ".mp3";
+                if (!want || l == w || n == w) {
+                    found = n;
+                    break;
+                }
             }
             esp_task_wdt_reset();
             e = d.openNextFile();
@@ -1949,17 +1957,25 @@ static String ttsFindSaved(bool sd, const String& dir, const String& base) {
 static TtsLoc ttsLocate(const Pending& p) {
     TtsLoc r{0, "", ""};
     String base = ttsBase(p);
-    String n = ttsFindSaved(true, TTS_SAVE_DIR, base);
-    if (!n.isEmpty()) return TtsLoc{1, String(TTS_SAVE_DIR) + "/" + n, n.substring(base.length(), n.length() - 4)};
     String fdir = String(MP3_DIR) + "/" + TTS_FLASH_SUB;
-    n = ttsFindSaved(false, fdir, base);
-    if (!n.isEmpty()) return TtsLoc{2, fdir + "/" + n, n.substring(base.length(), n.length() - 4)};
+    String want = ttsFxSuffix(ttsFxCurrent(p));
 
-    // Aeltere Texte liegen noch im Ordner der MP3-Dateien selbst.
-    // Older texts still lie in the folder of the MP3 files itself.
+    // Erst die Datei mit den aktuellen Effektwerten, sonst eine mit anderen Werten (aelter gespeichert).
+    // First the file with the current effect values, otherwise one with other values (saved earlier).
 
-    n = ttsFindSaved(false, MP3_DIR, base);
-    if (!n.isEmpty()) return TtsLoc{2, String(MP3_DIR) + "/" + n, n.substring(base.length(), n.length() - 4)};
+    for (int pass = 0; pass < 2; pass++) {
+        const String* w = pass == 0 ? &want : nullptr;
+        String n = ttsFindSaved(true, TTS_SAVE_DIR, base, w);
+        if (!n.isEmpty()) return TtsLoc{1, String(TTS_SAVE_DIR) + "/" + n, n.substring(base.length(), n.length() - 4)};
+        n = ttsFindSaved(false, fdir, base, w);
+        if (!n.isEmpty()) return TtsLoc{2, fdir + "/" + n, n.substring(base.length(), n.length() - 4)};
+
+        // Aeltere Texte liegen noch im Ordner der MP3-Dateien selbst.
+        // Older texts still lie in the folder of the MP3 files itself.
+
+        n = ttsFindSaved(false, MP3_DIR, base, w);
+        if (!n.isEmpty()) return TtsLoc{2, String(MP3_DIR) + "/" + n, n.substring(base.length(), n.length() - 4)};
+    }
     if (cfg.ttsCache) {
         String c = String(TTS_CACHE_DIR) + "/" + ttsName(p);
         if (ttsSdHas(c)) return TtsLoc{3, c, ""};
@@ -2185,24 +2201,14 @@ static bool fetchSpeech(const Pending& p, String& err) {
         if (!downloadSpeech(buildSpeechUrl(p), err)) return false;
     }
     if (p.save) {
-        // Neu speichern, wenn der Text noch nicht gespeichert ist oder mit anderen Effektwerten gespeichert war; die alte Datei entfaellt.
-        // Save again if the text is not saved yet or was saved with other effect values; the old file is removed.
+        // Neu speichern, wenn der Text noch nicht gespeichert ist oder nur mit anderen Effektwerten; die alte Datei bleibt, es entsteht eine neue.
+        // Save again if the text is not saved yet or only with other effect values; the old file stays, a new one is created.
 
         FxParams cur = ttsFxCurrent(p);
         String curSuffix = ttsFxSuffix(cur);
         bool inPlace = loc.kind != 2 || loc.path.startsWith(String(MP3_DIR) + "/" + TTS_FLASH_SUB + "/");   // Texte im alten Ordner wandern in den Unterordner / texts in the old folder move to the subfolder
         if (!(got && loc.kind <= 2 && loc.suffix == curSuffix && inPlace)) {
             ttsSaveText(p, cur);
-            if (got && loc.kind <= 2) {
-                if (loc.kind == 1) {
-                    if (xSemaphoreTake(sdMutex, pdMS_TO_TICKS(2000)) == pdTRUE) {
-                        SD.remove(loc.path.c_str());
-                        xSemaphoreGive(sdMutex);
-                    }
-                } else {
-                    LittleFS.remove(loc.path);
-                }
-            }
         }
         use = cur;
     } else if (!got) {

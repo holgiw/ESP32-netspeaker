@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-15 - Version 1.6.12
+
+**Deutsch**
+
+- Geändert: Wird ein Text mit `save=1` gespeichert und die Klangeffekte sind inzwischen anders eingestellt, entsteht eine neue Datei mit den neuen Effektwerten im Namen. Die alte Datei bleibt erhalten und wird nicht mehr gelöscht. Beim Abspielen wird zuerst die Datei mit den aktuellen Effektwerten genommen, sonst eine ältere.
+
+**English**
+
+- Changed: if a text is saved with `save=1` and the sound effects have been changed meanwhile, a new file with the new effect values in its name is created. The old file stays and is no longer deleted. On playback the file with the current effect values is used first, otherwise an older one.
+
 ## 2026-11-14 - Version 1.6.11
 
 **Deutsch**
