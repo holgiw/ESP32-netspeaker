@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-15 - Version 1.6.14
+
+**Deutsch**
+
+- Neu: Geräte ohne SD-Zwischenspeicher (zum Beispiel ohne SD-Karte) halten die zuletzt gespielten Ansagen im PSRAM (bis zu 8 Texte, höchstens etwa 300 KB). Ein Text, der kurz zuvor schon gesprochen wurde, wird nicht erneut bei VoiceRSS geladen. Der Speicher geht beim Neustart verloren und beschreibt den Flash nicht; ist der PSRAM knapp, wird er nicht benutzt. Im Status steht als Quelle dann `ram`.
+
+**English**
+
+- New: devices without an SD cache (for example without an SD card) keep the most recently played announcements in PSRAM (up to 8 texts, at most about 300 KB). A text that was spoken shortly before is not fetched from VoiceRSS again. The cache is lost on restart and does not write to flash; if PSRAM is tight it is not used. The status then shows `ram` as the source.
+
 ## 2026-11-15 - Version 1.6.13
 
 **Deutsch**

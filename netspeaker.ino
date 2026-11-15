@@ -1974,6 +1974,135 @@ static String ttsFindSaved(bool sd, const String& dir, const String& base, const
     return found;
 }
 
+// Kleiner Zwischenspeicher im PSRAM fuer Geraete ohne SD-Zwischenspeicher: die zuletzt gespielten Ansagen (MP3 ohne Effekt), die laengst nicht gespielte faellt zuerst heraus.
+// Er geht beim Neustart verloren und beschreibt den Flash nicht.
+// Small cache in PSRAM for devices without an SD cache: the most recently played announcements (MP3 without effect); the one not played for longest is dropped first.
+// It is lost on restart and does not write to flash.
+
+#define RAM_TTS_N 8
+#define RAM_TTS_BYTES 300000
+#define RAM_TTS_ONE 80000
+#define RAM_TTS_KEEP_FREE 256000
+
+struct RamTts {
+    String name;
+    uint8_t* data = nullptr;
+    size_t len = 0;
+    uint32_t used = 0;
+};
+static RamTts ramTts[RAM_TTS_N];
+static uint32_t ramTtsTick = 0;
+
+static SemaphoreHandle_t ramTtsLock() {
+    static SemaphoreHandle_t m = xSemaphoreCreateMutex();
+    return m;
+}
+
+static bool ramTtsHas(const String& name) {
+    bool r = false;
+    if (xSemaphoreTake(ramTtsLock(), pdMS_TO_TICKS(500)) != pdTRUE) return false;
+    for (int i = 0; i < RAM_TTS_N; i++) {
+        if (ramTts[i].data && ramTts[i].name == name) r = true;
+    }
+    xSemaphoreGive(ramTtsLock());
+    return r;
+}
+
+// Legt die geladene Sprachdatei (TTS_FILE im Flash) in den PSRAM.
+// Puts the loaded speech file (TTS_FILE in flash) into PSRAM.
+
+static void ramTtsStore(const String& name) {
+    if (!fsReady) return;
+    File src = LittleFS.open(TTS_FILE, FILE_READ);
+    if (!src) return;
+    size_t len = src.size();
+    if (len == 0 || len > RAM_TTS_ONE || heap_caps_get_free_size(MALLOC_CAP_SPIRAM) < len + RAM_TTS_KEEP_FREE) {
+        src.close();
+        return;
+    }
+    uint8_t* buf = (uint8_t*)heap_caps_malloc(len, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!buf) {
+        src.close();
+        return;
+    }
+    size_t got = src.read(buf, len);
+    src.close();
+    if (got != len || xSemaphoreTake(ramTtsLock(), pdMS_TO_TICKS(500)) != pdTRUE) {
+        free(buf);
+        return;
+    }
+    for (int i = 0; i < RAM_TTS_N; i++) {
+        if (ramTts[i].data && ramTts[i].name == name) {   // schon da / already there
+            xSemaphoreGive(ramTtsLock());
+            free(buf);
+            return;
+        }
+    }
+
+    // Platz schaffen: Eintrag oder Gesamtgroesse zu viel, dann den am laengsten unbenutzten entfernen.
+    // Make room: too many entries or too much in total, then remove the one unused for longest.
+
+    for (;;) {
+        int free_i = -1, old_i = -1;
+        size_t total = 0;
+        for (int i = 0; i < RAM_TTS_N; i++) {
+            if (!ramTts[i].data) {
+                if (free_i < 0) free_i = i;
+                continue;
+            }
+            total += ramTts[i].len;
+            if (old_i < 0 || ramTts[i].used < ramTts[old_i].used) old_i = i;
+        }
+        if (free_i >= 0 && total + len <= RAM_TTS_BYTES) {
+            ramTts[free_i].name = name;
+            ramTts[free_i].data = buf;
+            ramTts[free_i].len = len;
+            ramTts[free_i].used = ++ramTtsTick;
+            break;
+        }
+        if (old_i < 0) {
+            free(buf);
+            break;
+        }
+        free(ramTts[old_i].data);
+        ramTts[old_i].data = nullptr;
+        ramTts[old_i].len = 0;
+        ramTts[old_i].name = "";
+    }
+    xSemaphoreGive(ramTtsLock());
+    logLine("[VOICERSS] stored in RAM cache " + name);
+}
+
+// Schreibt die Ansage aus dem PSRAM als TTS_FILE in den Flash.
+// Writes the announcement from PSRAM as TTS_FILE to flash.
+
+static bool ramTtsRestore(const String& name) {
+    if (!fsReady || xSemaphoreTake(ramTtsLock(), pdMS_TO_TICKS(500)) != pdTRUE) return false;
+    bool ok = false;
+    for (int i = 0; i < RAM_TTS_N && !ok; i++) {
+        if (!ramTts[i].data || ramTts[i].name != name) continue;
+        LittleFS.remove(TTS_FILE);
+        File dst = LittleFS.open(TTS_FILE, FILE_WRITE);
+        if (dst) {
+            size_t off = 0;
+            ok = true;
+            while (off < ramTts[i].len) {
+                size_t n = ramTts[i].len - off > 1024 ? 1024 : ramTts[i].len - off;
+                if (dst.write(ramTts[i].data + off, n) != n) {
+                    ok = false;
+                    break;
+                }
+                off += n;
+            }
+            dst.close();
+        }
+        if (ok) ramTts[i].used = ++ramTtsTick;
+        else LittleFS.remove(TTS_FILE);
+    }
+    xSemaphoreGive(ramTtsLock());
+    return ok;
+}
+
 static TtsLoc ttsLocate(const Pending& p) {
     TtsLoc r{0, "", ""};
     String base = ttsBase(p);
@@ -2000,6 +2129,7 @@ static TtsLoc ttsLocate(const Pending& p) {
         String c = String(TTS_CACHE_DIR) + "/" + ttsName(p);
         if (ttsSdHas(c)) return TtsLoc{3, c, ""};
     }
+    if (!ttsCacheOn() && ramTtsHas(ttsName(p))) return TtsLoc{4, ttsName(p), ""};
     return r;
 }
 
@@ -2025,6 +2155,11 @@ static size_t ttsCopy(File& src, File& dst) {
 }
 
 static bool ttsRestore(const TtsLoc& loc) {
+    if (loc.kind == 4) {
+        if (!ramTtsRestore(loc.path)) return false;
+        logLine("[VOICERSS] from RAM cache " + loc.path);
+        return true;
+    }
     bool sd = loc.kind == 1 || loc.kind == 3;
     if (sd && xSemaphoreTake(sdMutex, pdMS_TO_TICKS(3000)) != pdTRUE) return false;
     size_t n = 0;
@@ -2234,13 +2369,14 @@ static bool fetchSpeech(const Pending& p, String& err) {
         use = cur;
     } else if (!got) {
         ttsCacheStore(p);
+        if (!ttsCacheOn()) ramTtsStore(ttsName(p));
     }
 
     // fx=0: die Ansage laeuft ohne Effekt, auch wenn der Text mit Effekt gespeichert ist.
     // fx=0: the announcement plays without effect, even if the text is saved with an effect.
 
     if (p.noFx) use = FxParams{0, 0, 0, 0};
-    speechFrom = got ? (loc.kind == 1 ? "sd" : (loc.kind == 2 ? "flash" : "cache")) : "voicerss";
+    speechFrom = got ? (loc.kind == 1 ? "sd" : (loc.kind == 2 ? "flash" : (loc.kind == 4 ? "ram" : "cache"))) : "voicerss";
     speechSeq++;
     logLine("[VOICERSS] announcement effect: " + String(use.mode ? FX_NAMES[use.mode] : "off") + (use.mode ? " " + String(use.wet) + " %" : "") + (use.bass || use.treble ? ", bass " + String(use.bass) + ", treble " + String(use.treble) : "") + (use.pan ? ", sweep " + String(use.pan) + " " + String(use.panDs / 10.0, 1) + " s" : "") + (p.noFx ? " (fx=0)" : ""));
     annSetParams(use);
