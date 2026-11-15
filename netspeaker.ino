@@ -283,6 +283,24 @@ void annClear() {
 }
 volatile PlayState playState = PS_IDLE;
 volatile bool silenceCarrier = false;   // Ausgabe laeuft mit Stille weiter, solange die zweite Datei allein spielt / output keeps running with silence while the second file plays alone
+
+// Nachhall nach einer Ansage: Die Ausgabe laeuft noch mit Stille weiter, damit Hall und Echo ausklingen.
+// Reverb tail after an announcement: the output keeps running with silence so reverb and echo can fade out.
+
+volatile bool speechTail = false;
+volatile uint32_t speechTailEnd = 0;
+volatile uint32_t mixTailEnd = 0;
+
+static uint32_t fxTailMs(int mode, int wet) {
+    if (wet <= 0) return 0;
+    switch (mode) {
+        case FX_ROOM: return 900;
+        case FX_HALL: return 2200;
+        case FX_CHURCH: return 3800;
+        case FX_ECHO: return 1800;
+    }
+    return 0;
+}
 String lastError;
 unsigned long playStartMillis = 0;
 bool voiceBusy = false;
@@ -942,6 +960,7 @@ void settleVolume() {
 
 void setIdle() {
     silenceCarrier = false;
+    speechTail = false;
     mixStopAll();
     titleBoostEnd();
     streamWaitingReady = false;
@@ -954,6 +973,7 @@ void setIdle() {
 
 void stopPlayback() {
     silenceCarrier = false;
+    speechTail = false;
     mixStopAll();
     titleBoostEnd();
     if (audio) audio->stopSong();
@@ -2186,8 +2206,9 @@ int ttsCacheInfo(uint32_t& bytes, bool clear) {
 static bool fetchSpeech(const Pending& p, String& err) {
     TtsLoc loc = ttsLocate(p);
     bool got = loc.kind != 0 && ttsRestore(loc);
+    // Die Ansage spielt immer mit den aktuellen Effektwerten, auch wenn die gefundene Datei mit anderen gespeichert wurde.
+    // The announcement always plays with the current effect values, even if the file found was saved with other ones.
     FxParams use = fxGlobalParams();
-    if (got && loc.kind <= 2) use = ttsFxParse(loc.suffix);
     if (!got) {
         if (cfg.vkey.isEmpty()) {
             err = "VoiceRSS API key is not set";
@@ -2532,7 +2553,11 @@ void audio_process_i2s(int32_t* buf, int16_t words, bool* continueI2S) {
     // Gemischte Ansage: eigene Spur, mit den Ansage-Effekten bearbeitet und dann zum Hauptstrom addiert.
     // Mixed announcement: own track, processed with the announcement effects and then added to the main stream.
 
-    if (annFx.active() && mixT[MIX_ANN].active) {
+    static bool annWas = false;
+    bool annNow = mixT[MIX_ANN].active;
+    if (annWas && !annNow) mixTailEnd = millis() + fxTailMs(annFx.mode, annFx.wet);
+    annWas = annNow;
+    if (annFx.active() && (annNow || (int32_t)(millis() - mixTailEnd) < 0)) {
         if (!fxTmp) fxTmp = (int32_t*)heap_caps_malloc(FX_TMP_WORDS * sizeof(int32_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (fxTmp && words <= FX_TMP_WORDS) {
             memset(fxTmp, 0, words * sizeof(int32_t));
@@ -3401,6 +3426,12 @@ extern String holdName;
 extern volatile bool holdAnnounce;
 
 void playbackWatch() {
+    if (speechTail && (int32_t)(millis() - speechTailEnd) >= 0) {
+        speechTail = false;
+        if (audio) audio->stopSong();
+        setIdle();
+        return;
+    }
     if (holdAnnounce) {
         holdAnnounce = false;
         nowFile = holdName;
@@ -3580,6 +3611,15 @@ volatile bool holdAnnounce = false;
 
 bool audio_hold_after_eof() {
     MixTrack& m = mixT[MIX_ANN];
+    if (nowKind == "speech" && !streamActive && !speechTail) {
+        uint32_t tl = fxTailMs(annFx.mode, annFx.wet);
+        if (tl > 0) {
+            speechTailEnd = millis() + tl;
+            speechTail = true;
+            return true;
+        }
+    }
+    if (speechTail) return true;
     if (nowKind == "file" && !streamActive && !silenceCarrier && m.inUse && m.active && !m.producerDone && m.path != TTS_FILE) {
         holdName = (m.onSd ? "sd:" : "") + m.path;
         holdAnnounce = true;

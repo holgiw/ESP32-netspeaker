@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-15 - Version 1.6.13
+
+**Deutsch**
+
+- Neu: Hall, Kirche, Zimmer und Echo klingen nach dem Ende einer Ansage aus, statt abrupt abzubrechen. Die Ausgabe läuft dafür noch kurz mit Stille weiter (Zimmer 0,9 s, Halle 2,2 s, Kirche 3,8 s, Echo 1,8 s); das gilt auch für Ansagen, die über das Radio gemischt werden. Die nächste Ansage in der Warteschlange startet entsprechend später.
+- Geändert: Eine Ansage spielt immer mit den aktuellen Effekteinstellungen, auch wenn die gefundene gespeicherte Datei mit anderen Effektwerten angelegt wurde. Mit `save=1` entsteht dabei weiterhin eine neue Datei.
+
+**English**
+
+- New: reverb, church, room and echo now fade out after the end of an announcement instead of cutting off. The output keeps running with silence for that (room 0.9 s, hall 2.2 s, church 3.8 s, echo 1.8 s); this also applies to announcements mixed over the radio. The next announcement in the queue starts later accordingly.
+- Changed: an announcement always plays with the current effect settings, even if the saved file found was created with other effect values. With `save=1` a new file is still created.
+
 ## 2026-11-15 - Version 1.6.12
 
 **Deutsch**
