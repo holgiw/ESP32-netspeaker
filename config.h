@@ -15,7 +15,7 @@
 // Release-Nummer; wird vor dem Bauen eines Releases hochgesetzt und steht im Tab Status, im Log und im Status der API.
 // Release number; raised before building a release and shown in the Status tab, in the log and in the status of the API.
 
-#define PROJECT_VERSION "1.6.14"
+#define PROJECT_VERSION "1.6.15"
 #define PROJECT_TAG "SPEAKER"
 
 // Der Text steht im Binary; checkDevices.ps1 liest ihn als Soll-Stand der .bin.
@@ -136,6 +136,8 @@
 
 #define FADE_DEFAULT_MS 1200
 #define FADE_MAX_MS 3000
+#define FILE_OUT_DEFAULT_MS 500
+#define FILE_STOP_FADE_MS 150
 
 // Standarddauer des Aus- und Einblendens bei einem Senderwechsel (ms).
 // Default duration of fading out and in when the station is changed (ms).

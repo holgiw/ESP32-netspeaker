@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-11-15 - Version 1.6.15
+
+**Deutsch**
+
+- Neu: Die Dateilisten der Tabs *MP3 (Flash)* und *SD-Karte* haben Auswahlkästchen an jeder Datei und jedem Ordner und ein Kästchen *Alle*. Die angehakten Einträge lassen sich mit einem Klick löschen (Ordner mit Inhalt, mit Rückfrage) oder herunterladen (eine Datei direkt, mehrere als ZIP-Datei).
+- Behoben: Wird eine MP3-Datei beendet (zweiter Klick auf ▶ oder Stopp), blendet sie in 150 ms aus. Vorher wurde der Ton beim Beenden kurz lauter, weil die Lautstärke schon zurückgesetzt wurde, während noch Ton im Puffer war.
+- Neu: Bei allen MP3-Dateien in den Tabs *MP3 (Flash)* und *SD-Karte* startet ein Klick auf ▶ die Datei, der nächste Klick beendet genau diese Datei (läuft sie als Mischspur, nur diese). Per REST: `toggle=1` bei `/api/file` und `/api/play`; läuft die Datei, wird sie beendet, sonst gestartet.
+- Neu: Das Ausblenden am Ende einer MP3-Datei hat eine eigene Dauer (Tab *Audio*, *MP3-Datei am Ende ausblenden*, Standard 500 ms, 0 = bis zum Schluss in voller Lautstärke). Bisher galt dafür die Dauer von *Radio aus-/einblenden* (Standard 1200 ms), die Dateien wurden zu früh leiser. Das Einblenden am Anfang bleibt bei dieser Dauer. Die Einstellung steht auch in der Sicherung. Neu auch per REST: `GET /api/fade` liefert, `POST /api/fade` setzt `fade`, `fileout` und `switch` (alle in ms; auch per GET mit Werten in der URL). Im Tab *Audio* kopieren die Knöpfe *URL* und *curl* an den drei Feldern den Aufruf mit dem Wert im Feld.
+- Neu: Der Knopf *Formatieren* im Tab *SD-Karte* (und `POST /api/sdformat` mit `confirm=yes`) legt die Karte als FAT32 neu an, auch eine neue oder unbekannte Karte ohne lesbares Dateisystem. Zwei Rückfragen, alles auf der Karte geht verloren; bei großen Karten kann es bis zu einer Minute dauern.
+
+**English**
+
+- New: the file lists of the *MP3 (Flash)* and *SD card* tabs have checkboxes on every file and folder and an *All* checkbox. The ticked entries can be deleted with one click (folders with their content, with a confirmation) or downloaded (one file directly, several as a ZIP file).
+- Fixed: when an MP3 file is stopped (second click on ▶ or Stop) it fades out within 150 ms. Before, the sound got briefly louder at the end because the volume was reset while sound was still in the buffer.
+- New: for all MP3 files in the *MP3 (Flash)* and *SD card* tabs a click on ▶ starts the file and the next click stops exactly that file (if it runs as a mix track, only that one). Via REST: `toggle=1` with `/api/file` and `/api/play`; if the file is playing it is stopped, otherwise started.
+- New: fading out at the end of an MP3 file has its own duration (*Audio* tab, *Fade out MP3 file at the end*, default 500 ms, 0 = plays to the end at full volume). It used the *Radio fade out/in* time (default 1200 ms) before, so files got quieter too early. The fade-in at the start keeps that time. The setting is part of the backup too. Also new via REST: `GET /api/fade` returns, `POST /api/fade` sets `fade`, `fileout` and `switch` (all in ms; also via GET with the values in the URL). In the *Audio* tab the *URL* and *curl* buttons at the three fields copy the call with the value in the field.
+- New: the *Format* button in the *SD card* tab (and `POST /api/sdformat` with `confirm=yes`) sets the card up as FAT32, also a new or unknown card without a readable file system. Two confirmations, everything on the card is lost; on large cards it can take up to a minute.
+
 ## 2026-11-15 - Version 1.6.14
 
 **Deutsch**

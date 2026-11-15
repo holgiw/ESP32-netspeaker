@@ -23,6 +23,7 @@
 #include <LittleFS.h>
 #include <SPI.h>
 #include <SD.h>
+#include "ff.h"
 #include <algorithm>
 #include <vector>
 #include <HTTPClient.h>
@@ -70,6 +71,7 @@ struct Settings {
     String radioUrl[RADIO_SLOTS];
     int radioVol[RADIO_SLOTS];
     int fadeMs;
+    int fileOutMs;
     int switchFadeMs;
     bool autoStart;
     bool bootTone;
@@ -671,6 +673,7 @@ void loadSettings() {
     cfg.logEnabled = prefs.getBool("log", false);
     cfg.logAutoMin = constrain(prefs.getInt("logmin", 60), 0, 1440);
     cfg.fadeMs = constrain(prefs.getInt("fade", FADE_DEFAULT_MS), 0, FADE_MAX_MS);
+    cfg.fileOutMs = constrain(prefs.getInt("fout", FILE_OUT_DEFAULT_MS), 0, FADE_MAX_MS);
     cfg.switchFadeMs = constrain(prefs.getInt("swfade", SWITCH_FADE_DEFAULT_MS), 0, FADE_MAX_MS);
     cfg.autoStart = prefs.getBool("autostart", false);
     cfg.bootTone = prefs.getBool("btone", true);
@@ -1032,6 +1035,41 @@ bool sdMount() {
     if (sdMutex) xSemaphoreGive(sdMutex);
     idlePins();
     return sdReady;
+}
+
+// Formatiert die Karte als FAT32, alles auf der Karte geht verloren. Eine Karte ohne lesbares Dateisystem (neu oder unbekannt) wird ebenso angelegt. Liefert einen Fehlertext, leer bei Erfolg.
+// Formats the card as FAT32, everything on the card is lost. A card without a readable file system (new or unknown) is set up the same way. Returns an error text, empty on success.
+
+String sdFormat() {
+    if (!cfg.sdOn) return "SD ist ausgeschaltet";
+    sdStopAll();
+    if (sdMutex) xSemaphoreTake(sdMutex, pdMS_TO_TICKS(3000));
+    if (sdReady) SD.end();
+    sdReady = false;
+    sdSpi.end();
+    sdSpi.begin(cfg.sdSck, cfg.sdMiso, cfg.sdMosi, cfg.sdCs);
+    String err;
+    if (SD.begin(cfg.sdCs, sdSpi, 16000000, "/sd", 5, false) && SD.cardType() != CARD_NONE) {
+        BYTE* work = (BYTE*)malloc(FF_MAX_SS);
+        if (!work) {
+            err = "Speicher knapp";
+        } else {
+            const MKFS_PARM opt = {(BYTE)FM_FAT32, 0, 0, 0, 0};
+            FRESULT r = f_mkfs("0:", &opt, work, FF_MAX_SS);
+            free(work);
+            if (r != FR_OK) err = "Formatieren fehlgeschlagen (Fehler " + String((int)r) + ")";
+        }
+        SD.end();
+    } else {
+        SD.end();
+        if (!(SD.begin(cfg.sdCs, sdSpi, 16000000, "/sd", 5, true) && SD.cardType() != CARD_NONE)) err = "Keine Karte gefunden oder sie lÃ¤sst sich nicht formatieren";
+        SD.end();
+    }
+    sdSpi.end();
+    if (sdMutex) xSemaphoreGive(sdMutex);
+    logLine(err.isEmpty() ? String("[SD] formatted as FAT32") : "[SD] format failed: " + err);
+    sdMount();
+    return err;
 }
 
 // Listet einen Ordner der Karte (nur Ordner und MP3-Dateien), Ordner zuerst, dann nach Name.
@@ -1513,25 +1551,31 @@ void loudWatch() {
 // setting "Radio aus-/einblenden", for short files at most a quarter of the estimated length.
 
 int fileFadeMs = 0;
+int fileOutMs = 0;
 bool fileFadeOutDone = false;
 
 void fileFadePrepare(const String& path, bool sd) {
     fileFadeOutDone = false;
     fileFadeMs = 0;
-    if (cfg.fadeMs <= 0 || !audio) return;
+    fileOutMs = 0;
+    if ((cfg.fadeMs <= 0 && cfg.fileOutMs <= 0) || !audio) return;
     File f = sd ? SD.open(path.c_str(), FILE_READ) : LittleFS.open(path, FILE_READ);
     size_t size = f ? f.size() : 0;
     if (f) f.close();
-    int ms = cfg.fadeMs;
+    int ms = cfg.fadeMs, outMs = cfg.fileOutMs;
     if (size > 0) {
         int cap = (int)(size / 16) / 4;
         if (cap < 80) cap = 80;
         if (ms > cap) ms = cap;
+        if (outMs > cap) outMs = cap;
     }
     fileFadeMs = ms;
-    audio->setVolume(0);
-    volRamp.on = false;
-    volRamp.now = 0;
+    fileOutMs = outMs;
+    if (fileFadeMs > 0) {
+        audio->setVolume(0);
+        volRamp.on = false;
+        volRamp.now = 0;
+    }
 }
 
 void fileFadeStart() {
@@ -1539,7 +1583,7 @@ void fileFadeStart() {
 }
 
 void fileFadeWatch() {
-    if (fileFadeMs <= 0 || fileFadeOutDone || !audio || playState != PS_PLAYING || nowKind != "file") return;
+    if (fileOutMs <= 0 || fileFadeOutDone || !audio || playState != PS_PLAYING || nowKind != "file") return;
     if (millis() - playStartMillis < 300) return;
     uint32_t size = audio->getFileSize();
     uint32_t pos = audio->getAudioFilePosition();
@@ -1548,7 +1592,7 @@ void fileFadeWatch() {
     if (pos < size / 2) return;
     uint32_t bytesLeft = size > pos ? size - pos : 0;
     uint32_t remainMs = (uint32_t)((uint64_t)bytesLeft * 8000ULL / bitrate);
-    if (remainMs <= (uint32_t)fileFadeMs) {
+    if (remainMs <= (uint32_t)fileOutMs) {
         fileFadeOutDone = true;
         volRampTo(0, remainMs > 60 ? (int)remainMs : 60);
     }
@@ -3224,6 +3268,37 @@ void stopIfUsing(const String& name) {
     if (nowKind == "file" && nowFile == name && playState != PS_IDLE) stopPlayback();
 }
 
+// Eine Datei wird beim Beenden kurz ausgeblendet, damit der Ton nicht abreisst oder beim Zuruecksetzen der Lautstaerke kurz lauter wird.
+// A file is faded out briefly when it is stopped so the sound does not cut off or get louder for a moment when the volume is reset.
+
+// Beendet die Datei, wenn genau sie gerade gespielt oder gemischt wird (zweiter Klick auf Abspielen). Liefert wahr, wenn etwas beendet wurde.
+// Stops the file if exactly it is being played or mixed right now (second click on play). Returns true if something was stopped.
+
+void fadeOutStream(int ms);
+
+bool stopFileIfPlaying(const String& name) {
+    if (name.endsWith("/")) return false;
+    FileRef r = resolveFile(name);
+    if (!r.ok) return false;
+    bool hit = false;
+    for (int t = 0; t < 2; t++) {
+        if (mixT[t].inUse && mixT[t].onSd == r.sd && mixT[t].path == r.path) {
+            mixStop(t);
+            hit = true;
+        }
+    }
+    if (nowKind == "file" && playState != PS_IDLE && nowFile == r.shown) {
+        if (playState == PS_PLAYING) fadeOutStream(FILE_STOP_FADE_MS);
+        stopPlayback();
+        hit = true;
+    }
+    if (hit) {
+        publishStatus(true);
+        settleVolume();
+    }
+    return hit;
+}
+
 void speakText(const Pending& p) {
     bool cached = ttsLocate(p).kind != 0;
     if (!cached && cfg.vkey.isEmpty()) {
@@ -3543,6 +3618,7 @@ void processPending() {
             // A running web radio is faded out slowly before the stop; announcements and files stop immediately.
 
             if (streamActive && playState == PS_PLAYING) fadeOutStream(cfg.switchFadeMs);
+            else if (nowKind == "file" && playState == PS_PLAYING) fadeOutStream(FILE_STOP_FADE_MS);
             stopPlayback();
             logLine("[PLAY] stopped");
             publishStatus(true);
