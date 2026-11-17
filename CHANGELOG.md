@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-11-17 - Version 1.6.17
+
+**Deutsch**
+
+- Geändert: `loop` gibt jetzt die Anzahl der Wiedergaben an (REST `/api/file`, `/api/play`, MQTT `play`/`file`): fehlt der Wert oder ist er 0 oder 1, wird einmal gespielt, ab 2 entsprechend oft (`loop=3` = dreimal). Das gilt für SD und Flash, für Ordner (Anzahl der Durchläufe) und für einzelne Dateien (vorher wirkte `loop` bei einzelnen Dateien gar nicht). Endlos: `loop=-1` oder `loop=true` (das Häkchen *Endlos* im Tab *SD-Karte* sendet das). Stopp, ein neuer Sender oder ein Klick auf ▶ (`toggle=1`) beendet die Wiederholung. Achtung: `loop=1` war bei Ordnern bisher endlos, jetzt heißt es einmal.
+- Behoben: `pan`, `pansec` (und die Klangregler) wirken jetzt auch auf Dateien der SD-Karte, die über einem laufenden Webradio als Hintergrundspur spielen. Vorher wurden sie dort ignoriert. Hall und Echo bleiben auf der Hintergrundspur aus.
+- Neu: Die Registerkarte des Browsers zeigt den Hostnamen des Geräts (zum Beispiel `netspeaker-az`), damit sich mehrere Geräte in den Tabs unterscheiden lassen. Ohne Hostnamen steht dort `NetSpeaker`.
+
+**English**
+
+- Changed: `loop` now gives the number of plays (REST `/api/file`, `/api/play`, MQTT `play`/`file`): if the value is missing or 0 or 1 it plays once, from 2 that many times (`loop=3` = three times). This applies to SD and flash, to folders (number of rounds) and to single files (before, `loop` had no effect on single files). Endless: `loop=-1` or `loop=true` (the *Endlos* checkbox in the *SD-Karte* tab sends that). Stop, a new station or a click on ▶ (`toggle=1`) ends the repetition. Note: `loop=1` meant endless for folders before, now it means once.
+- Fixed: `pan`, `pansec` (and the tone controls) now also act on files of the SD card that play as a background track over a running web radio. Before they were ignored there. Reverb and echo stay off on the background track.
+- New: the browser tab shows the device's hostname (for example `netspeaker-az`) so several devices can be told apart in the tabs. Without a hostname it shows `NetSpeaker`.
+
 ## 2026-11-17 - Version 1.6.16
 
 **Deutsch**

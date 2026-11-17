@@ -195,6 +195,7 @@ struct FxParams {
 };
 
 FxEngine annFx;
+FxEngine layerFx;   // Hintergrundspur: nur Wandern (pan) und Klangregler, kein Hall / background track: only sweep (pan) and tone control, no reverb
 
 // Herkunft der zuletzt gesprochenen Ansage (voicerss, sd, flash, cache) und Zaehler, der bei jeder Ansage steigt; die Statusanzeige nutzt beides.
 // Source of the announcement spoken last (voicerss, sd, flash, cache) and a counter that rises with every announcement; the status display uses both.
@@ -264,7 +265,8 @@ bool annPop(Pending& out) {
 struct DirSession {
     bool active = false;
     bool shuffle = false;
-    bool loop = false;
+    int loop = 1;    // Anzahl der Durchlaeufe, kleiner 0 = endlos / number of rounds, below 0 = endless
+    int round = 1;   // laufender Durchlauf / current round
     int vol = -1;
     int pan = -1;
     int panDs = -1;
@@ -555,7 +557,7 @@ void loadPinActions() {
 }
 
 String commandSay(const String& textIn, const String& lang, const String& voice, int rate, int vol, bool save = false, bool useFx = true);
-String commandPlayFile(const String& nameIn, int vol, bool shuffle, bool loop);
+String commandPlayFile(const String& nameIn, int vol, bool shuffle, int loop);
 String commandPlayUrl(const String& urlIn, int vol);
 String commandPlayStation(const String& selIn, int vol);
 bool pinTypeIsControl(const String& t);
@@ -588,7 +590,7 @@ void pinWatch() {
         else if (pinType[pin] == "say") err = commandSay(x, "", "", 99, pinVol[pin]);
         else if (pinType[pin] == "station") err = commandPlayStation(x, pinVol[pin]);
         else if (x.startsWith("http://") || x.startsWith("https://")) err = commandPlayUrl(x, pinVol[pin]);
-        else err = commandPlayFile(x, pinVol[pin], false, false);
+        else err = commandPlayFile(x, pinVol[pin], false, 1);
         logLine("[PIN] GPIO " + String(pin) + " to GND -> " + pinType[pin] + " \"" + x + "\"" + (err.length() > 0 ? ": " + err : String()));
     }
 }
@@ -1962,6 +1964,19 @@ static void annSetParams(const FxParams& f) {
     annFx.flush();
 }
 
+// Stellt die Effekt-Instanz der Hintergrundspur ein: Hall und Echo bleiben aus (zu rechenintensiv), Wandern und Klangregler gelten.
+// Sets the effect instance of the background track: reverb and echo stay off (too computing-intensive), sweep and tone control apply.
+
+static void layerSetParams(const FxParams& f) {
+    layerFx.mode = 0;
+    layerFx.wet = 0;
+    layerFx.bass = f.bass;
+    layerFx.treble = f.treble;
+    layerFx.pan = f.pan;
+    layerFx.panDs = f.panDs;
+    layerFx.flush();
+}
+
 static bool ttsCacheOn() {
     return cfg.ttsCache && sdReady;
 }
@@ -2718,7 +2733,22 @@ void audio_process_i2s(int32_t* buf, int16_t words, bool* continueI2S) {
         if (mixT[MIX_LAYER].outRate != sr) mixT[MIX_LAYER].outRate = sr;
         if (mixT[MIX_ANN].outRate != sr) mixT[MIX_ANN].outRate = sr;
     }
-    mixAddTrack(mixT[MIX_LAYER], buf, words);
+    if (layerFx.active() && mixT[MIX_LAYER].active) {
+        if (!fxTmp) fxTmp = (int32_t*)heap_caps_malloc(FX_TMP_WORDS * sizeof(int32_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (fxTmp && words <= FX_TMP_WORDS) {
+            memset(fxTmp, 0, words * sizeof(int32_t));
+            mixAddTrack(mixT[MIX_LAYER], fxTmp, words);
+            layerFx.process(fxTmp, words, sr);
+            for (int i = 0; i < words; i++) {
+                int64_t v = (int64_t)buf[i] + fxTmp[i];
+                buf[i] = v > INT32_MAX ? INT32_MAX : (v < INT32_MIN ? INT32_MIN : (int32_t)v);
+            }
+        } else {
+            mixAddTrack(mixT[MIX_LAYER], buf, words);
+        }
+    } else {
+        mixAddTrack(mixT[MIX_LAYER], buf, words);
+    }
     if (muteMain) muteApply(buf, words);
 
     // Sprache im Hauptstrom bekommt die Ansage-Effekte, eine Datei im Hauptstrom die allgemeinen; Webradio bleibt immer unbearbeitet.
@@ -3226,10 +3256,11 @@ bool fileMixed(const Pending& p) {
         if (mixT[want].inUse) layer = want == MIX_ANN;   // die andere Spur nehmen / take the other track
     }
 
-    // Die Effektwerte der Ansagen nur setzen, wenn die Datei auf die Ansagenspur kommt; eine laufende Ansage behaelt sonst ihre Werte.
-    // Set the effect values of the announcements only if the file goes on the announcement track; otherwise a running announcement keeps its values.
+    // Die Effektwerte gehoeren zur Spur der Datei: Ansagenspur mit Hall und Klangregler, Hintergrundspur nur mit Wandern und Klangregler; die andere Spur behaelt ihre Werte.
+    // The effect values belong to the track of the file: announcement track with reverb and tone control, background track only with sweep and tone control; the other track keeps its values.
 
-    if (!layer) annSetParams(fxFileParamsFor(p));
+    if (layer) layerSetParams(fxFileParamsFor(p));
+    else annSetParams(fxFileParamsFor(p));
     if (!mixStart(layer ? MIX_LAYER : MIX_ANN, r.path, p.vol >= 0 ? p.vol : cfg.vol, r.sd, !together, !(nowKind == "file" && !streamActive))) return false;
 
     // Laeuft schon eine Datei, bleibt sie die angezeigte; nur ueber einem Radio steht die gemischte Datei in nowFile.
@@ -3297,6 +3328,7 @@ bool stopFileIfPlaying(const String& name) {
         hit = true;
     }
     if (hit) {
+        if (dirSess.active && dirSess.dir.startsWith("loop:")) dirSess.active = false;   // Endlosschleife dieser Datei beenden / end the endless loop of this file
         publishStatus(true);
         settleVolume();
     }
@@ -4172,7 +4204,7 @@ void dirShuffle(std::vector<String>& v, const String& avoid) {
 // Beginnt eine Ordner-Sitzung (shuffle = zufaellige Reihenfolge, loop = endlos); die Dateien kommen einzeln in die Warteschlange.
 // Starts a folder session (shuffle = random order, loop = endless); the files are put into the queue one at a time.
 
-String commandPlayDir(const String& refIn, int vol, bool shuffle = false, bool loop = false) {
+String commandPlayDir(const String& refIn, int vol, bool shuffle = false, int loop = 1) {
     String dir = refIn.substring(3);
     if (!dir.startsWith("/")) dir = "/" + dir;
     std::vector<SdEntry> list;
@@ -4195,7 +4227,7 @@ String commandPlayDir(const String& refIn, int vol, bool shuffle = false, bool l
         dirShuffle(s.names, avoid);
         prefs.putString("dirfirst", dir + "|" + s.names[0]);
     }
-    logLine("[DIR] session " + dir + ": " + String(s.names.size()) + " files" + (shuffle ? ", shuffled, first " + s.names[0] : String()) + (loop ? ", loop" : String()));
+    logLine("[DIR] session " + dir + ": " + String(s.names.size()) + " files" + (shuffle ? ", shuffled, first " + s.names[0] : String()) + (loop != 1 ? ", loop " + String(loop) : String()));
     dirSess = s;
     return "";
 }
@@ -4203,7 +4235,7 @@ String commandPlayDir(const String& refIn, int vol, bool shuffle = false, bool l
 // Ordner-Sitzung fuer den Flash: "/" ist der Ordner der MP3-Dateien, "ansagen/" der Unterordner mit den gespeicherten Texten.
 // Folder session for the flash: "/" is the folder of the MP3 files, "ansagen/" the subfolder with the saved texts.
 
-String commandPlayDirFlash(const String& refIn, int vol, bool shuffle, bool loop) {
+String commandPlayDirFlash(const String& refIn, int vol, bool shuffle, int loop) {
     String sub = refIn;
     sub.trim();
     while (sub.startsWith("/")) sub.remove(0, 1);
@@ -4241,7 +4273,7 @@ String commandPlayDirFlash(const String& refIn, int vol, bool shuffle, bool loop
         dirShuffle(s.names, avoid);
         prefs.putString("dirfirst", key + "|" + s.names[0]);
     }
-    logLine("[DIR] session " + key + ": " + String(s.names.size()) + " files" + (shuffle ? ", shuffled, first " + s.names[0] : String()) + (loop ? ", loop" : String()));
+    logLine("[DIR] session " + key + ": " + String(s.names.size()) + " files" + (shuffle ? ", shuffled, first " + s.names[0] : String()) + (loop != 1 ? ", loop " + String(loop) : String()));
     dirSess = s;
     return "";
 }
@@ -4252,17 +4284,18 @@ String commandPlayDirFlash(const String& refIn, int vol, bool shuffle, bool loop
 void dirFeed() {
     if (!dirSess.active || annCount > 0 || pending.type != PEND_NONE || announceBusy() || playState == PS_LOADING) return;
     if (millis() - dirSess.lastFeed < 400) return;
-    if (!sdReady) {
+    if (!sdReady && dirSess.names.size() > 0 && dirSess.names[0].startsWith("sd:")) {   // nur Dateien der Karte brauchen die Karte / only files of the card need the card
         dirSess.active = false;
         return;
     }
     if (dirSess.pos >= dirSess.names.size()) {
-        if (!dirSess.loop) {
+        if (dirSess.loop >= 0 && dirSess.round >= dirSess.loop) {
             logLine("[DIR] session finished");
             dirSess.active = false;
             return;
         }
         dirSess.pos = 0;
+        dirSess.round++;
         if (dirSess.shuffle) dirShuffle(dirSess.names, dirSess.lastPlayed);
         logLine("[DIR] new round" + String(dirSess.shuffle ? ", shuffled" : ""));
     }
@@ -4276,7 +4309,7 @@ void dirFeed() {
     dirSess.lastFeed = millis();
     annPush(q);
 }
-String commandPlayDirFlash(const String& refIn, int vol, bool shuffle, bool loop);
+String commandPlayDirFlash(const String& refIn, int vol, bool shuffle, int loop);
 
 // Stereo-Position eines Aufrufs lesen: pan = off, left, right, lr, rl oder pp; pansec = Dauer eines Durchgangs in Sekunden (0,5 bis 20). Leer = allgemeine Einstellung.
 // Read the stereo position of a call: pan = off, left, right, lr, rl or pp; pansec = duration of one pass in seconds (0.5 to 20). Empty = general setting.
@@ -4300,7 +4333,7 @@ String panArgs(String pan, String sec, int& pn, int& pds) {
     return "";
 }
 
-String commandPlayFileFx(const String& nameIn, int vol, bool shuffle, bool loop, int pan, int panDs) {
+String commandPlayFileFx(const String& nameIn, int vol, bool shuffle, int loop, int pan, int panDs) {
     String name = nameIn;
     name.trim();
     if (name.isEmpty()) return "Kein Dateiname angegeben";
@@ -4320,6 +4353,24 @@ String commandPlayFileFx(const String& nameIn, int vol, bool shuffle, bool loop,
         }
         return r;
     }
+    // Eine einzelne Datei mit loop=1 wiederholt sich endlos: eine Sitzung mit nur dieser Datei (Stopp beendet sie).
+    // A single file with loop=1 repeats endlessly: a session with only this file (stop ends it).
+
+    if (loop > 1 || loop < 0) {
+        FileRef r = resolveFile(name);
+        if (!r.ok) return String(r.sd && !sdReady ? "SD-Karte nicht verfuegbar" : "Datei nicht gefunden");
+        DirSession s;
+        s.names.push_back(name);
+        s.active = true;
+        s.loop = loop;
+        s.vol = vol;
+        s.pan = pan;
+        s.panDs = panDs;
+        s.dir = "loop:" + name;
+        logLine("[DIR] loop session: " + name);
+        dirSess = s;
+        return "";
+    }
     Pending q;
     q.type = PEND_FILE;
     q.text = name;
@@ -4330,7 +4381,7 @@ String commandPlayFileFx(const String& nameIn, int vol, bool shuffle, bool loop,
     return "";
 }
 
-String commandPlayFile(const String& nameIn, int vol, bool shuffle = false, bool loop = false) {
+String commandPlayFile(const String& nameIn, int vol, bool shuffle = false, int loop = 1) {
     return commandPlayFileFx(nameIn, vol, shuffle, loop, -1, -1);
 }
 
@@ -4465,6 +4516,19 @@ bool flagOn(const String& s) {
     t.trim();
     t.toLowerCase();
     return t == "1" || t == "true" || t == "on" || t == "yes";
+}
+// Anzahl der Wiedergaben aus Text: leer, 0 oder 1 = einmal, ab 2 so oft, true/on/yes/endless oder eine negative Zahl = endlos (-1).
+// Number of plays from text: empty, 0 or 1 = once, from 2 that many times, true/on/yes/endless or a negative number = endless (-1).
+
+int loopCount(const String& s) {
+    String t = s;
+    t.trim();
+    t.toLowerCase();
+    if (t.isEmpty()) return 1;
+    if (t == "true" || t == "on" || t == "yes" || t == "ja" || t == "endless" || t == "endlos") return -1;
+    int v = (int)t.toInt();
+    if (v < 0) return -1;
+    return v < 2 ? 1 : (v > 1000 ? 1000 : v);
 }
 // ---------------------------------------------------------------------------
 // MQTT
@@ -4621,7 +4685,8 @@ void onMqttMessage(char* topic, uint8_t* payload, unsigned int length) {
     } else if (t == base + "/play" || t == base + "/url" || t == base + "/file") {
         String url = body, file = body;
         int v = -1;
-        bool shuffle = false, loop = false;
+        bool shuffle = false;
+        int loop = 1;
         int pn = -1, pds = -1;
         String panErr;
         if (isJson) {
@@ -4629,7 +4694,7 @@ void onMqttMessage(char* topic, uint8_t* payload, unsigned int length) {
             file = jsonGet(body, "file");
             v = numberOr(jsonGet(body, "vol"), -1);
             shuffle = flagOn(jsonGet(body, "shuffle"));
-            loop = flagOn(jsonGet(body, "loop"));
+            loop = loopCount(jsonGet(body, "loop"));
             panErr = panArgs(jsonGet(body, "pan"), jsonGet(body, "pansec"), pn, pds);
         }
         bool wantUrl = t == base + "/url" || (t == base + "/play" && (url.startsWith("http://") || url.startsWith("https://")));

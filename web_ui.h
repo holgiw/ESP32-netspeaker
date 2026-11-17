@@ -748,10 +748,10 @@ curl -H "Content-Type: application/json" -d '{"text":"Hallo Welt","lang":"de-de"
 curl -d "url=http://stream.example.com/radio.mp3" http://@HOST@/api/url
 curl "http://@HOST@/api/url?url=http://stream.example.com/radio.mp3&vol=10")d");
     h += docCard("SD-Karte",
-        "Dateien der SD-Karte (FAT32, nur MP3) werden mit dem Namen <code>sd:/Ordner/Datei.mp3</code> angesprochen, in <code>file</code> von <code>/api/play</code> und <code>/api/file</code> und ebenso per MQTT (<code>/file</code>, <code>/play</code>). Endet der Name mit <code>/</code>, spielt das Ger&auml;t alle MP3-Dateien des Ordners nacheinander (nach Name sortiert); sie kommen einzeln in die Warteschlange, Ansagen dazwischen kommen zuerst. Mit <code>shuffle=1</code> ist die Reihenfolge je Sitzung zuf&auml;llig und jede Datei kommt einmal vor, die erste ist nie die der letzten Sitzung dieses Ordners; mit <code>loop=1</code> beginnt nach der letzten Datei eine neue Runde (bei shuffle neu gemischt, die erste Datei ist nie die zuletzt gespielte). Ein neuer Sender oder Stopp beendet die Sitzung. <code>/api/sd?dir=/Ordner</code> listet einen Ordner, <code>/api/sdmount</code> bindet die Karte neu ein. <code>POST /api/sdformat</code> mit <code>confirm=yes</code> legt die Karte als FAT32 neu an, auch eine neue oder unbekannte ohne lesbares Dateisystem; dabei geht alles auf der Karte verloren. Dateimanager: Hochladen mit <code>/upload?target=sd&amp;dir=/Ordner</code>, <code>/api/sdmkdir</code> (dir, name), <code>/api/sdrename</code> (path, to), <code>/api/sddelete</code> (path; ein Ordner wird samt Inhalt gel&ouml;scht) und <code>/api/sdfile?path=...</code> zum Herunterladen. Namen werden bereinigt (Umlaute umgeschrieben, Leerzeichen zu Unterstrichen). Ansagen k&ouml;nnen auf der Karte zwischengespeichert werden (Tab Audio, Sprachausgabe): <code>GET /api/ttscache</code> liefert <code>enabled</code>, <code>files</code> und <code>bytes</code>, <code>POST /api/ttscache</code> mit <code>clear=1</code> l&ouml;scht den Zwischenspeicher (Ordner <code>/tts</code>, Dateinamen wie <code>Achtung_auf_Gleis_3_3fa9c2e1.mp3</code>, h&ouml;chstens 500).",
+        "Dateien der SD-Karte (FAT32, nur MP3) werden mit dem Namen <code>sd:/Ordner/Datei.mp3</code> angesprochen, in <code>file</code> von <code>/api/play</code> und <code>/api/file</code> und ebenso per MQTT (<code>/file</code>, <code>/play</code>). Endet der Name mit <code>/</code>, spielt das Ger&auml;t alle MP3-Dateien des Ordners nacheinander (nach Name sortiert); sie kommen einzeln in die Warteschlange, Ansagen dazwischen kommen zuerst. Mit <code>shuffle=1</code> ist die Reihenfolge je Sitzung zuf&auml;llig und jede Datei kommt einmal vor, die erste ist nie die der letzten Sitzung dieses Ordners; mit <code>loop=N</code> (ab 2; 0 und 1 = einmal, <code>-1</code> oder <code>true</code> = endlos) folgen entsprechend viele Runden (bei shuffle neu gemischt, die erste Datei ist nie die zuletzt gespielte); auch eine einzelne Datei (SD oder Flash) wiederholt sich so. Ein neuer Sender oder Stopp beendet die Sitzung. <code>/api/sd?dir=/Ordner</code> listet einen Ordner, <code>/api/sdmount</code> bindet die Karte neu ein. <code>POST /api/sdformat</code> mit <code>confirm=yes</code> legt die Karte als FAT32 neu an, auch eine neue oder unbekannte ohne lesbares Dateisystem; dabei geht alles auf der Karte verloren. Dateimanager: Hochladen mit <code>/upload?target=sd&amp;dir=/Ordner</code>, <code>/api/sdmkdir</code> (dir, name), <code>/api/sdrename</code> (path, to), <code>/api/sddelete</code> (path; ein Ordner wird samt Inhalt gel&ouml;scht) und <code>/api/sdfile?path=...</code> zum Herunterladen. Namen werden bereinigt (Umlaute umgeschrieben, Leerzeichen zu Unterstrichen). Ansagen k&ouml;nnen auf der Karte zwischengespeichert werden (Tab Audio, Sprachausgabe): <code>GET /api/ttscache</code> liefert <code>enabled</code>, <code>files</code> und <code>bytes</code>, <code>POST /api/ttscache</code> mit <code>clear=1</code> l&ouml;scht den Zwischenspeicher (Ordner <code>/tts</code>, Dateinamen wie <code>Achtung_auf_Gleis_3_3fa9c2e1.mp3</code>, h&ouml;chstens 500).",
         R"d(curl -d "file=sd:/Musik/lied.mp3" http://@HOST@/api/play
 curl -d "file=sd:/Musik/Album/" http://@HOST@/api/play
-curl -d "file=sd:/Musik/&shuffle=1&loop=1" http://@HOST@/api/play
+curl -d "file=sd:/Musik/&shuffle=1&loop=-1" http://@HOST@/api/play
 curl "http://@HOST@/api/file?file=sd:/Musik/lied.mp3&pan=lr&pansec=5"
 curl "http://@HOST@/api/sd?dir=/Musik"
 curl -F "file=@lied.mp3" "http://@HOST@/upload?target=sd&dir=/Musik"
@@ -1204,7 +1204,7 @@ function fselDelete(box,mode,resId,reload){var l=fselList(box);if(!l.length){sho
     var q=mode==='sd'?['/api/sddelete',{path:x.p}]:['/api/delete',{file:x.d?x.p+'/':x.p}];
     return fetch(q[0],{method:'POST',body:new URLSearchParams(q[1])}).then(function(r){return r.json();}).then(function(j){if(j&&j.ok)okc++;else bad.push(x.p);}).catch(function(){bad.push(x.p);});});},Promise.resolve())
   .then(function(){reload();showRes(resId,bad.length?{ok:false,error:okc+' von '+l.length+' gel\u00f6scht; Fehler: '+bad.join(', ')}:{ok:true,msg:okc+(okc==1?' Eintrag':' Eintr\u00e4ge')+' gel\u00f6scht'});});}
-function sdLoopOn(){var c=document.getElementById('sdLoop');return c&&c.checked?'1':'0';}
+function sdLoopOn(){var c=document.getElementById('sdLoop');return c&&c.checked?'-1':'1';}
 function renFile(n){var x=prompt('Neuer Name:',n);if(!x||x===n)return;postApi('/api/rename',{file:n,to:x},'upResult').then(function(){loadFiles();});}
 function delFile(n){if(!confirm('Datei '+n+' löschen?'))return;postApi('/api/delete',{file:n},'upResult').then(function(){loadFiles();});}
 var fsCur='';
@@ -1557,7 +1557,9 @@ void handleRoot() {
     webserver.setContentLength(CONTENT_LENGTH_UNKNOWN);
     webserver.sendHeader("Cache-Control", "no-store");
     webserver.send(200, "text/html; charset=utf-8", "");
-    sendChunk("<!DOCTYPE html><html lang='de'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>" PROJECT_TITLE "</title><style>");
+    // Titel der Registerkarte: der Hostname, damit mehrere Geraete im Browser unterscheidbar sind (ohne Hostnamen der Projektname).
+    // Browser tab title: the hostname so several devices can be told apart (the project name if there is no hostname).
+    sendChunk("<!DOCTYPE html><html lang='de'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>" + (cfg.host.isEmpty() ? String(PROJECT_TITLE) : htmlEsc(cfg.host)) + "</title><style>");
     sendChunk(FPSTR(PAGE_CSS));
     String tabCss;
     for (int i = 0; i < TAB_COUNT; i++) {
@@ -2257,7 +2259,7 @@ void handleApiPlay() {
     int vol = numberOr(apiArg("vol"), -1);
     int pn, pds;
     String panErr = panArgs(apiArg("pan"), apiArg("pansec"), pn, pds);
-    String err = url.length() > 0 ? commandPlayUrl(url, vol) : (file.length() > 0 ? (panErr.isEmpty() ? commandPlayFileFx(file, vol, flagOn(apiArg("shuffle")), flagOn(apiArg("loop")), pn, pds) : panErr) : String("url oder file angeben"));
+    String err = url.length() > 0 ? commandPlayUrl(url, vol) : (file.length() > 0 ? (panErr.isEmpty() ? commandPlayFileFx(file, vol, flagOn(apiArg("shuffle")), loopCount(apiArg("loop")), pn, pds) : panErr) : String("url oder file angeben"));
     if (err.length() > 0) return sendErr(400, err);
     sendOk("Wird abgespielt");
 }
@@ -2272,7 +2274,7 @@ void handleApiFile() {
     if (flagOn(apiArg("toggle")) && stopFileIfPlaying(apiArg("file"))) return sendOk("Gestoppt");
     int pn, pds;
     String panErr = panArgs(apiArg("pan"), apiArg("pansec"), pn, pds);
-    String err = panErr.isEmpty() ? commandPlayFileFx(apiArg("file"), numberOr(apiArg("vol"), -1), flagOn(apiArg("shuffle")), flagOn(apiArg("loop")), pn, pds) : panErr;
+    String err = panErr.isEmpty() ? commandPlayFileFx(apiArg("file"), numberOr(apiArg("vol"), -1), flagOn(apiArg("shuffle")), loopCount(apiArg("loop")), pn, pds) : panErr;
     if (err.length() > 0) return sendErr(400, err);
     sendOk("Wird abgespielt");
 }
