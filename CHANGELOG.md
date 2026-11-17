@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-17 - Version 1.6.19
+
+**Deutsch**
+
+- Neu: Im Tab *Sicherung* macht der Haken *Debug-Sicherung* (Standard an) aus der Sicherung eine Fehlersuche-Datei: Das aktuelle Log liegt als `log.txt` in der ZIP-Datei, der VoiceRSS-Schlüssel, das MQTT-Passwort und die WLAN-Passwörter bleiben draußen, damit sich die Datei weitergeben lässt. Beim Einlesen wird das Log nicht wiederhergestellt; die Info zeigt, dass es enthalten ist und ob ein VoiceRSS-Schlüssel dabei ist. Ist das Log aus und leer, kommt es nicht in die Sicherung.
+
+**English**
+
+- New: in the *Sicherung* tab the tick *Debug-Sicherung* (on by default) turns the backup into a troubleshooting file: the current log is in the ZIP file as `log.txt`, the VoiceRSS key, the MQTT password and the WiFi passwords are left out so the file can be passed on. When the backup is read in the log is not restored; the info shows that it is included and whether a VoiceRSS key is in it. If the log is off and empty it is not put into the backup.
+
 ## 2026-11-17 - Version 1.6.18
 
 **Deutsch**

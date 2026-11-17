@@ -554,6 +554,8 @@ static const char LANG_EN_JSON[] PROGMEM = R"lang({
 "Dateien der SD-Karte einschließen":"Include files of the SD card",
 "Nimmt MP3-Dateien der SD-Karte mit ihren Ordnern in die ZIP-Datei auf. Nach dem Haken erscheint die Liste; einzelne Dateien lassen sich abwählen. Große Mengen brauchen Zeit und Speicher im Browser (bis 1,5 GB).":"Adds MP3 files of the SD card with their folders to the ZIP file. After ticking the box the list appears; single files can be unticked. Large amounts take time and memory in the browser (up to 1.5 GB).",
 "Dateien der SD-Karte übernehmen":"Apply files of the SD card",
+"Debug-Sicherung (mit aktuellem Log, ohne Schlüssel und Passwörter)":"Debug backup (with the current log, without keys and passwords)",
+"Legt das aktuelle Log als log.txt in die ZIP-Datei, zur Fehlersuche, und lässt den VoiceRSS-Schlüssel, das MQTT-Passwort und die WLAN-Passwörter weg, damit sich die Datei weitergeben lässt. Beim Einlesen wird das Log nicht wiederhergestellt. Ist das Log aus (Tab Log) und leer, wird es nicht aufgenommen.":"Puts the current log into the ZIP file as log.txt, for troubleshooting, and leaves out the VoiceRSS key, the MQTT password and the WiFi passwords so the file can be passed on. The log is not restored when the backup is read in. If the log is off (Log tab) and empty, it is not included.",
 "Spielt die MP3-Dateien der SD-Karte aus der ZIP-Datei auf die Karte ein, mit ihren Ordnern und Dateinamen; Dateien gleichen Namens werden ersetzt.":"Loads the MP3 files of the SD card from the ZIP file onto the card, with their folders and file names; files of the same name are replaced.",
 "Lese Karte …":"Reading card …",
 "Keine Dateien auf der SD-Karte":"No files on the SD card",
