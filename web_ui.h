@@ -689,6 +689,7 @@ String panelBackup() {
     h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='bkWifi' style='width:auto;margin:0;'>WLAN-Zugangsdaten einschlie&szlig;en</label> " + infoTip("Nimmt die WLAN-Passw&ouml;rter verschl&uuml;sselt in die Sicherung auf, sie stehen nicht im Klartext in der Datei. Der Schl&uuml;ssel steckt in der Firmware; die Datei trotzdem gut aufbewahren. Ohne den Haken enth&auml;lt die Sicherung nur die Namen der Netze. Nur aus dem lokalen Netz m&ouml;glich") + "</div>";
     h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='bkFiles' style='width:auto;margin:0;'>Dateien im Flash einschlie&szlig;en</label> <small id='bkFilesInfo'></small> " + infoTip("Nimmt die MP3-Dateien aus dem Speicher des Ger&auml;ts (Tab MP3 (Flash), auch gespeicherte Texte) in eine ZIP-Datei auf") + "</div>";
     h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='bkSd' onchange='bkSdToggle()' style='width:auto;margin:0;'>Dateien der SD-Karte einschlie&szlig;en</label> <small id='bkSdInfo'></small> " + infoTip("Nimmt MP3-Dateien der SD-Karte mit ihren Ordnern in die ZIP-Datei auf. Nach dem Haken erscheint die Liste; einzelne Dateien lassen sich abw&auml;hlen. Gro&szlig;e Mengen brauchen Zeit und Speicher im Browser (bis 1,5 GB)") + "</div><div id='bkSdBox' style='display:none'></div>";
+    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='bkLog' checked style='width:auto;margin:0;'>Debug-Sicherung (mit aktuellem Log, ohne Schl&uuml;ssel und Passw&ouml;rter)</label> " + infoTip("Legt das aktuelle Log als log.txt in die ZIP-Datei, zur Fehlersuche, und l&auml;sst den VoiceRSS-Schl&uuml;ssel, das MQTT-Passwort und die WLAN-Passw&ouml;rter weg, damit sich die Datei weitergeben l&auml;sst. Beim Einlesen wird das Log nicht wiederhergestellt. Ist das Log aus (Tab Log) und leer, wird es nicht aufgenommen") + "</div>";
     h += "<div class='row'><button type='button' onclick='bkCreate()' style='width:auto;padding:8px 14px'>Sicherung erstellen</button></div><div id='bkResult'></div></div>";
     h += "<div class='card' style='max-width:900px'><h3>Sicherung einlesen</h3>";
     h += "<p>Liest eine Sicherung wieder ein, entweder die Textdatei mit den Einstellungen oder die ZIP-Datei mit Dateien. Bestehende Einstellungen werden &uuml;berschrieben.</p>";
@@ -1088,6 +1089,7 @@ function bkUnzip(buf){var v=new DataView(buf),u=new Uint8Array(buf),off=0,out=[]
 function bkSave(blob,name){var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},2000);}
 function bkChk(id){var e=document.getElementById(id);return !!(e&&e.checked);}
 function bkFilesInfo(){fetch('/api/files',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){var n=(j.files||[]).length,b=0;(j.files||[]).forEach(function(f){b+=f.size;});var e=document.getElementById('bkFilesInfo');if(e)e.textContent='('+n+' Dateien, '+Math.round(b/1024)+' KB)';}).catch(function(){});}
+var BKLOG=false;
 function bkMB(b){return b>=1048576?(b/1048576).toFixed(1)+' MB':Math.round(b/1024)+' KB';}
 function bkSdScan(dir,out,depth){return fetch('/api/sd?dir='+encodeURIComponent(dir),{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){var p=Promise.resolve();if(!j||!j.ok)return p;
   (j.entries||[]).forEach(function(e){var path=(dir==='/'?'':dir)+'/'+e.n;if(e.d){if(depth<6)p=p.then(function(){return bkSdScan(path,out,depth+1);});}else out.push({p:path,s:e.s});});return p;});}
@@ -1102,33 +1104,36 @@ function bkSdRender(box,list){box.textContent='';list.sort(function(a,b){return 
 function bkSdToggle(){var box=document.getElementById('bkSdBox'),on=bkChk('bkSd');if(!box)return;box.style.display=on?'':'none';
   if(!on||box.getAttribute('data-ok'))return;box.textContent='Lese Karte \u2026';var out=[];bkSdScan('/',out,0).then(function(){bkSdRender(box,out);}).catch(function(){box.textContent='SD-Karte nicht lesbar';});}
 function bkSdSel(){var r=[];document.querySelectorAll('#bkSdBox input.bksd').forEach(function(c){if(c.checked)r.push({p:c.getAttribute('data-p'),s:+c.getAttribute('data-s')});});return r;}
-function bkCreate(){var wifi=bkChk('bkWifi'),files=bkChk('bkFiles'),sd=bkChk('bkSd')?bkSdSel():[],base=(window.UI_HOST||'netspeaker'),tot=0;sd.forEach(function(x){tot+=x.s;});
+function bkCreate(){var wifi=bkChk('bkWifi'),files=bkChk('bkFiles'),sd=bkChk('bkSd')?bkSdSel():[],log=bkChk('bkLog'),base=(window.UI_HOST||'netspeaker'),tot=0;if(log)wifi=false;sd.forEach(function(x){tot+=x.s;});
   if(tot>1610612736){showRes('bkResult',{ok:false,error:'Die gew\u00e4hlten SD-Dateien sind zu gro\u00df f\u00fcr eine ZIP-Datei im Browser (h\u00f6chstens 1,5 GB)'});return;}
   if(tot>314572800&&!confirm('Die gew\u00e4hlten SD-Dateien sind '+bkMB(tot)+' gro\u00df; das Erstellen braucht Zeit und viel Speicher im Browser. Fortfahren?'))return;
   showRes('bkResult',{ok:true,msg:'Erstelle Sicherung &hellip;'});
   fetch('/export'+(wifi?'?wifi=1':''),{cache:'no-store'}).then(function(r){return r.text();}).then(function(txt){
-    if(!files&&!sd.length){bkSave(new Blob([txt],{type:'text/plain'}),base+'-settings.txt');showRes('bkResult',{ok:true,msg:'Sicherung erstellt'});return;}
-    var enc=new TextEncoder(),ents=[{name:'settings.txt',data:enc.encode(txt)}],nf=0;
+    if(log)txt=txt.split('\n').filter(function(l){return l.indexOf('vkey=')!==0&&l.indexOf('mq_pass=')!==0;}).join('\n');
+    return (log?fetch('/log',{cache:'no-store'}).then(function(r){return r.text();}).catch(function(){return '';}):Promise.resolve('')).then(function(lg){lg=lg.trim()?lg:'';
+    if(!files&&!sd.length&&!lg){bkSave(new Blob([txt],{type:'text/plain'}),base+'-settings.txt');showRes('bkResult',{ok:true,msg:'Sicherung erstellt'+(log?' (das Log ist leer und nicht enthalten)':'')});return;}
+    var enc=new TextEncoder(),ents=[{name:'settings.txt',data:enc.encode(txt)}],nf=0;if(lg)ents.push({name:'log.txt',data:enc.encode(lg)});
     var flash=files?fetch('/api/files',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){return j.files||[];}):Promise.resolve([]);
     return flash.then(function(list){nf=list.length;
       return list.reduce(function(p,f,i){return p.then(function(){showRes('bkResult',{ok:true,msg:'Lade Datei '+(i+1)+' von '+list.length+' &hellip;'});
         return fetch('/api/fileget?file='+encodeURIComponent(f.name),{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error(f.name);return r.arrayBuffer();}).then(function(ab){ents.push({name:'mp3/'+f.name,data:new Uint8Array(ab)});});});},Promise.resolve())
       .then(function(){return sd.reduce(function(p,f,i){return p.then(function(){showRes('bkResult',{ok:true,msg:'Lade SD-Datei '+(i+1)+' von '+sd.length+' &hellip;'});
         return fetch('/api/sdfile?path='+encodeURIComponent(f.p),{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error(f.p);return r.arrayBuffer();}).then(function(ab){ents.push({name:'sd'+f.p,data:new Uint8Array(ab)});});});},Promise.resolve());})
-      .then(function(){bkSave(bkZip(ents),base+'-backup.zip');showRes('bkResult',{ok:true,msg:'Sicherung erstellt ('+(nf+sd.length)+' Dateien)'});});});
+      .then(function(){bkSave(bkZip(ents),base+'-backup.zip');showRes('bkResult',{ok:true,msg:'Sicherung erstellt ('+(nf+sd.length)+' Dateien'+(lg?', mit Log':'')+')'});});});
+    });
   }).catch(function(e){showRes('bkResult',{ok:false,error:'Sicherung fehlgeschlagen'});});}
-function bkPick(){var inp=document.getElementById('bkFile'),f=inp.files[0],info=document.getElementById('bkInfo'),btn=document.getElementById('bkRestoreBtn');BK=null;btn.disabled=true;
+function bkPick(){var inp=document.getElementById('bkFile'),f=inp.files[0],info=document.getElementById('bkInfo'),btn=document.getElementById('bkRestoreBtn');BK=null;BKLOG=false;btn.disabled=true;
   ['bkImpWifi','bkImpFiles','bkImpSd'].forEach(function(id){var c=document.getElementById(id);if(c){c.disabled=true;c.checked=false;}});info.textContent='';
   if(!f)return;
   function ready(settings,files,sdf){if(settings.indexOf('# netspeaker settings export')!==0){showRes('bkRestoreResult',{ok:false,error:'Das ist keine Sicherung dieses Ger\u00e4ts'});return;}
     var hasWifi=/^pass[123]=/m.test(settings),n=files.length,b=0,ns=sdf.length,bs=0;files.forEach(function(x){b+=x.data.length;});sdf.forEach(function(x){bs+=x.data.length;});BK={settings:settings,files:files,sd:sdf};
-    info.textContent='Einstellungen: ja; WLAN-Passw\u00f6rter: '+(hasWifi?'ja':'nein')+'; Dateien im Flash: '+n+(n?' ('+Math.round(b/1024)+' KB)':'')+'; Dateien auf der SD-Karte: '+ns+(ns?' ('+bkMB(bs)+')':'');
+    info.textContent='Einstellungen: ja; WLAN-Passw\u00f6rter: '+(hasWifi?'ja':'nein')+'; Dateien im Flash: '+n+(n?' ('+Math.round(b/1024)+' KB)':'')+'; Dateien auf der SD-Karte: '+ns+(ns?' ('+bkMB(bs)+')':'')+(BKLOG?'; Log: enthalten (wird nicht wiederhergestellt)':'')+'; VoiceRSS-Schl\u00fcssel: '+(/^vkey=/m.test(settings)?'ja':'nein');
     document.getElementById('bkImpWifi').disabled=false;
     if(n){document.getElementById('bkImpFiles').disabled=false;document.getElementById('bkImpFiles').checked=true;}
     if(ns){document.getElementById('bkImpSd').disabled=false;document.getElementById('bkImpSd').checked=true;}
     btn.disabled=false;document.getElementById('bkRestoreResult').innerHTML='';}
   if(/\.zip$/i.test(f.name)){f.arrayBuffer().then(function(ab){var ents;try{ents=bkUnzip(ab);}catch(e){showRes('bkRestoreResult',{ok:false,error:'ZIP-Datei nicht lesbar (nur unkomprimierte Sicherungen dieses Ger\u00e4ts)'});return;}
-      var st=null,fl=[],sf=[];ents.forEach(function(e){if(e.name==='settings.txt')st=new TextDecoder().decode(e.data);else if(/^mp3\/(ansagen\/)?[^\/]+\.mp3$/i.test(e.name))fl.push({name:e.name.substring(4),data:e.data});
+      var st=null,fl=[],sf=[];ents.forEach(function(e){if(e.name==='settings.txt')st=new TextDecoder().decode(e.data);else if(e.name==='log.txt')BKLOG=true;else if(/^mp3\/(ansagen\/)?[^\/]+\.mp3$/i.test(e.name))fl.push({name:e.name.substring(4),data:e.data});
         else if(/^sd\/.+\.mp3$/i.test(e.name)&&e.name.indexOf('..')<0&&e.name.indexOf('//')<0&&e.name.indexOf('\\')<0)sf.push({name:e.name.substring(2),data:e.data});});
       if(st===null){showRes('bkRestoreResult',{ok:false,error:'Keine Einstellungen in der ZIP-Datei'});return;}ready(st,fl,sf);});}
   else f.text().then(function(t){ready(t,[],[]);});}
