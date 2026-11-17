@@ -495,10 +495,12 @@ String panelMqtt() {
     h += "<button type='submit' style='width:auto;padding:10px 28px'>Speichern</button></form>";
     h += "<h3 style='margin-top:1.4rem'>Topics</h3><p>Befehle sendest du an die Topics mit <span class='kind cmd'>senden</span>, Meldungen liest du von denen mit <span class='kind msg'>lesen</span> (die meisten sind <em>retained</em>, du bekommst den letzten Stand sofort beim Abonnieren). Als Nutzlast geht Text oder JSON.</p>";
     h += "<table><tr><th>Topic</th><th>Art</th><th>Nutzlast</th><th>Beispiele</th></tr>";
+    static const char* const exSayTime[] = {"(leer)", "40", "{\"vol\":40,\"lang\":\"de-de\"}"};
     static const char* const exSay[] = {"Das Abendessen ist fertig", "{\"text\":\"Es klingelt an der T\xC3\xBCr\",\"lang\":\"de-de\",\"voice\":\"Hanna\",\"vol\":15}"};
     static const char* const exPlay[] = {"https://dispatcher.rndfnk.com/br/br3/live/mp3/mid", "klingel.mp3", "{\"file\":\"klingel.mp3\",\"vol\":18}"};
     static const char* const exUrl[] = {"https://dispatcher.rndfnk.com/br/br3/live/mp3/mid"};
     static const char* const exFile[] = {"klingel.mp3"};
+    static const char* const exFavorite[] = {"christmas", "3", "{\"key\":\"christmas\",\"vol\":8}"};
     static const char* const exStation[] = {"2", "BR3", "{\"name\":\"BR3\",\"vol\":8}"};
     static const char* const exStop[] = {"(leer)"};
     static const char* const exVol[] = {"50", "{\"v\":60,\"ms\":3000}"};
@@ -511,9 +513,11 @@ String panelMqtt() {
     static const char* const exVolState[] = {"12"};
     static const char* const exAvail[] = {"online", "offline"};
     h += mqttRow(base, "/say", true, "Text, der angesagt wird. Oder JSON mit <code>text</code> und optional <code>lang</code>, <code>voice</code>, <code>rate</code>, <code>vol</code>, <code>save</code>, <code>fx</code> (0 = ohne Klangeffekt).", exSay, 2);
+    h += mqttRow(base, "/saytime", true, "Sagt die aktuelle Uhrzeit an (Stimme und Sprache wie eingestellt). Leer, oder eine Zahl als Lautst&auml;rke, oder JSON mit optional <code>lang</code>, <code>voice</code>, <code>rate</code>, <code>vol</code>, <code>fx</code>.", exSayTime, 3);
     h += mqttRow(base, "/play", true, "URL (Webradio, MP3) <em>oder</em> Dateiname aus dem Tab MP3 (Flash) oder <code>sd:/Pfad.mp3</code> von der SD-Karte. Das Ger&auml;t erkennt selbst, was es ist. JSON: <code>url</code> oder <code>file</code>, optional <code>vol</code>; bei einem Ordner (<code>sd:/Pfad/</code>) auch <code>shuffle</code> (zuf&auml;llige Reihenfolge) und <code>loop</code> (endlos), z. B. <code>{&quot;file&quot;:&quot;sd:/Musik/&quot;,&quot;shuffle&quot;:1,&quot;loop&quot;:1}</code>.", exPlay, 3);
     h += mqttRow(base, "/url", true, "URL (http:// oder https://). JSON: <code>url</code>, optional <code>vol</code>.", exUrl, 1);
     h += mqttRow(base, "/file", true, "Dateiname einer hochgeladenen Datei, <code>sd:/Pfad.mp3</code> oder ein Ordner <code>sd:/Ordner/</code>. JSON: <code>file</code>, optional <code>vol</code>, <code>shuffle</code> und <code>loop</code>. Stereo-Position (nur im Stereo-Aufbau h&ouml;rbar): optional <code>pan</code> (<code>off</code>, <code>left</code> links, <code>right</code> rechts, <code>lr</code> links nach rechts, <code>rl</code> rechts nach links, <code>pp</code> hin und her) und <code>pansec</code> (Dauer eines Durchgangs in Sekunden); gilt auch f&uuml;r <code>/play</code> und <code>/api/file</code>. Ohne Angabe gilt die Einstellung im Tab Ansage.", exFile, 1);
+    h += mqttRow(base, "/favorite", true, "Favorit abspielen: Schl&uuml;ssel (key) oder Nummer. JSON: <code>key</code> oder <code>n</code>, optional <code>vol</code>.", exFavorite, 3);
     h += mqttRow(base, "/station", true, "Gespeicherter Sender: Platznummer 1-30 oder Name. JSON: <code>n</code> oder <code>name</code>, optional <code>vol</code>.", exStation, 3);
     h += mqttRow(base, "/stop", true, "Keine Nutzlast: beendet die Wiedergabe, auch ein Webradio.", exStop, 1);
     h += mqttRow(base, "/volume", true, "Allgemeine Lautst&auml;rke 0 bis 100 (wird gespeichert); sie wandert sanft zum neuen Wert. Als JSON l&auml;sst sich die Dauer je Aufruf in Millisekunden angeben: <code>{\"v\":60,\"ms\":3000}</code>.", exVol, 2);
@@ -607,6 +611,22 @@ String panelTime() {
     h += "</select> " + infoTip("Zeitzone aus der Liste w&auml;hlen; der Wert wird in das Feld darunter &uuml;bernommen") + "</div><div class='row'><input type='text' id='tz_input' name='tz' value='" + htmlEsc(cfg.tz) + "' style='width:300px'> " + infoTip("Zeitzone als POSIX-Text, zum Beispiel CET-1CEST,M3.5.0,M10.5.0/3") + "</div>";
     h += "<small>F&uuml;r eigene Zeitzonen eine Vorgabe w&auml;hlen oder den Wert oben selbst eintragen.</small><br>";
     h += "<button type='submit'>Speichern</button></form></div>";
+
+    // Uhrzeit ansagen: nur mit VoiceRSS-Schluessel; Knoepfe wie bei den Ausblend-Zeiten (URL und curl mit dem Wert im Feld).
+    // Announce the time: only with a VoiceRSS key; buttons like at the fade times (URL and curl with the value in the field).
+
+    if (!cfg.vkey.isEmpty()) {
+        h += "<div class='card'><h3>Uhrzeit ansagen</h3>";
+        h += "<div class='row'>Lautst&auml;rke " + infoTip("Lautst&auml;rke der Ansage (0 bis 100); leer = die eingestellte Lautst&auml;rke. Die Uhrzeit wird mit der eingestellten Stimme und Sprache gesprochen") + " <input type='number' id='timeVol' min='0' max='100' step='1' value='" + String(cfg.vol) + "' style='width:90px'></div>";
+        h += "<div class='row'><select id='timeLang' onchange='timeLangChg()' style='width:210px'>" + selectOptions(LANG_VALUES, LANG_LABELS, LANG_COUNT, cfg.vlang) + "</select> " + infoTip("Sprache und Satz der Ansage; vorbelegt mit der Sprache aus dem Tab Audio") + " ";
+        h += "<select id='timeVoice' onchange='voiceChosen(this)' style='width:210px'><option value=''>Standard (VoiceRSS)</option>" + (cfg.vvoice.length() > 0 ? "<option value='" + htmlEsc(cfg.vvoice) + "' selected>" + htmlEsc(cfg.vvoice) + "</option>" : String()) + "</select> " + infoTip("Stimme der Ansage; vorbelegt mit der Standardstimme aus dem Tab Audio") + "</div>";
+        h += "<div class='row'>Tempo (-10 bis 10): " + infoTip("Sprechtempo: -10 = sehr langsam, 0 = normal, 10 = sehr schnell") + " <input type='number' id='timeRate' min='-10' max='10' value='" + String(cfg.vrate) + "' style='width:80px'> ";
+        h += "<label style='display:inline-flex;align-items:center;gap:6px;cursor:pointer'><input type='checkbox' id='timeFx' checked style='width:auto;margin:0'>Klangeffekt</label> " + infoTip("Hall, Echo und Klangregler auf die Ansage anwenden; ohne Haken wird die Uhrzeit ohne Klangeffekt gesprochen (fx=0)") + "</div>";
+        h += "<div class='row'><button type='button' onclick='timeSay()' style='width:auto;padding:6px 14px'>Uhrzeit ansagen</button> ";
+        h += "<button type='button' class='copy-btn' style='position:static;margin:2px' title='Aufruf mit den Werten der Felder als URL kopieren' onclick='timeSayCp(0,this)'>URL</button>";
+        h += "<button type='button' class='copy-btn' style='position:static;margin:2px' title='Aufruf mit den Werten der Felder als curl-Befehl kopieren' onclick='timeSayCp(1,this)'>curl</button></div>";
+        h += "<div id='timeSayRes'></div></div>";
+    }
     return h;
 }
 
@@ -621,7 +641,7 @@ String panelStatus() {
     String h = "<div class='card'><h3>Status</h3><table>";
     h += statusRow("Chip", String(ESP.getChipModel()));
     h += statusRow("Chip Revision", String(ESP.getChipRevision()));
-    h += "<tr><td>Release</td><td><a href='https://github.com/holgiw/ESP32-netspeaker/releases/tag/v" PROJECT_VERSION "' target='_blank' rel='noopener noreferrer'>v" PROJECT_VERSION "</a></td></tr>";
+    h += "<tr><td>Release</td><td>v" PROJECT_VERSION "</td></tr>";
     h += statusRow("Firmware", String(FIRMWARE_MARKER + FIRMWARE_MARKER_PREFIX_LEN));
     h += statusRow("Uptime", String(up));
     h += statusRow("Free Heap", String(ESP.getFreeHeap()) + " bytes (minimum since boot " + String(ESP.getMinFreeHeap()) + ")");
@@ -660,21 +680,22 @@ String panelStatus() {
     h += statusRow("VoiceRSS Key", cfg.vkey.length() > 0 ? String("set") : String("not set"));
     h += statusRow("MQTT Status", cfg.mqttServer.isEmpty() ? String("disabled") : (mqttClient.connected() ? String("connected") : String("disconnected")));
     h += "</table></div>";
-    h += "<div class='card'><h3>Sprache / Language</h3><p>Die englische &Uuml;bersetzung ist in die Firmware eingebaut. Mit der Schaltfl&auml;che in der Statuszeile wechselst du zwischen DE und EN.</p></div>";
     return h;
 }
 
 String panelBackup() {
     String h = "<div class='card' style='max-width:900px'><h3>Sicherung erstellen</h3>";
-    h += "<p>Speichert die Einstellungen (mit Favoriten und Senderliste) als Datei auf deinem Computer. Mit Dateien im Flash entsteht eine ZIP-Datei.</p>";
+    h += "<p>Speichert die Einstellungen (mit Favoriten und Senderliste) als Datei auf deinem Computer. Mit Dateien (Flash oder SD-Karte) entsteht eine ZIP-Datei.</p>";
     h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='bkWifi' style='width:auto;margin:0;'>WLAN-Zugangsdaten einschlie&szlig;en</label> " + infoTip("Nimmt die WLAN-Passw&ouml;rter verschl&uuml;sselt in die Sicherung auf, sie stehen nicht im Klartext in der Datei. Der Schl&uuml;ssel steckt in der Firmware; die Datei trotzdem gut aufbewahren. Ohne den Haken enth&auml;lt die Sicherung nur die Namen der Netze. Nur aus dem lokalen Netz m&ouml;glich") + "</div>";
-    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='bkFiles' style='width:auto;margin:0;'>Dateien im Flash einschlie&szlig;en</label> <small id='bkFilesInfo'></small> " + infoTip("Nimmt die MP3-Dateien aus dem Speicher des Ger&auml;ts (Tab MP3 (Flash), auch gespeicherte Texte) in eine ZIP-Datei auf. Die Dateien der SD-Karte sind nie dabei") + "</div>";
+    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='bkFiles' style='width:auto;margin:0;'>Dateien im Flash einschlie&szlig;en</label> <small id='bkFilesInfo'></small> " + infoTip("Nimmt die MP3-Dateien aus dem Speicher des Ger&auml;ts (Tab MP3 (Flash), auch gespeicherte Texte) in eine ZIP-Datei auf") + "</div>";
+    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='bkSd' onchange='bkSdToggle()' style='width:auto;margin:0;'>Dateien der SD-Karte einschlie&szlig;en</label> <small id='bkSdInfo'></small> " + infoTip("Nimmt MP3-Dateien der SD-Karte mit ihren Ordnern in die ZIP-Datei auf. Nach dem Haken erscheint die Liste; einzelne Dateien lassen sich abw&auml;hlen. Gro&szlig;e Mengen brauchen Zeit und Speicher im Browser (bis 1,5 GB)") + "</div><div id='bkSdBox' style='display:none'></div>";
     h += "<div class='row'><button type='button' onclick='bkCreate()' style='width:auto;padding:8px 14px'>Sicherung erstellen</button></div><div id='bkResult'></div></div>";
     h += "<div class='card' style='max-width:900px'><h3>Sicherung einlesen</h3>";
     h += "<p>Liest eine Sicherung wieder ein, entweder die Textdatei mit den Einstellungen oder die ZIP-Datei mit Dateien. Bestehende Einstellungen werden &uuml;berschrieben.</p>";
     h += "<div class='row'><input type='file' id='bkFile' accept='.txt,.zip' onchange='bkPick()'></div><div id='bkInfo'></div>";
     h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='bkImpWifi' disabled style='width:auto;margin:0;'>WLAN-Zugangsdaten &uuml;bernehmen</label> " + infoTip("&Uuml;bernimmt die Netze und Passw&ouml;rter aus der Sicherung. Ohne den Haken bleiben die WLAN-Einstellungen des Ger&auml;ts unver&auml;ndert. Achtung: Passt das Netz nicht, ist das Ger&auml;t danach nicht mehr erreichbar. Nur aus dem lokalen Netz m&ouml;glich") + "</div>";
     h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='bkImpFiles' disabled style='width:auto;margin:0;'>Dateien im Flash &uuml;bernehmen</label> " + infoTip("Spielt die MP3-Dateien aus der ZIP-Datei in den Speicher des Ger&auml;ts ein; Dateien gleichen Namens werden ersetzt") + "</div>";
+    h += "<div class='row'><label style='display:flex;align-items:center;gap:8px;cursor:pointer;'><input type='checkbox' id='bkImpSd' disabled style='width:auto;margin:0;'>Dateien der SD-Karte &uuml;bernehmen</label> " + infoTip("Spielt die MP3-Dateien der SD-Karte aus der ZIP-Datei auf die Karte ein, mit ihren Ordnern und Dateinamen; Dateien gleichen Namens werden ersetzt") + "</div>";
     h += "<div class='row'><button type='button' id='bkRestoreBtn' onclick='bkRestore()' disabled style='width:auto;padding:8px 14px'>Einlesen</button></div><div id='bkRestoreResult'></div></div>";
     return h;
 }
@@ -742,6 +763,10 @@ String panelDoc() {
         R"d(curl -d "text=Hallo Welt" http://@HOST@/api/say
 curl "http://@HOST@/api/say?text=Hallo%20Welt&lang=en-gb&voice=Alice&vol=10"
 curl -H "Content-Type: application/json" -d '{"text":"Hallo Welt","lang":"de-de","voice":"Hanna","rate":0,"vol":12}' http://@HOST@/api/say)d");
+    h += docCard("Uhrzeit ansagen",
+        "Sagt die aktuelle Uhrzeit an, mit der eingestellten Stimme und Sprache (Deutsch mit Zahlw&ouml;rtern, zum Beispiel &quot;Es ist zw&ouml;lf Uhr drei&szlig;ig.&quot;, andere Sprachen mit Ziffern). Optional <code>vol</code> (0-100), <code>lang</code>, <code>voice</code>, <code>rate</code> und <code>fx</code> (0 = ohne Klangeffekt). Ohne g&uuml;ltige Uhrzeit (NTP) kommt ein Fehler. MQTT: Topic <code>/saytime</code> mit leerer Nutzlast, einer Zahl als Lautst&auml;rke oder JSON.",
+        R"d(curl "http://@HOST@/api/saytime?vol=40"
+curl -d "vol=40&lang=en-gb" http://@HOST@/api/saytime)d" + String("\nmosquitto_pub -h <broker> -t ") + base + "/saytime -m 40\nmosquitto_pub -h <broker> -t " + base + "/saytime -m '{\"vol\":40,\"lang\":\"de-de\"}'");
     h += docCard("Webradio oder MP3 per URL",
         "<code>url</code> muss mit http:// oder https:// beginnen. <code>/api/play</code> nimmt <code>url</code> oder <code>file</code>, <code>/api/url</code> nur eine URL. Optional <code>vol</code>. Webradio &uuml;ber https braucht viel RAM, http-Streams sind unkritisch. L&auml;uft ein Webradio und kommt eine Ansage oder eine MP3-Datei, wird das Radio daf&uuml;r ausgeblendet und gestoppt (also stumm), die Ansage gespielt und das Radio danach mit der alten Lautst&auml;rke neu verbunden; vorher wird es sanft ausgeblendet und beim Fortsetzen wieder eingeblendet (Dauer im Tab Audio, Standard 700 ms). Ein Webradio wird beim Start (aus dem Leerlauf) langsam eingeblendet, beim Stopp langsam ausgeblendet, und bei einem Senderwechsel wird der alte langsam aus- und der neue langsam eingeblendet (Tab Audio, Standard 1500 ms). Wird derselbe Sender noch einmal gew&auml;hlt, spielt er einfach weiter; ein Live-Stream geht live weiter, nicht an derselben Stelle. <code>/api/stop</code> beendet das Radio ohne Fortsetzung, ein neuer URL-Befehl ersetzt es.",
         R"d(curl -d "url=http://stream.example.com/radio.mp3" http://@HOST@/api/play
@@ -763,6 +788,12 @@ curl -X POST http://@HOST@/api/sdmount
 curl -d "confirm=yes" http://@HOST@/api/sdformat
 curl http://@HOST@/api/ttscache
 curl -d "clear=1" http://@HOST@/api/ttscache)d");
+    h += docCard("Favoriten",
+        "Favoriten (bis zu 40, Tab Webradio) haben einen festen Schl&uuml;ssel, den das Ger&auml;t aus der URL ableitet (zum Beispiel <code>christmas</code>) und den du mit dem Knopf &#9998; &auml;ndern kannst. <code>key</code> oder <code>n</code> (Nummer) startet den Favoriten, optional <code>vol</code>. Ein Aufruf &uuml;ber den Schl&uuml;ssel bleibt gleich, auch wenn der Name ge&auml;ndert wird oder Favoriten gel&ouml;scht werden. <code>GET /api/favorites</code> listet alle mit <code>n</code>, <code>key</code>, <code>name</code> und <code>url</code>. <code>/api/favoriterename</code> &auml;ndert <code>name</code> und/oder <code>key</code> (<code>n</code> ist Pflicht). MQTT: Topic <code>/favorite</code> mit Schl&uuml;ssel oder Nummer.",
+        R"d(curl "http://@HOST@/api/favorite?key=christmas&vol=40"
+curl -d "n=3" http://@HOST@/api/favorite
+curl http://@HOST@/api/favorites
+curl -d "n=3&name=Weihnachtslieder&key=weihnachten" http://@HOST@/api/favoriterename)d");
     h += docCard("Gespeicherte Webradios / URLs",
         "Im Tab Webradio lassen sich 30 Pl&auml;tze mit Name, URL und eigener Lautst&auml;rke speichern (leer = allgemeine Lautst&auml;rke; ein <code>vol</code> im Aufruf hat Vorrang). <code>n</code> ist die Platznummer (1-30), alternativ <code>name</code> (Gro&szlig;-/Kleinschreibung egal). <code>/api/stations</code> liefert die belegten Pl&auml;tze (JSON mit n, name, url, vol), <code>/api/stationdelete</code> l&ouml;scht einen Platz (Name und URL), die folgenden Pl&auml;tze r&uuml;cken nach oben. <code>/stations.txt</code> l&auml;dt die Liste als Textdatei, <code>POST /importstations</code> ersetzt sie durch eine solche Datei (im Tab Webradio: Liste speichern / Liste laden). <code>POST /api/stationlist</code> mit <code>list=aac-auswahl</code> l&auml;dt eine fertige Liste von GitHub.",
         R"d(curl -d "n=3" http://@HOST@/api/station
@@ -841,6 +872,7 @@ curl -X POST http://@HOST@/restart)d");
         "Zur&uuml;ck kommen <code>/status</code> (idle, loading, playing, error: ...), <code>/now</code> (was gerade l&auml;uft, zum Beispiel &quot;Sendername - Titel&quot;) und <code>/availability</code> (online, offline). <code>/volume/state</code> (gerade wirkende Lautst&auml;rke) und <code>/volume/general</code> (allgemeine) werden bei jeder &Auml;nderung gesendet. <code>/stations</code> enth&auml;lt die Senderliste (retained, wird nach jeder &Auml;nderung neu gesendet); ein Aufruf von <code>/list</code> sendet sie erneut; ein ung&uuml;ltiger Befehl erscheint in <code>/status</code> als Fehler. Zus&auml;tzliche Gruppen-Topics (bis zu 5, im Tab MQTT) nehmen dieselben Befehle an, zum Beispiel <code>netspeaker/all/stop</code> f&uuml;r alle Ger&auml;te; Standard ist <code>netspeaker/all</code>.",
         "mosquitto_pub -h <broker> -t " + base + "/say -m \"Hallo Welt\"\n"
         "mosquitto_pub -h <broker> -t " + base + "/say -m '{\"text\":\"Hallo\",\"lang\":\"en-gb\",\"vol\":10}'\n"
+        "mosquitto_pub -h <broker> -t " + base + "/saytime -m 40\n"
         "mosquitto_pub -h <broker> -t " + base + "/play -m \"http://stream.example.com/radio.mp3\"\n"
         "mosquitto_pub -h <broker> -t " + base + "/file -m \"glocke.mp3\"\n"
         "mosquitto_pub -h <broker> -t " + base + "/station -m 3\n"
@@ -970,11 +1002,11 @@ function postApi(path,params,resId){
 }
 var FAVS=[];
 function favBtn(t,fn){var b=document.createElement('button');b.type='button';b.textContent=t;b.style.cssText='width:auto;padding:6px 12px';b.onclick=fn;return b;}
-function favRow(name,url,btns){var r=document.createElement('div'),s=document.createElement('span'),i;r.setAttribute('data-url',url);s.setAttribute('data-n',name);r.className='row';r.style.justifyContent='flex-start';r.style.gap='8px';s.textContent=name;s.title=url;s.style.cssText='flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';for(i=0;i<btns.length;i++)r.appendChild(btns[i]);r.appendChild(s);return r;}
-function favMarkNow(){var u=window.NOWURL||'',rs=document.querySelectorAll('#favList .row[data-url]'),i,r,s,on;for(i=0;i<rs.length;i++){r=rs[i];s=r.querySelector('span');if(!s)continue;on=u!==''&&r.getAttribute('data-url')===u;s.style.fontWeight=on?'700':'';s.style.color=on?'var(--accent,#2a9d4a)':'';s.textContent=(on?'\u266A ':'')+s.getAttribute('data-n');}}
+function favRow(name,url,btns,key){var r=document.createElement('div'),s=document.createElement('span'),i;r.setAttribute('data-url',url);s.setAttribute('data-n',name);s.setAttribute('data-k',key||'');r.className='row';r.style.justifyContent='flex-start';r.style.gap='8px';s.textContent=name+(key?'  ['+key+']':'');s.title=url;s.style.cssText='flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';for(i=0;i<btns.length;i++)r.appendChild(btns[i]);r.appendChild(s);return r;}
+function favMarkNow(){var u=window.NOWURL||'',rs=document.querySelectorAll('#favList .row[data-url]'),i,r,s,on;for(i=0;i<rs.length;i++){r=rs[i];s=r.querySelector('span');if(!s)continue;on=u!==''&&r.getAttribute('data-url')===u;s.style.fontWeight=on?'700':'';s.style.color=on?'var(--accent,#2a9d4a)':'';s.textContent=(on?'\u266A ':'')+s.getAttribute('data-n')+(s.getAttribute('data-k')?'  ['+s.getAttribute('data-k')+']':'');}}
 function favHas(u){for(var i=0;i<FAVS.length;i++)if(FAVS[i].url===u)return true;return false;}
 function favRender(){var b=document.getElementById('favList'),inf=document.getElementById('favInfo');if(!b)return;b.textContent='';if(inf)inf.textContent=FAVS.length+' Favoriten';
-  FAVS.forEach(function(f){b.appendChild(favRow(f.name,f.url,[favBtn('▶',function(){postApi('/api/play',{url:f.url},'favResult');}),favBtn('API',function(){favCall(f,this);}),favDelBtn(f)]));});
+  FAVS.forEach(function(f){b.appendChild(favRow(f.name,f.url,[favBtn('▶',function(){postApi('/api/play',{url:f.url},'favResult');}),favBtn('API',function(){favCall(f,this);}),favRenBtn(f),favDelBtn(f)],f.key));});
   favMarkNow();}
 function favLoad(){fetch('/api/favorites',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){FAVS=j.favorites||[];favRender();}).catch(function(){});}
 function loadFavorites(inp){var f=inp.files[0];if(!f)return;if(!confirm('Die Favoriten werden durch die Datei ersetzt. Fortfahren?')){inp.value='';return;}
@@ -982,6 +1014,8 @@ function loadFavorites(inp){var f=inp.files[0];if(!f)return;if(!confirm('Die Fav
     showRes('favResult',t.indexOf('OK|')===0?{ok:true,msg:t.substring(3)}:{ok:false,error:t.substring(5)});inp.value='';favLoad();});};rd.readAsText(f);}
 function favAddStation(n){var a=document.querySelector("input[name='rn"+n+"']"),u=document.querySelector("input[name='ru"+n+"']");if(u&&u.value)favAdd(a?a.value:"",u.value);}
 function favAdd(name,url){postApi('/api/favoriteadd',{name:name,url:url},'favResult').then(favLoad);}
+function favRen(f){var nm=prompt('Neuer Name f\u00fcr den Favoriten:',f.name);if(nm===null)return;nm=nm.trim()||f.name;var k=prompt('Schl\u00fcssel f\u00fcr den API-Aufruf (a-z, 0-9, - und _; leer = automatisch aus der URL):',f.key||'');if(k===null)k=f.key||'';if(nm===f.name&&k===(f.key||''))return;postApi('/api/favoriterename',{n:f.n,name:nm,key:k},'favResult').then(favLoad);}
+function favRenBtn(f){var b=favBtn('\u270E',function(){favRen(f);});b.title='Umbenennen';return b;}
 function favDelBtn(f){return favBtn('✕',function(){favDel(f);});}
 function favDel(f){if(!confirm('Favorit "'+f.name+'" löschen?'))return;postApi('/api/favoritedelete',{n:f.n},'favResult').then(favLoad);}
 function favToList(){if(!confirm('Die gespeicherte Senderliste wird durch die Favoriten ersetzt. Fortfahren?'))return;postApi('/api/favoritestolist',{},'favResult').then(function(j){if(j&&j.ok)setTimeout(function(){location.href='/?tab=radio';},1200);});}
@@ -1054,41 +1088,65 @@ function bkUnzip(buf){var v=new DataView(buf),u=new Uint8Array(buf),off=0,out=[]
 function bkSave(blob,name){var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},2000);}
 function bkChk(id){var e=document.getElementById(id);return !!(e&&e.checked);}
 function bkFilesInfo(){fetch('/api/files',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){var n=(j.files||[]).length,b=0;(j.files||[]).forEach(function(f){b+=f.size;});var e=document.getElementById('bkFilesInfo');if(e)e.textContent='('+n+' Dateien, '+Math.round(b/1024)+' KB)';}).catch(function(){});}
-function bkCreate(){var wifi=bkChk('bkWifi'),files=bkChk('bkFiles'),base=(window.UI_HOST||'netspeaker');
+function bkMB(b){return b>=1048576?(b/1048576).toFixed(1)+' MB':Math.round(b/1024)+' KB';}
+function bkSdScan(dir,out,depth){return fetch('/api/sd?dir='+encodeURIComponent(dir),{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){var p=Promise.resolve();if(!j||!j.ok)return p;
+  (j.entries||[]).forEach(function(e){var path=(dir==='/'?'':dir)+'/'+e.n;if(e.d){if(depth<6)p=p.then(function(){return bkSdScan(path,out,depth+1);});}else out.push({p:path,s:e.s});});return p;});}
+function bkSdSum(){var cs=document.querySelectorAll('#bkSdBox input.bksd'),n=0,b=0,i;for(i=0;i<cs.length;i++){if(cs[i].checked){n++;b+=+cs[i].getAttribute('data-s');}}var e=document.getElementById('bkSdInfo');if(e)e.textContent='('+n+' von '+cs.length+' Dateien, '+bkMB(b)+')';}
+function bkSdRender(box,list){box.textContent='';list.sort(function(a,b){return a.p<b.p?-1:(a.p>b.p?1:0);});
+  var top=document.createElement('label'),all=document.createElement('input');top.style.cssText='display:flex;align-items:center;gap:6px;cursor:pointer;margin:4px 0';all.type='checkbox';all.checked=true;all.style.cssText='width:auto;margin:0';
+  all.onchange=function(){box.querySelectorAll('input.bksd').forEach(function(c){c.checked=all.checked;});bkSdSum();};top.appendChild(all);top.appendChild(document.createTextNode('Alle'));box.appendChild(top);
+  var sc=document.createElement('div');sc.style.cssText='max-height:260px;overflow:auto;border:1px solid var(--panel-border);border-radius:6px;padding:6px 10px;text-align:left;font-size:.9em';
+  list.forEach(function(x){var l=document.createElement('label'),c=document.createElement('input');l.style.cssText='display:flex;align-items:center;gap:6px;cursor:pointer;padding:1px 0';c.type='checkbox';c.className='bksd';c.checked=true;c.style.cssText='width:auto;margin:0';c.setAttribute('data-p',x.p);c.setAttribute('data-s',x.s);c.onchange=bkSdSum;
+    var t=document.createElement('span');t.style.cssText='flex:1;overflow-wrap:anywhere';t.textContent=x.p;var z=document.createElement('small');z.textContent=bkMB(x.s);l.appendChild(c);l.appendChild(t);l.appendChild(z);sc.appendChild(l);});
+  if(!list.length){sc.textContent='Keine Dateien auf der SD-Karte';}box.appendChild(sc);box.setAttribute('data-ok','1');bkSdSum();}
+function bkSdToggle(){var box=document.getElementById('bkSdBox'),on=bkChk('bkSd');if(!box)return;box.style.display=on?'':'none';
+  if(!on||box.getAttribute('data-ok'))return;box.textContent='Lese Karte \u2026';var out=[];bkSdScan('/',out,0).then(function(){bkSdRender(box,out);}).catch(function(){box.textContent='SD-Karte nicht lesbar';});}
+function bkSdSel(){var r=[];document.querySelectorAll('#bkSdBox input.bksd').forEach(function(c){if(c.checked)r.push({p:c.getAttribute('data-p'),s:+c.getAttribute('data-s')});});return r;}
+function bkCreate(){var wifi=bkChk('bkWifi'),files=bkChk('bkFiles'),sd=bkChk('bkSd')?bkSdSel():[],base=(window.UI_HOST||'netspeaker'),tot=0;sd.forEach(function(x){tot+=x.s;});
+  if(tot>1610612736){showRes('bkResult',{ok:false,error:'Die gew\u00e4hlten SD-Dateien sind zu gro\u00df f\u00fcr eine ZIP-Datei im Browser (h\u00f6chstens 1,5 GB)'});return;}
+  if(tot>314572800&&!confirm('Die gew\u00e4hlten SD-Dateien sind '+bkMB(tot)+' gro\u00df; das Erstellen braucht Zeit und viel Speicher im Browser. Fortfahren?'))return;
   showRes('bkResult',{ok:true,msg:'Erstelle Sicherung &hellip;'});
   fetch('/export'+(wifi?'?wifi=1':''),{cache:'no-store'}).then(function(r){return r.text();}).then(function(txt){
-    if(!files){bkSave(new Blob([txt],{type:'text/plain'}),base+'-settings.txt');showRes('bkResult',{ok:true,msg:'Sicherung erstellt'});return;}
-    var enc=new TextEncoder(),ents=[{name:'settings.txt',data:enc.encode(txt)}];
-    return fetch('/api/files',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){var list=j.files||[];
+    if(!files&&!sd.length){bkSave(new Blob([txt],{type:'text/plain'}),base+'-settings.txt');showRes('bkResult',{ok:true,msg:'Sicherung erstellt'});return;}
+    var enc=new TextEncoder(),ents=[{name:'settings.txt',data:enc.encode(txt)}],nf=0;
+    var flash=files?fetch('/api/files',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){return j.files||[];}):Promise.resolve([]);
+    return flash.then(function(list){nf=list.length;
       return list.reduce(function(p,f,i){return p.then(function(){showRes('bkResult',{ok:true,msg:'Lade Datei '+(i+1)+' von '+list.length+' &hellip;'});
         return fetch('/api/fileget?file='+encodeURIComponent(f.name),{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error(f.name);return r.arrayBuffer();}).then(function(ab){ents.push({name:'mp3/'+f.name,data:new Uint8Array(ab)});});});},Promise.resolve())
-      .then(function(){bkSave(bkZip(ents),base+'-backup.zip');showRes('bkResult',{ok:true,msg:'Sicherung erstellt ('+list.length+' Dateien)'});});});
+      .then(function(){return sd.reduce(function(p,f,i){return p.then(function(){showRes('bkResult',{ok:true,msg:'Lade SD-Datei '+(i+1)+' von '+sd.length+' &hellip;'});
+        return fetch('/api/sdfile?path='+encodeURIComponent(f.p),{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error(f.p);return r.arrayBuffer();}).then(function(ab){ents.push({name:'sd'+f.p,data:new Uint8Array(ab)});});});},Promise.resolve());})
+      .then(function(){bkSave(bkZip(ents),base+'-backup.zip');showRes('bkResult',{ok:true,msg:'Sicherung erstellt ('+(nf+sd.length)+' Dateien)'});});});
   }).catch(function(e){showRes('bkResult',{ok:false,error:'Sicherung fehlgeschlagen'});});}
 function bkPick(){var inp=document.getElementById('bkFile'),f=inp.files[0],info=document.getElementById('bkInfo'),btn=document.getElementById('bkRestoreBtn');BK=null;btn.disabled=true;
-  document.getElementById('bkImpWifi').disabled=true;document.getElementById('bkImpFiles').disabled=true;document.getElementById('bkImpWifi').checked=false;document.getElementById('bkImpFiles').checked=false;info.textContent='';
+  ['bkImpWifi','bkImpFiles','bkImpSd'].forEach(function(id){var c=document.getElementById(id);if(c){c.disabled=true;c.checked=false;}});info.textContent='';
   if(!f)return;
-  function ready(settings,files){if(settings.indexOf('# netspeaker settings export')!==0){showRes('bkRestoreResult',{ok:false,error:'Das ist keine Sicherung dieses Ger\u00e4ts'});return;}
-    var hasWifi=/^pass[123]=/m.test(settings),n=files.length,b=0;files.forEach(function(x){b+=x.data.length;});BK={settings:settings,files:files};
-    info.textContent='Einstellungen: ja; WLAN-Passw\u00f6rter: '+(hasWifi?'ja':'nein')+'; Dateien im Flash: '+n+(n?' ('+Math.round(b/1024)+' KB)':'');
+  function ready(settings,files,sdf){if(settings.indexOf('# netspeaker settings export')!==0){showRes('bkRestoreResult',{ok:false,error:'Das ist keine Sicherung dieses Ger\u00e4ts'});return;}
+    var hasWifi=/^pass[123]=/m.test(settings),n=files.length,b=0,ns=sdf.length,bs=0;files.forEach(function(x){b+=x.data.length;});sdf.forEach(function(x){bs+=x.data.length;});BK={settings:settings,files:files,sd:sdf};
+    info.textContent='Einstellungen: ja; WLAN-Passw\u00f6rter: '+(hasWifi?'ja':'nein')+'; Dateien im Flash: '+n+(n?' ('+Math.round(b/1024)+' KB)':'')+'; Dateien auf der SD-Karte: '+ns+(ns?' ('+bkMB(bs)+')':'');
     document.getElementById('bkImpWifi').disabled=false;
     if(n){document.getElementById('bkImpFiles').disabled=false;document.getElementById('bkImpFiles').checked=true;}
+    if(ns){document.getElementById('bkImpSd').disabled=false;document.getElementById('bkImpSd').checked=true;}
     btn.disabled=false;document.getElementById('bkRestoreResult').innerHTML='';}
   if(/\.zip$/i.test(f.name)){f.arrayBuffer().then(function(ab){var ents;try{ents=bkUnzip(ab);}catch(e){showRes('bkRestoreResult',{ok:false,error:'ZIP-Datei nicht lesbar (nur unkomprimierte Sicherungen dieses Ger\u00e4ts)'});return;}
-      var st=null,fl=[];ents.forEach(function(e){if(e.name==='settings.txt')st=new TextDecoder().decode(e.data);else if(/^mp3\/(ansagen\/)?[^\/]+\.mp3$/i.test(e.name))fl.push({name:e.name.substring(4),data:e.data});});
-      if(st===null){showRes('bkRestoreResult',{ok:false,error:'Keine Einstellungen in der ZIP-Datei'});return;}ready(st,fl);});}
-  else f.text().then(function(t){ready(t,[]);});}
-function bkRestore(){if(!BK)return;var wifi=bkChk('bkImpWifi'),files=bkChk('bkImpFiles')&&BK.files.length>0,st=BK.settings;
-  if(!confirm('Bestehende Einstellungen werden \u00fcberschrieben'+(files?' und Dateien gleichen Namens ersetzt':'')+'. Fortfahren?'))return;
+      var st=null,fl=[],sf=[];ents.forEach(function(e){if(e.name==='settings.txt')st=new TextDecoder().decode(e.data);else if(/^mp3\/(ansagen\/)?[^\/]+\.mp3$/i.test(e.name))fl.push({name:e.name.substring(4),data:e.data});
+        else if(/^sd\/.+\.mp3$/i.test(e.name)&&e.name.indexOf('..')<0&&e.name.indexOf('//')<0&&e.name.indexOf('\\')<0)sf.push({name:e.name.substring(2),data:e.data});});
+      if(st===null){showRes('bkRestoreResult',{ok:false,error:'Keine Einstellungen in der ZIP-Datei'});return;}ready(st,fl,sf);});}
+  else f.text().then(function(t){ready(t,[],[]);});}
+function bkRestore(){if(!BK)return;var wifi=bkChk('bkImpWifi'),files=bkChk('bkImpFiles')&&BK.files.length>0,sd=bkChk('bkImpSd')&&BK.sd.length>0,st=BK.settings;
+  if(!confirm('Bestehende Einstellungen werden \u00fcberschrieben'+((files||sd)?' und Dateien gleichen Namens ersetzt':'')+'. Fortfahren?'))return;
   if(!wifi)st=st.split('\n').filter(function(l){return !/^(ssid|pass)[123]=/.test(l);}).join('\n');
   showRes('bkRestoreResult',{ok:true,msg:'Lese Einstellungen ein &hellip;'});
   fetch('/import',{method:'POST',headers:{'Content-Type':'text/plain'},body:st}).then(function(r){return r.text();}).then(function(t){
     if(t.indexOf('OK|')!==0){showRes('bkRestoreResult',{ok:false,error:t.indexOf('FAIL|')===0?t.substring(5):'Fehler'});return;}
-    var msg=t.substring(3),bad=[];
-    if(!files){showRes('bkRestoreResult',{ok:true,msg:msg});return;}
-    return BK.files.reduce(function(p,f,i){return p.then(function(){showRes('bkRestoreResult',{ok:true,msg:'Lade Datei '+(i+1)+' von '+BK.files.length+' hoch &hellip;'});
-      var sub=f.name.indexOf('ansagen/')===0,fd=new FormData();fd.append('file',new Blob([f.data],{type:'audio/mpeg'}),sub?f.name.substring(8):f.name);
-      return fetch('/upload'+(sub?'?dir=ansagen':''),{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(j){if(!j.ok)bad.push(f.name);}).catch(function(){bad.push(f.name);});});},Promise.resolve())
-    .then(function(){showRes('bkRestoreResult',bad.length?{ok:false,error:msg+' Dateien: '+(BK.files.length-bad.length)+' von '+BK.files.length+' eingelesen; Fehler: '+bad.join(', ')}:{ok:true,msg:msg+' '+BK.files.length+' Dateien eingelesen.'});bkFilesInfo();});
+    var msg=t.substring(3),bad=[],jobs=[];
+    if(!files&&!sd){showRes('bkRestoreResult',{ok:true,msg:msg});return;}
+    if(files)BK.files.forEach(function(f){jobs.push({f:f,sd:false});});if(sd)BK.sd.forEach(function(f){jobs.push({f:f,sd:true});});
+    return jobs.reduce(function(p,jb,i){return p.then(function(){showRes('bkRestoreResult',{ok:true,msg:'Lade Datei '+(i+1)+' von '+jobs.length+' hoch &hellip;'});
+      var fd=new FormData(),url,f=jb.f;
+      if(jb.sd){var k=f.name.lastIndexOf('/'),dir=k>0?f.name.substring(0,k):'/',nm=f.name.substring(k+1);fd.append('file',new Blob([f.data],{type:'audio/mpeg'}),nm);url='/upload?target=sd&keep=1&dir='+encodeURIComponent(dir);}
+      else{var sub=f.name.indexOf('ansagen/')===0;fd.append('file',new Blob([f.data],{type:'audio/mpeg'}),sub?f.name.substring(8):f.name);url='/upload'+(sub?'?dir=ansagen':'');}
+      return fetch(url,{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(j){if(!j.ok)bad.push(f.name);}).catch(function(){bad.push(f.name);});});},Promise.resolve())
+    .then(function(){showRes('bkRestoreResult',bad.length?{ok:false,error:msg+' Dateien: '+(jobs.length-bad.length)+' von '+jobs.length+' eingelesen; Fehler: '+bad.join(', ')}:{ok:true,msg:msg+' '+jobs.length+' Dateien eingelesen.'});bkFilesInfo();});
   }).catch(function(){showRes('bkRestoreResult',{ok:false,error:'Keine Antwort vom Ger&auml;t'});});}
 function sayNow(){var sv=document.getElementById('saySave');var want=sv&&sv.checked;postApi('/api/say',{text:document.getElementById('sayText').value,lang:document.getElementById('sayLang').value,voice:document.getElementById('sayVoice').value,save:want?1:0},'sayResult').then(function(j){if(j&&j.ok&&want)saveWait();});}
 function saveWait(){var seq0=SAYSEQ,t0=Date.now(),off=0,started=false,tm=setInterval(function(){if(Date.now()-t0>90000){clearInterval(tm);return;}
@@ -1102,6 +1160,11 @@ function copyText(t,btn){
   if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(t).then(function(){done(true);},function(){done(false);});return;}
   var ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();
   var ok=false;try{ok=document.execCommand('copy');}catch(e){}document.body.removeChild(ta);done(ok);}
+function timeLangChg(){fillVoiceSel('timeVoice',document.getElementById('timeLang').value,false);}
+function timeQs(){var g=function(i){var e=document.getElementById(i);return e?e.value:'';},v=g('timeVoice');if(v==='__custom__')v='';var f=document.getElementById('timeFx');
+  return {vol:g('timeVol'),lang:g('timeLang'),voice:v,rate:g('timeRate'),fx:(f&&f.checked)?1:0};}
+function timeSay(){var p=timeQs();for(var k in p){if(p[k]==='')delete p[k];}postApi('/api/saytime',p,'timeSayRes');}
+function timeSayCp(curl,btn){var p=timeQs(),q=[];for(var k in p){if(p[k]!=='')q.push(k+'='+encodeURIComponent(p[k]));}var u=location.origin+'/api/saytime?'+q.join('&');copyText(curl?'curl "'+u+'"':u,btn);}
 function fadeCp(p,n,curl,btn){var e=document.querySelector("input[name='"+n+"']"),u=location.origin+'/api/fade?'+p+'='+(e?encodeURIComponent(e.value):'');copyText(curl?'curl "'+u+'"':u,btn);}
 function copyPre(btn){copyText(btn.parentNode.querySelector('pre').textContent,btn);}
 function playStation(n){postApi('/api/station',{n:n},'stResult');}
@@ -1112,7 +1175,7 @@ function callLine(box,label,text){var d=document.createElement('div'),c=document
 function callBox(row,lines){var old=row.nextSibling;if(old&&old.className==='callbox'){old.remove();return;}var b=document.createElement('div'),i;b.className='callbox';b.style.cssText='margin:0 0 8px 2rem;padding:6px 10px;border:1px solid var(--panel-border);border-radius:6px;text-align:left;font-size:.85em;overflow-wrap:anywhere';
   for(i=0;i<lines.length;i++)callLine(b,lines[i][0],lines[i][1]);if(!MQTT_ON){var s=document.createElement('small');s.textContent='MQTT: Broker im Tab MQTT eintragen.';b.appendChild(s);}row.parentNode.insertBefore(b,row.nextSibling);}
 function stationCall(n,btn){var row=btn.closest('.stationrow'),nm=row?(row.querySelector("input[name='rn"+n+"']")||{}).value:'';callBox(row,[['REST:',location.origin+'/api/station?n='+n+'&vol=60'],nm?['REST (Name):',location.origin+'/api/station?name='+encodeURIComponent(nm)+'&vol=60']:null,['MQTT Thema:',MQTT_BASE+'/station'],['MQTT Nutzlast:',String(n)],['MQTT Nutzlast (JSON):','{"n":'+n+',"vol":60}']].filter(Boolean));}
-function favCall(f,btn){callBox(btn.parentNode,[['REST:','curl -d "url='+f.url+'&vol=60" '+location.origin+'/api/play'],['MQTT Thema:',MQTT_BASE+'/play'],['MQTT Nutzlast:',f.url],['MQTT Nutzlast (JSON):','{"url":"'+f.url+'","vol":60}']]);}
+function favCall(f,btn){callBox(btn.parentNode,[f.key?['REST (Schl\u00fcssel):',location.origin+'/api/favorite?key='+encodeURIComponent(f.key)+'&vol=60']:null,['REST (Nr.):',location.origin+'/api/favorite?n='+f.n+'&vol=60'],['REST (URL):',location.origin+'/api/play?url='+encodeURIComponent(f.url)+'&vol=60'],['REST:','curl -d "url='+f.url+'&vol=60" '+location.origin+'/api/play'],['MQTT Thema:',MQTT_BASE+'/play'],['MQTT Nutzlast:',f.url],['MQTT Nutzlast (JSON):','{"url":"'+f.url+'","vol":60}']]);}
 function apiLink(n){return location.origin+'/api/file?file='+encodeURIComponent(n)+'&vol=60&shuffle=0&loop=0&pan=off&pansec=3';}
 var VOICES={'de-de':['Hanna','Lina','Jonas'],'en-gb':['Alice','Nancy','Lily','Harry'],'en-us':['Linda','Amy','Mary','John','Mike'],'fr-fr':['Bette','Iva','Zola'],'es-es':['Camila','Sofia','Luna'],'it-it':['Bria','Mia','Pietro'],'pl-pl':['Julia','Jan'],'sv-se':['Molly','Hugo']};
 function fillVoiceSel(id,lang,keep){var s=document.getElementById(id);if(!s)return;var cur=s.value;var v=VOICES[lang||DEF_LANG]||[];s.innerHTML='';
@@ -1160,12 +1223,12 @@ function sdLoad(dir){var box=document.getElementById('sdList');if(!box)return;di
         btn(act,'\u25B6 Ordner','Alle MP3-Dateien des Ordners nacheinander abspielen',function(){playFile('sd:'+p+'/','sdResult',{loop:sdLoopOn()});});
         btn(act,'\uD83D\uDD00 Zufall','Alle MP3-Dateien des Ordners in zuf\u00e4lliger Reihenfolge abspielen, jede einmal je Sitzung',function(){playFile('sd:'+p+'/','sdResult',{shuffle:1,loop:sdLoopOn()});});cp(act,'sd:'+p+'/');}
       else{td.textContent=e.n;fselChk(td,p,0);cell(tr,Math.round(e.s/1024)+' KB');act=cell(tr,null);
-        btn(act,'\u25B6','Abspielen (reiht sich in die Warteschlange ein); ein zweiter Klick beendet die Datei',function(){playFile('sd:'+p,'sdResult',{toggle:1});});dl(act,p);cp(act,'sd:'+p);}
+        btn(act,'\u25B6','Abspielen (reiht sich in die Warteschlange ein); ein zweiter Klick beendet die Datei',function(){playFile('sd:'+p,'sdResult',{toggle:1});});act.lastChild.setAttribute('data-f','sd:'+p);dl(act,p);cp(act,'sd:'+p);}
       btn(act,'\u270E','Umbenennen',function(){sdRen(p,e.n,e.d);});
       btn(act,'\u2716',e.d?'Ordner mit Inhalt l\u00f6schen':'Datei l\u00f6schen',function(){sdDel(p,e.d);});
       tb.appendChild(tr);});
     if(!j.entries.length)tb.appendChild(document.createElement('tr')).appendChild(document.createElement('td')).textContent='Keine MP3-Dateien oder Ordner';
-    if(j.entries.length)fselBar(box,'sd','sdResult',function(){sdLoad(sdCur);});box.appendChild(tb);}).catch(function(){});}
+    if(j.entries.length)fselBar(box,'sd','sdResult',function(){sdLoad(sdCur);});box.appendChild(tb);fileMarkNow();}).catch(function(){});}
 function sdFormat(){if(!confirm('SD-Karte formatieren? ALLE Dateien auf der Karte gehen verloren.'))return;if(!confirm('Wirklich alles löschen und die Karte als FAT32 neu anlegen?'))return;showRes('sdResult',{ok:true,msg:'Formatiere &hellip; das kann bis zu einer Minute dauern'});postApi('/api/sdformat',{confirm:'yes'},'sdResult').then(function(){sdLoad('/');});}
 function sdRemount(){postApi('/api/sdmount',{},'sdResult').then(function(){sdLoad('/');});}
 function sdMkdir(){var n=prompt('Name des neuen Ordners:');if(!n)return;postApi('/api/sdmkdir',{dir:sdCur,name:n},'sdResult').then(function(){sdLoad(sdCur);});}
@@ -1180,7 +1243,9 @@ function sdUploadNow(){var fs=Array.prototype.slice.call(document.getElementById
     fetch('/upload?target=sd&dir='+encodeURIComponent(sdCur),{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(j){if(j&&j.ok)okc++;else bad.push(fn+' ('+((j&&j.error)||'Fehler')+')');})
       .catch(function(){bad.push(fn);}).then(function(){i++;next();});}
   next();}
-function playFile(n,res,ex){var p={file:n};if(ex)for(var k in ex)p[k]=ex[k];postApi('/api/play',p,res||'upResult');}
+function playFile(n,res,ex){var p={file:n};if(ex)for(var k in ex)p[k]=ex[k];postApi('/api/play',p,res||'upResult').then(function(){setTimeout(pollPlay,500);setTimeout(pollPlay,1800);});}
+function fileNorm(f){return String(f).replace(/\/{2,}/g,'/').replace(/^\//,'');}
+function fileMarkNow(){var l=(window.NOWFILES||[]).map(fileNorm),bs=document.querySelectorAll('button[data-f]'),i,on;for(i=0;i<bs.length;i++){on=l.indexOf(fileNorm(bs[i].getAttribute('data-f')))>=0;bs[i].textContent=on?'\u25A0':'\u25B6';bs[i].style.color=on?'var(--accent,#f4a02a)':'';}}
 function fselChk(td,p,d){var c=document.createElement('input');c.type='checkbox';c.className='fsel';c.style.cssText='width:auto;margin:0 6px 0 0';c.setAttribute('data-p',p);c.setAttribute('data-d',d?'1':'0');td.insertBefore(c,td.firstChild);}
 function fselList(box){var r=[];box.querySelectorAll('input.fsel').forEach(function(c){if(c.checked)r.push({p:c.getAttribute('data-p'),d:c.getAttribute('data-d')==='1'});});return r;}
 function fselBar(box,mode,resId,reload){var bar=document.createElement('div');bar.className='row';bar.style.margin='6px 0';
@@ -1227,11 +1292,11 @@ function loadFiles(dir){if(dir===undefined)dir=fsCur;fsCur=dir;var box=document.
         btn(act,'\uD83D\uDD00 Zufall','Alle MP3-Dateien des Ordners in zuf\u00e4lliger Reihenfolge abspielen, jede einmal je Sitzung',function(){playFile(e.n+'/','upResult',{shuffle:1});});cp(act,e.n+'/');
         btn(act,'\u2716','Ordner mit Inhalt l\u00f6schen',function(){if(!confirm('Ordner mit allem Inhalt '+e.n+' l\u00f6schen?'))return;postApi('/api/delete',{file:e.n+'/'},'upResult').then(function(){loadFiles('');});});}
       else{td.textContent=e.n;fselChk(td,n,0);cell(tr,Math.round(e.s/1024)+' KB');act=cell(tr,null);
-        btn(act,'\u25B6','Abspielen (reiht sich in die Warteschlange ein); ein zweiter Klick beendet die Datei',function(){playFile(n,'upResult',{toggle:1});});dl(act,n);cp(act,n);
+        btn(act,'\u25B6','Abspielen (reiht sich in die Warteschlange ein); ein zweiter Klick beendet die Datei',function(){playFile(n,'upResult',{toggle:1});});act.lastChild.setAttribute('data-f',n);dl(act,n);cp(act,n);
         btn(act,'\u270E','Umbenennen',function(){renFile(n);});btn(act,'\u2716','Datei l\u00f6schen',function(){delFile(n);});}
       tb.appendChild(tr);});
     if(!j.entries.length)tb.appendChild(document.createElement('tr')).appendChild(document.createElement('td')).textContent='Keine MP3-Dateien oder Ordner';
-    if(j.entries.length)fselBar(box,'fl','upResult',function(){loadFiles();});box.appendChild(tb);}).catch(function(){});}
+    if(j.entries.length)fselBar(box,'fl','upResult',function(){loadFiles();});box.appendChild(tb);fileMarkNow();}).catch(function(){});}
 function uploadNow(){var fs=Array.prototype.slice.call(document.getElementById('upFile').files);if(!fs.length){showRes('upResult',{ok:false,error:'Keine Datei gew&auml;hlt'});return;}
   var i=0,okc=0,bad=[];
   function next(){if(i>=fs.length){var inp=document.getElementById('upFile');inp.value='';loadFiles();
@@ -1256,6 +1321,7 @@ function pollPlay(){if(document.hidden)return;fetch('/api/status',{cache:'no-sto
   saveBannerShow(j.saveErr,j.saveErrN);
   if(j.speechSeq!==undefined)SAYSEQ=j.speechSeq;
   window.NOWURL=(j.source==='radio'&&j.state==='playing')?(j.url||''):'';if(window.favMarkNow)favMarkNow();
+  window.NOWFILES=j.files||[];fileMarkNow();
   var el=document.getElementById('playState');if(el)el.textContent='Zustand: '+j.state+(j.error?' ('+j.error+')':'');
   var vs=document.querySelector('.volrange'),ae=document.activeElement;if(vs&&!(ae&&ae.className==='volrange')&&j.volume!==undefined&&+vs.value!==j.volume){volShow(j.volume);}
   {var t='';
@@ -1315,6 +1381,7 @@ TABINIT.wlan=function(){if(location.search.indexOf('tab=wlan')>=0)scanWifi();};
 TABINIT.status=function(){if(window.langList)langList();};
 TABINIT.sicherung=function(){bkFilesInfo();};
 TABINIT.log=function(){if(window.logInit)logInit();};
+TABINIT.zeit=function(){var l=document.getElementById('timeLang');if(l)fillVoiceSel('timeVoice',l.value,true);};
 function tabInit(k,p){p.querySelectorAll('.codehost').forEach(function(c){c.textContent=c.textContent.replace(/@HOST@/g,location.host);});if(TABINIT[k])TABINIT[k]();pollPlay();}
 // Beim Oeffnen von MP3 (Flash) und SD-Karte die Liste immer neu laden (ein erst jetzt geladener Tab holt sie selbst).
 // When opening MP3 (Flash) and SD card always reload the list (a tab that is only loaded now fetches it itself).
@@ -1364,6 +1431,7 @@ String flashText(const String& code) {
 
 String favName[FAV_SLOTS];
 String favUrl[FAV_SLOTS];
+String favKey[FAV_SLOTS];   // fester Schluessel fuer den Aufruf per REST/MQTT (leer = automatisch aus der URL) / fixed key for calls via REST/MQTT (empty = none)
 bool favLoaded = false;
 bool favMqttPending = false;   // Favoriten wurden geaendert und muessen per MQTT gemeldet werden / favorites changed and must be reported via MQTT
 
@@ -1371,6 +1439,99 @@ bool favMqttPending = false;   // Favoriten wurden geaendert und muessen per MQT
 // The favorites live in a file in the file system (one line per favorite: name, tab, URL), not in the scarce NVS memory of the settings.
 
 #define FAV_FILE "/favorites.dat"
+
+// Schluessel bereinigen: Kleinbuchstaben, Ziffern, Bindestrich und Unterstrich, hoechstens 24 Zeichen.
+// Clean a key: lower case letters, digits, hyphen and underscore, at most 24 characters.
+
+String favCleanKey(String k) {
+    k.trim();
+    k.toLowerCase();
+    String o;
+    for (size_t i = 0; i < k.length() && o.length() < 24; i++) {
+        char c = k[i];
+        if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_') o += c;
+        else if (c == ' ') o += '-';
+    }
+    return o;
+}
+
+// Schluessel aus der URL ableiten: erst die Woerter des Pfads (zum Beispiel christmas aus .../christmas.mp3), sonst die des Namens, zuletzt die des Hostnamens;
+// allgemeine Woerter (stream, live, mp3, Zahlen ...) werden uebersprungen.
+// Derive a key from the URL: first the words of the path (for example christmas from .../christmas.mp3), otherwise those of the name, last those of the host name;
+// common words (stream, live, mp3, numbers ...) are skipped.
+
+static bool favGenericWord(const String& w) {
+    static const char* const skip[] = {"http", "https", "www", "stream", "streams", "streaming", "live", "mp3", "aac", "ogg", "m3u8", "m3u", "pls", "radio", "listen", "icecast", "audio", "play", "index", "com", "net", "org", "de", "fm", "info", "eu", "stream1", "high", "low", "hq", "lq", "kbps", "icy", "radiobrowser", "player", "web", "free"};
+    for (size_t i = 0; i < sizeof(skip) / sizeof(skip[0]); i++) {
+        if (w == skip[i]) return true;
+    }
+    // Zahlen und Kennungen aus Buchstaben und Ziffern (zum Beispiel oua8a3w2dqao) sind keine Woerter.
+    // Numbers and IDs made of letters and digits (for example oua8a3w2dqao) are not words.
+    int nd = 0;
+    for (size_t i = 0; i < w.length(); i++) {
+        if (w[i] >= '0' && w[i] <= '9') nd++;
+    }
+    bool digits = nd == (int)w.length();
+    bool idLike = nd > 0 && w.length() >= 6;
+    return digits || idLike || w.length() < 3;
+}
+
+static String favWords(const String& part, bool strict) {
+    String out, w;
+    for (size_t i = 0; i <= part.length(); i++) {
+        char c = i < part.length() ? part[i] : ' ';
+        if (c >= 'A' && c <= 'Z') c = c - 'A' + 'a';
+        if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+            w += c;
+        } else {
+            if (!w.isEmpty() && (!strict || !favGenericWord(w))) out += (out.isEmpty() ? "" : "-") + w;
+            w = "";
+        }
+    }
+    return out;
+}
+
+String favAutoKey(const String& url, const String& name) {
+    String u = url;
+    int sch = u.indexOf("://");
+    if (sch >= 0) u = u.substring(sch + 3);
+    int q = u.indexOf('?');
+    if (q >= 0) u = u.substring(0, q);
+    int sl = u.indexOf('/');
+    String host = sl < 0 ? u : u.substring(0, sl);
+    String path = sl < 0 ? String() : u.substring(sl + 1);
+    String k = favWords(path, true);
+    if (k.isEmpty()) k = favWords(name, false);   // im Namen zaehlen auch Zahlen und kurze Woerter / in the name numbers and short words count too
+    if (k.isEmpty()) k = favWords(host, true);
+    k = favCleanKey(k);
+    return k.isEmpty() ? String("fav") : k;
+}
+
+// Schluessel eindeutig machen (-2, -3 ...); except ist der Platz, der gerade selbst den Schluessel bekommt.
+// Make a key unique (-2, -3 ...); except is the slot that gets the key itself.
+
+String favUniqueKey(const String& wanted, int except) {
+    String k = wanted;
+    for (int n = 2; n < 100; n++) {
+        bool used = false;
+        for (int i = 0; i < FAV_SLOTS; i++) {
+            if (i != except && !favUrl[i].isEmpty() && favKey[i] == k) used = true;
+        }
+        if (!used) return k;
+        String suf = "-" + String(n);
+        k = wanted.substring(0, 24 - suf.length()) + suf;
+    }
+    return k;
+}
+
+// Favoriten ohne Schluessel bekommen einen aus der URL (aelterer Stand, Import).
+// Favorites without a key get one from the URL (older state, import).
+
+void favFillKeys() {
+    for (int i = 0; i < FAV_SLOTS; i++) {
+        if (!favUrl[i].isEmpty() && favKey[i].isEmpty()) favKey[i] = favUniqueKey(favAutoKey(favUrl[i], favName[i]), i);
+    }
+}
 
 void favSaveAll() {
     favMqttPending = true;
@@ -1389,6 +1550,10 @@ void favSaveAll() {
         f.print(nm);
         f.print("\t");
         f.print(favUrl[i]);
+        if (!favKey[i].isEmpty()) {
+            f.print("\t");
+            f.print(favKey[i]);
+        }
         f.print("\n");
     }
     f.close();
@@ -1398,7 +1563,10 @@ void favSaveAll() {
 // Loaded on first access; if the file is missing, favorites of an older firmware are taken over from the NVS and deleted there.
 
 void favEnsure() {
-    if (favLoaded) return;
+    if (favLoaded) {
+        favFillKeys();
+        return;
+    }
     favLoaded = true;
     if (!fsReady) return;
     if (LittleFS.exists(FAV_FILE)) {
@@ -1409,11 +1577,15 @@ void favEnsure() {
             ln.replace("\r", "");
             int t = ln.indexOf('\t');
             if (t < 0 || t + 1 >= (int)ln.length()) continue;
+            String rest = ln.substring(t + 1);
+            int t2 = rest.indexOf('\t');
             favName[n] = ln.substring(0, t);
-            favUrl[n] = ln.substring(t + 1);
+            favUrl[n] = t2 < 0 ? rest : rest.substring(0, t2);
+            favKey[n] = t2 < 0 ? String() : favCleanKey(rest.substring(t2 + 1));
             n++;
         }
         if (f) f.close();
+        favFillKeys();
         return;
     }
     int n = 0;
@@ -1444,7 +1616,7 @@ void publishFavorites(bool force) {
         if (favUrl[i].isEmpty()) continue;
         if (!first) j += ",";
         first = false;
-        j += "{\"n\":" + String(i + 1) + ",\"name\":\"" + jsonEscape(favName[i]) + "\",\"url\":\"" + jsonEscape(favUrl[i]) + "\"}";
+        j += "{\"n\":" + String(i + 1) + ",\"name\":\"" + jsonEscape(favName[i]) + "\",\"key\":\"" + jsonEscape(favKey[i]) + "\",\"url\":\"" + jsonEscape(favUrl[i]) + "\"}";
     }
     j += "]}";
     if (!mqttClient.publish((mqttBaseTopic() + "/favorites").c_str(), j.c_str(), true)) logLine("[MQTT] favorites not published (too large for the buffer?)");
@@ -1901,6 +2073,7 @@ String favExportText() {
         nm.replace("\r", " ");
         nm.replace("\n", " ");
         t += "favn" + String(k) + "=" + nm + "\nfavu" + String(k) + "=" + favUrl[i] + "\n";
+        if (!favKey[i].isEmpty()) t += "favk" + String(k) + "=" + favKey[i] + "\n";
     }
     return t;
 }
@@ -1911,18 +2084,22 @@ bool favImportLine(const String& k, const String& v) {
         for (int i = 0; i < FAV_SLOTS; i++) {
             favName[i] = "";
             favUrl[i] = "";
+            favKey[i] = "";
         }
         return true;
     }
     bool isN = k.startsWith("favn");
     bool isU = k.startsWith("favu");
-    if (!isN && !isU) return false;
+    bool isK = k.startsWith("favk");
+    if (!isN && !isU && !isK) return false;
     int n = k.substring(4).toInt();
     if (n < 1 || n > FAV_SLOTS) return true;
     favEnsure();
     int i = n - 1;
     if (isN) {
         favName[i] = v.substring(0, RADIO_NAME_MAX);
+    } else if (isK) {
+        favKey[i] = favCleanKey(v);
     } else {
         favUrl[i] = ((v.startsWith("http://") || v.startsWith("https://")) && v.length() <= RADIO_URL_MAX) ? v : String();
     }
@@ -1960,12 +2137,14 @@ void handleFavoritesImport() {
         if (!favUrl[i].isEmpty()) {
             favName[kk] = favName[i];
             favUrl[kk] = favUrl[i];
+            favKey[kk] = favKey[i];
             kk++;
         }
     }
     for (int i = kk; i < FAV_SLOTS; i++) {
         favName[i] = "";
         favUrl[i] = "";
+        favKey[i] = "";
     }
     favSaveAll();
     int n = kk;
@@ -2252,6 +2431,12 @@ void handleApiSay() {
     sendOk("Wird angesagt");
 }
 
+void handleApiSayTime() {
+    String err = commandSayTime(apiArg("lang"), apiArg("voice"), numberOr(apiArg("rate"), 99), numberOr(apiArg("vol"), -1), apiArg("fx").isEmpty() || flagOn(apiArg("fx")));
+    if (err.length() > 0) return sendErr(400, err);
+    sendOk("Uhrzeit wird angesagt");
+}
+
 void handleApiPlay() {
     String url = apiArg("url");
     String file = apiArg("file");
@@ -2475,6 +2660,26 @@ void handleApiStatus() {
     bool speechOn = (nowKind == "speech" && playState != PS_IDLE) || (mixT[MIX_ANN].inUse && mixT[MIX_ANN].path == TTS_FILE);
     j += ",\"speechSeq\":" + String(speechSeq) + ",\"speechOn\":" + (speechOn ? "true" : "false");
     if (speechOn) j += ",\"speechSrc\":\"" + speechFrom + "\"";
+    // Dateien, die gerade spielen (Hauptstrom und Mischspuren), damit die Listen den Knopf auf Stopp umschalten koennen.
+    // Files that are playing right now (main stream and mix tracks) so the lists can switch the button to stop.
+    String playingFiles;
+    auto addPlaying = [&](const String& n) {
+        if (n.isEmpty()) return;
+        if (!playingFiles.isEmpty()) playingFiles += ",";
+        playingFiles += "\"" + jsonEscape(n) + "\"";
+    };
+    if (nowKind == "file" && playState != PS_IDLE) addPlaying(nowFile);
+    for (int t = 0; t < 2; t++) {
+        if (!mixT[t].inUse || mixT[t].path == TTS_FILE) continue;
+        String mp = mixT[t].path;
+        if (mixT[t].onSd) {
+            addPlaying("sd:" + mp);
+        } else {
+            String pre = String(MP3_DIR) + "/";
+            addPlaying(mp.startsWith(pre) ? mp.substring(pre.length()) : mp);
+        }
+    }
+    j += ",\"files\":[" + playingFiles + "]";
     bool idleNow = playState == PS_IDLE || nowKind.isEmpty();
     j += ",\"source\":\"" + String(idleNow ? "" : nowKind.c_str()) + "\",\"name\":\"" + jsonEscape(idleNow ? String() : (nowKind == "radio" ? stationDisplayName() : (nowKind == "file" ? nowFile : String()))) + "\",\"title\":\"" + jsonEscape(nowKind == "radio" && !idleNow ? nowTitle : String()) + "\",\"url\":\"" + jsonEscape(nowKind == "radio" && !idleNow ? streamUrl : String()) + "\"";
     if (!idleNow && nowKind == "file" && playState == PS_PLAYING && audio) j += ",\"pos\":" + String(audio->getAudioCurrentTime()) + ",\"dur\":" + String(audio->getAudioFileDuration());
@@ -2641,7 +2846,7 @@ void handleApiEffect() {
 }
 
 void handleApiSdFormat() {
-    if (apiArg("confirm") != "yes") return sendErr(400, "Zur BestÃ¤tigung confirm=yes angeben; beim Formatieren geht alles auf der Karte verloren");
+    if (apiArg("confirm") != "yes") return sendErr(400, "Zur Best\xC3\xA4tigung confirm=yes angeben; beim Formatieren geht alles auf der Karte verloren");
     String e = sdFormat();
     if (e.length()) return sendErr(400, e);
     sendOk("SD-Karte als FAT32 formatiert");
@@ -3086,7 +3291,7 @@ void handleApiFavorites() {
         if (favUrl[i].isEmpty()) continue;
         if (!first) j += ",";
         first = false;
-        j += "{\"n\":" + String(i + 1) + ",\"name\":\"" + jsonEscape(favName[i]) + "\",\"url\":\"" + jsonEscape(favUrl[i]) + "\"}";
+        j += "{\"n\":" + String(i + 1) + ",\"name\":\"" + jsonEscape(favName[i]) + "\",\"key\":\"" + jsonEscape(favKey[i]) + "\",\"url\":\"" + jsonEscape(favUrl[i]) + "\"}";
     }
     j += "]}";
     sendJson(200, j);
@@ -3111,12 +3316,73 @@ void handleApiFavoriteAdd() {
         if (favUrl[i].isEmpty()) {
             favName[i] = name;
             favUrl[i] = url;
+            favKey[i] = favUniqueKey(favAutoKey(url, name), i);
             favSaveFrom(i);
             logLine("[WEB] favorite added: " + name);
             return sendOk("Zu den Favoriten hinzugef\xC3\xBCgt");
         }
     }
     sendErr(400, "Favoriten voll (" + String(FAV_SLOTS) + ")");
+}
+
+// Favorit finden: Schluessel (key) oder Nummer (n); -1, wenn es ihn nicht gibt.
+// Find a favorite: by key or by number (n); -1 if there is none.
+
+int favFind(const String& sel) {
+    favEnsure();
+    String k = favCleanKey(sel);
+    if (!k.isEmpty()) {
+        for (int i = 0; i < FAV_SLOTS; i++) {
+            if (!favUrl[i].isEmpty() && favKey[i] == k) return i;
+        }
+    }
+    String t = sel;
+    t.trim();
+    int n = t.toInt();
+    if (n >= 1 && n <= FAV_SLOTS && String(n) == t && !favUrl[n - 1].isEmpty()) return n - 1;
+    return -1;
+}
+
+// Favorit abspielen: sel ist der Schluessel oder die Nummer.
+// Play a favorite: sel is the key or the number.
+
+String commandPlayFavorite(const String& sel, int vol) {
+    if (sel.isEmpty()) return "Schl\xC3\xBCssel (key) oder Nummer (n) angeben";
+    int i = favFind(sel);
+    if (i < 0) return "Favorit nicht gefunden";
+    return commandPlayUrl(favUrl[i], vol);
+}
+
+void handleApiFavorite() {
+    String sel = apiArg("key");
+    if (sel.isEmpty()) sel = apiArg("n");
+    String err = commandPlayFavorite(sel, numberOr(apiArg("vol"), -1));
+    if (err.length() > 0) return sendErr(err == "Favorit nicht gefunden" ? 404 : 400, err);
+    sendOk("Wird abgespielt");
+}
+
+void handleApiFavoriteRename() {
+    favEnsure();
+    int n = apiArg("n").toInt();
+    String name = apiArg("name");
+    name.trim();
+    name.replace("\r", " ");
+    name.replace("\n", " ");
+    bool hasKey = webserver.hasArg("key") || webserver.arg("plain").indexOf("\"key\"") >= 0;
+    if (n < 1 || n > FAV_SLOTS || favUrl[n - 1].isEmpty()) return sendErr(404, "Favorit nicht gefunden");
+    if (name.isEmpty() && !hasKey) return sendErr(400, "name oder key angeben");
+    String key = hasKey ? favCleanKey(apiArg("key")) : favKey[n - 1];
+    if (!key.isEmpty()) {
+        for (int i = 0; i < FAV_SLOTS; i++) {
+            if (i != n - 1 && !favUrl[i].isEmpty() && favKey[i] == key) return sendErr(400, "Schl\xC3\xBCssel schon vergeben");
+        }
+    }
+    if (name.length() > RADIO_NAME_MAX) name = name.substring(0, RADIO_NAME_MAX);
+    if (!name.isEmpty()) favName[n - 1] = name;
+    favKey[n - 1] = key;
+    favSaveFrom(n - 1);
+    logLine("[WEB] favorite " + String(n) + " changed: " + favName[n - 1] + (key.isEmpty() ? String() : " key " + key));
+    sendOk("Favorit ge\xC3\xA4ndert");
 }
 
 void handleApiFavoriteDelete() {
@@ -3126,9 +3392,11 @@ void handleApiFavoriteDelete() {
     for (int i = n - 1; i < FAV_SLOTS - 1; i++) {
         favName[i] = favName[i + 1];
         favUrl[i] = favUrl[i + 1];
+        favKey[i] = favKey[i + 1];
     }
     favName[FAV_SLOTS - 1] = "";
     favUrl[FAV_SLOTS - 1] = "";
+    favKey[FAV_SLOTS - 1] = "";
     favSaveFrom(n - 1);
     logLine("[WEB] favorite " + String(n) + " deleted");
     sendOk("Favorit gel\xC3\xB6scht");
@@ -3155,6 +3423,22 @@ void handleApiLang() {
     sendJson(200, "{\"langs\":[\"en\"]}");
 }
 
+// Dateiname fuer die Wiederherstellung unveraendert behalten (Leerzeichen, Umlaute); nur MP3 und keine Pfad- oder Sonderzeichen.
+// Keep the file name unchanged for a restore (spaces, umlauts); MP3 only and no path or special characters.
+
+static String sdKeepName(const String& n) {
+    String out = n;
+    out.trim();
+    if (out.isEmpty() || out.length() > 120 || out.startsWith(".") || out.indexOf("..") >= 0) return "";
+    for (size_t i = 0; i < out.length(); i++) {
+        uint8_t c = (uint8_t)out[i];
+        if (c < 0x20 || c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' || c == '|') return "";
+    }
+    String l = out;
+    l.toLowerCase();
+    return l.endsWith(".mp3") ? out : String();
+}
+
 void handleUploadData() {
     HTTPUpload& up = webserver.upload();
     if (up.status == UPLOAD_FILE_START) {
@@ -3163,7 +3447,8 @@ void handleUploadData() {
         if (uploadOnSd) {
             String dir = webserver.arg("dir");
             if (dir.isEmpty()) dir = "/";
-            String name = sdCleanName(up.filename, true);
+            bool keepName = webserver.arg("keep") == "1";
+            String name = keepName ? sdKeepName(up.filename) : sdCleanName(up.filename, true);
             if (!sdReady) {
                 uploadError = "SD-Karte nicht verf\xC3\xBCgbar";
             } else if (!sdPathOk(dir)) {
@@ -3175,6 +3460,16 @@ void handleUploadData() {
                 String path = (dir == "/" ? String() : dir) + "/" + name;
                 sdStopIfUsing(path);
                 if (xSemaphoreTake(sdMutex, pdMS_TO_TICKS(3000)) == pdTRUE) {
+                    if (keepName && dir != "/") {   // fehlende Ordner anlegen / create missing folders
+                        int from = 1;
+                        while (from <= (int)dir.length()) {
+                            int e = dir.indexOf('/', from);
+                            if (e < 0) e = dir.length();
+                            String acc = dir.substring(0, e);
+                            if (!SD.exists(acc.c_str())) SD.mkdir(acc.c_str());
+                            from = e + 1;
+                        }
+                    }
                     File d = SD.open(dir.c_str());
                     if (d && d.isDirectory()) uploadFile = SD.open(path.c_str(), FILE_WRITE);
                     else uploadError = "Ordner nicht gefunden";
@@ -3574,12 +3869,15 @@ void setupWeb() {
     webserver.on("/log", HTTP_GET, handleLog);
     webserver.on("/favicon.ico", HTTP_GET, handleFavicon);
     webserver.on("/api/say", handleApiSay);
+    webserver.on("/api/saytime", handleApiSayTime);
     webserver.on("/api/play", handleApiPlay);
     webserver.on("/api/station", handleApiStation);
     webserver.on("/api/stations", HTTP_GET, handleApiStations);
     webserver.on("/api/stationdelete", handleApiStationDelete);
     webserver.on("/api/favorites", handleApiFavorites);
     webserver.on("/api/favoriteadd", handleApiFavoriteAdd);
+    webserver.on("/api/favorite", handleApiFavorite);
+    webserver.on("/api/favoriterename", handleApiFavoriteRename);
     webserver.on("/api/favoritedelete", handleApiFavoriteDelete);
     webserver.on("/api/favoritestolist", handleApiFavoritesToList);
     webserver.on("/api/url", handleApiUrl);

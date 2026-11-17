@@ -560,6 +560,7 @@ String commandSay(const String& textIn, const String& lang, const String& voice,
 String commandPlayFile(const String& nameIn, int vol, bool shuffle, int loop);
 String commandPlayUrl(const String& urlIn, int vol);
 String commandPlayStation(const String& selIn, int vol);
+String commandPlayFavorite(const String& sel, int vol);
 bool pinTypeIsControl(const String& t);
 String commandPinControl(const String& type, const String& x, int vol);
 
@@ -1064,7 +1065,7 @@ String sdFormat() {
         SD.end();
     } else {
         SD.end();
-        if (!(SD.begin(cfg.sdCs, sdSpi, 16000000, "/sd", 5, true) && SD.cardType() != CARD_NONE)) err = "Keine Karte gefunden oder sie lÃ¤sst sich nicht formatieren";
+        if (!(SD.begin(cfg.sdCs, sdSpi, 16000000, "/sd", 5, true) && SD.cardType() != CARD_NONE)) err = "Keine Karte gefunden oder sie l\xC3\xA4sst sich nicht formatieren";
         SD.end();
     }
     sdSpi.end();
@@ -4172,6 +4173,43 @@ String commandSay(const String& textIn, const String& lang, const String& voice,
     return "";
 }
 
+// Uhrzeit als Satz in der Sprache der Stimme (de: mit Zahlwoertern, "Es ist zwoelf Uhr dreissig."; andere Sprachen mit Ziffern); leer, wenn die Uhrzeit fehlt.
+// Time as a sentence in the language of the voice (de: with number words, "Es ist zwoelf Uhr dreissig."; other languages with digits); empty if the time is not known.
+
+static String deNumber(int n, bool beforeUhr) {
+    static const char* const ones[] = {"null", "eins", "zwei", "drei", "vier", "f\xC3\xBCnf", "sechs", "sieben", "acht", "neun", "zehn", "elf", "zw\xC3\xB6lf", "dreizehn", "vierzehn", "f\xC3\xBCnfzehn", "sechzehn", "siebzehn", "achtzehn", "neunzehn"};
+    static const char* const tens[] = {"", "", "zwanzig", "drei\xC3\x9F" "ig", "vierzig", "f\xC3\xBCnfzig"};
+    if (n < 20) return (n == 1 && beforeUhr) ? String("ein") : String(ones[n]);
+    int t = n / 10, o = n % 10;
+    if (o == 0) return String(tens[t]);
+    return String(o == 1 ? "ein" : ones[o]) + "und" + tens[t];
+}
+
+String timeSpeechText(const String& langIn) {
+    if (!timeIsValid()) return "";
+    time_t now = time(nullptr);
+    struct tm ti;
+    localtime_r(&now, &ti);
+    int h = ti.tm_hour, m = ti.tm_min;
+    String lang = langIn.length() > 0 ? langIn : cfg.vlang;
+    lang.toLowerCase();
+    String code = lang.substring(0, 2);
+    char buf[8];
+    snprintf(buf, sizeof(buf), "%d:%02d", h, m);
+    if (code == "de") return "Es ist " + deNumber(h, true) + " Uhr" + (m ? " " + deNumber(m, false) : String()) + ".";
+    if (code == "en") return String("It is ") + buf + ".";
+    if (code == "fr") return "Il est " + String(h) + " heures" + (m ? " " + String(m) : String()) + ".";
+    if (code == "es") return String("Son las ") + buf + ".";
+    if (code == "it") return String("Sono le ") + buf + ".";
+    return String(buf);
+}
+
+String commandSayTime(const String& lang, const String& voice, int rate, int vol, bool useFx) {
+    String text = timeSpeechText(lang);
+    if (text.isEmpty()) return "Uhrzeit nicht verfuegbar (NTP)";
+    return commandSay(text, lang, voice, rate, vol, false, useFx);
+}
+
 String commandPlayUrl(const String& urlIn, int vol) {
     String url = urlIn;
     url.trim();
@@ -4679,7 +4717,21 @@ void onMqttMessage(char* topic, uint8_t* payload, unsigned int length) {
             }
         }
     }
-    if (t == base + "/say") {
+    if (t == base + "/saytime") {
+        int v = -1, rt = 99;
+        String lg, vc;
+        bool fxOn = true;
+        if (isJson) {
+            lg = jsonGet(body, "lang");
+            vc = jsonGet(body, "voice");
+            rt = numberOr(jsonGet(body, "rate"), 99);
+            v = numberOr(jsonGet(body, "vol"), -1);
+            fxOn = jsonGet(body, "fx").isEmpty() || flagOn(jsonGet(body, "fx"));
+        } else if (body.length() > 0) {
+            v = numberOr(body, -1);
+        }
+        err = commandSayTime(lg, vc, rt, v, fxOn);
+    } else if (t == base + "/say") {
         if (isJson) err = commandSay(jsonGet(body, "text"), jsonGet(body, "lang"), jsonGet(body, "voice"), numberOr(jsonGet(body, "rate"), 99), numberOr(jsonGet(body, "vol"), -1), flagOn(jsonGet(body, "save")), jsonGet(body, "fx").isEmpty() || flagOn(jsonGet(body, "fx")));
         else err = commandSay(body, "", "", 99, -1);
     } else if (t == base + "/play" || t == base + "/url" || t == base + "/file") {
@@ -4701,6 +4753,14 @@ void onMqttMessage(char* topic, uint8_t* payload, unsigned int length) {
         if (t == base + "/file") wantUrl = false;
         if (wantUrl) err = commandPlayUrl(url, v);
         else err = panErr.isEmpty() ? commandPlayFileFx(file, v, shuffle, loop, pn, pds) : panErr;
+    } else if (t == base + "/favorite") {
+        if (isJson) {
+            String sel = jsonGet(body, "key");
+            if (sel.isEmpty()) sel = jsonGet(body, "n");
+            err = commandPlayFavorite(sel, numberOr(jsonGet(body, "vol"), -1));
+        } else {
+            err = commandPlayFavorite(body, -1);
+        }
     } else if (t == base + "/station") {
         if (isJson) err = commandPlayStation(jsonGet(body, "name").length() > 0 ? jsonGet(body, "name") : jsonGet(body, "n"), numberOr(jsonGet(body, "vol"), -1));
         else err = commandPlayStation(body, -1);
@@ -4781,10 +4841,12 @@ void mqttConnect() {
         mqttWasConnected = true;
         mqttClient.publish((base + "/availability").c_str(), "online", true);
         mqttClient.subscribe((base + "/say").c_str());
+        mqttClient.subscribe((base + "/saytime").c_str());
         mqttClient.subscribe((base + "/play").c_str());
         mqttClient.subscribe((base + "/url").c_str());
         mqttClient.subscribe((base + "/file").c_str());
         mqttClient.subscribe((base + "/station").c_str());
+        mqttClient.subscribe((base + "/favorite").c_str());
         mqttClient.subscribe((base + "/list").c_str());
         mqttClient.subscribe((base + "/stop").c_str());
         mqttClient.subscribe((base + "/mute").c_str());

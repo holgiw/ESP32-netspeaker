@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-11-17 - Version 1.6.18
+
+**Deutsch**
+
+- Neu: Die Uhrzeit ansagen, mit der eingestellten Stimme und Sprache: `GET/POST /api/saytime` (optional `vol`, `lang`, `voice`, `rate`, `fx`) und MQTT `<Basis>/saytime` (leere Nutzlast, eine Zahl als Lautstärke oder JSON). Deutsch mit Zahlwörtern („Es ist zwölf Uhr dreißig.“), andere Sprachen mit Ziffern. Ohne gültige Uhrzeit (NTP) kommt ein Fehler.
+- Neu: Im Tab *Zeit* sagt der Knopf *Uhrzeit ansagen* die aktuelle Uhrzeit an. Die Felder *Lautstärke*, *Sprache*, *Stimme*, *Tempo* und *Klangeffekt* sind mit den eingestellten Werten vorbelegt. Die Karte erscheint nur, wenn ein VoiceRSS-Schlüssel gespeichert ist. Die Knöpfe *URL* und *curl* daneben kopieren den Aufruf `/api/saytime` mit allen Werten der Felder.
+- Neu: Der Knopf *API* bei einem Favoriten bietet jetzt auch den Aufruf als fertige URL zum Kopieren an (`REST (URL): http://…/api/play?url=…&vol=60`), über dem curl-Befehl und den MQTT-Angaben.
+- Neu: Läuft eine Datei, wechselt ihr ▶-Knopf in den Listen *MP3 (Flash)* und *SD-Karte* zu ■ (auch bei einer Datei, die als Mischspur über einem Radio läuft), damit man sieht, dass ein Klick sie beendet. `/api/status` hat dafür das neue Feld `files` mit den gerade spielenden Dateien.
+- Neu: Im Tab *Sicherung* lassen sich auch Dateien der SD-Karte sichern: der Haken *Dateien der SD-Karte einschließen* zeigt die MP3-Dateien aller Ordner zur Auswahl (einzeln abwählbar, mit Größe). Sie kommen mit ihren Ordnern als `sd/…` in die ZIP-Datei (bis 1,5 GB; ab 300 MB mit Rückfrage). Beim Einlesen gibt es den Haken *Dateien der SD-Karte übernehmen*; Ordner werden angelegt, Dateinamen bleiben unverändert (auch mit Leerzeichen und Umlauten), Dateien gleichen Namens werden ersetzt. `POST /upload?target=sd&keep=1&dir=/Ordner` legt fehlende Ordner an und behält den Dateinamen.
+- Geändert: Im Tab *Status* ist die Release-Nummer kein Link mehr, und der Hinweis auf die Sprachen (Karte *Sprache / Language*) ist entfernt.
+- Neu: Favoriten lassen sich umbenennen: der Knopf ✎ in der Favoritenliste (Tab *Webradio*) fragt nach dem neuen Namen. Per REST: `POST /api/favoriterename` mit `n` (Nummer) und `name`.
+- Neu: Jeder Favorit hat einen festen Schlüssel, den das Gerät aus der URL ableitet (zum Beispiel `christmas` aus `…/christmas.mp3`, sonst aus dem Namen; allgemeine Wörter wie `stream`, `live`, `mp3` und Zahlen werden übersprungen) und der sich mit ✎ ändern lässt. Aufruf über den Schlüssel statt über den Namen: `GET/POST /api/favorite?key=…` (oder `n=` für die Nummer, optional `vol`) und MQTT `<Basis>/favorite` (Schlüssel, Nummer oder JSON `{"key":"…","vol":8}`). Der Schlüssel steht in `GET /api/favorites`, im MQTT-Thema `…/favorites`, in der Favoritendatei und in der Sicherung; vorhandene Favoriten bekommen ihn automatisch. Der Knopf *API* zeigt die Zeilen `REST (Schlüssel)` und `REST (Nr.)`.
+- Behoben: Zwei Fehlermeldungen beim Formatieren der SD-Karte hatten falsche Umlaute („lässt“, „Bestätigung“).
+
+**English**
+
+- New: announce the time with the voice and language that are set: `GET/POST /api/saytime` (optional `vol`, `lang`, `voice`, `rate`, `fx`) and MQTT `<base>/saytime` (empty payload, a number as volume or JSON). German with number words ("Es ist zwölf Uhr dreißig."), other languages with digits. Without a valid time (NTP) an error is returned.
+- New: in the *Zeit* tab the *Uhrzeit ansagen* button announces the current time. The fields *volume*, *language*, *voice*, *speed* and *sound effect* are preset with the values that are set. The card only appears if a VoiceRSS key is saved. The *URL* and *curl* buttons next to it copy the `/api/saytime` call with all values of the fields.
+- New: the *API* button of a favorite now also offers the call as a ready URL to copy (`REST (URL): http://…/api/play?url=…&vol=60`), above the curl command and the MQTT details.
+- New: while a file is playing, its ▶ button in the *MP3 (Flash)* and *SD card* lists changes to ■ (also for a file that plays as a mix track over a radio) so you can see that a click stops it. `/api/status` has a new field `files` with the files that are playing.
+- New: in the *Sicherung* tab files of the SD card can be backed up too: the tick *Dateien der SD-Karte einschließen* shows the MP3 files of all folders to choose from (single files can be unticked, with size). They go into the ZIP file with their folders as `sd/…` (up to 1.5 GB; with a confirmation above 300 MB). When reading it in there is the tick *Dateien der SD-Karte übernehmen*; folders are created, file names stay unchanged (also with spaces and umlauts), files of the same name are replaced. `POST /upload?target=sd&keep=1&dir=/folder` creates missing folders and keeps the file name.
+- Changed: in the *Status* tab the release number is no longer a link, and the note about the languages (card *Sprache / Language*) is removed.
+- New: favorites can be renamed: the ✎ button in the favorites list (*Webradio* tab) asks for the new name. Via REST: `POST /api/favoriterename` with `n` (number) and `name`.
+- New: every favorite has a fixed key that the device derives from the URL (for example `christmas` from `…/christmas.mp3`; common words such as `stream`, `live`, `mp3` and numbers are skipped) and that can be changed with ✎. Call via the key instead of the name: `GET/POST /api/favorite?key=…` (or `n=` for the number, optional `vol`) and MQTT `<base>/favorite` (key, number or JSON `{"key":"…","vol":8}`). The key is in `GET /api/favorites`, in the MQTT topic `…/favorites`, in the favorites file and in the backup; existing favorites get it automatically. The *API* button shows the lines `REST (Schlüssel)` and `REST (Nr.)`.
+- Fixed: two error messages when formatting the SD card showed wrong umlauts.
+
 ## 2026-11-17 - Version 1.6.17
 
 **Deutsch**
