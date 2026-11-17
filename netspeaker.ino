@@ -3211,7 +3211,11 @@ bool fileMixed(const Pending& p) {
     // Eine Datei der Karte ueber dem Radio liegt auf Spur 0 und wird von einer Ansage abgesenkt; alles andere ist eine Ansage (Spur 1).
     // A file of the card over the radio goes on track 0 and is lowered by an announcement; everything else is an announcement (track 1).
 
-    bool layer = r.sd && streamActive;
+    // Eine Datei mit Effektwerten im Namen (gespeicherte Ansage) ist eine Ansage und bekommt ihren Effekt.
+    // A file with effect values in its name (saved announcement) is an announcement and gets its effect.
+
+    FxParams nameFx{0, 0, 0, 0};
+    bool layer = r.sd && streamActive && !fileNameFx(p.text, nameFx);
 
     // Laeuft schon ein Klang, bekommt die Datei die freie Spur und beide spielen zugleich (die laufende Datei wird nicht abgesenkt).
     // If a sound is already running, the file gets the free track and both play at the same time (the running file is not lowered).

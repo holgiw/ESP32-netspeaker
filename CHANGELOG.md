@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-17 - Version 1.6.16
+
+**Deutsch**
+
+- Behoben: Eine gespeicherte Ansage von der SD-Karte (Dateiname mit Effektangabe, zum Beispiel `..._halle34.mp3`) bekommt jetzt auch über laufendem Webradio ihren Hall, Echo und Klangregler. Vorher lag sie als Hintergrundspur ohne Effekt unter dem Radio. Normale SD-Dateien ohne Effektangabe bleiben Hintergrundspur.
+
+**English**
+
+- Fixed: a saved announcement from the SD card (file name with effect values, for example `..._halle34.mp3`) now gets its reverb, echo and tone control also over a running web radio. Before, it played as a background track without effect under the radio. Normal SD files without effect values stay a background track.
+
 ## 2026-11-15 - Version 1.6.15
 
 **Deutsch**
