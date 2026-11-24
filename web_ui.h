@@ -38,8 +38,9 @@ h1 a.host-link:hover{color:var(--accent);border-bottom-color:var(--accent);}
 .dot.na,.dot.idle{background:var(--muted);box-shadow:0 0 0 3px rgba(143,155,167,.18);}
 .dot.syncing{background:var(--accent);box-shadow:0 0 0 3px rgba(245,166,35,.18);animation:dotBlink 1s ease-in-out infinite;}
 .dot.playing{background:var(--ok);box-shadow:0 0 0 3px rgba(61,220,132,.18);animation:dotBlink 1s ease-in-out infinite;}
+.dot.nokey{background:var(--bad);box-shadow:0 0 0 3px rgba(255,92,92,.3);animation:dotBlink .8s ease-in-out infinite;}
 @keyframes dotBlink{0%,100%{opacity:1;}50%{opacity:.25;}}
-@media (prefers-reduced-motion:reduce){.dot.syncing,.dot.playing{animation:none;opacity:.6;}}
+@media (prefers-reduced-motion:reduce){.dot.syncing,.dot.playing,.dot.nokey{animation:none;opacity:.6;}}
 .datetime{font-family:var(--mono);font-size:.8rem;color:var(--muted);}
 .offline-hint{display:none;color:var(--bad);font-size:.75rem;margin-left:.3rem;}
 .offline-hint.show{display:inline;}
@@ -68,6 +69,7 @@ select.pinsel.dup{outline:2px solid var(--bad);}
 .codewrap{position:relative;}
 .copy-btn{position:absolute;top:6px;right:6px;width:auto;margin:0;padding:3px 10px;font-size:.75rem;font-weight:normal;background:var(--panel);border:1px solid var(--panel-border);color:var(--text);border-radius:.4rem;cursor:pointer;}
 .copy-btn:hover{background:var(--panel);border-color:var(--accent);color:var(--accent);}
+.copy-btn.on,.playbtn.on,.copy-btn.on:hover{background:var(--bad);border-color:var(--bad);color:#fff;font-weight:bold;font-size:1.1rem;line-height:1;box-shadow:0 0 0 2px var(--accent-dim);}
 .doc p,.doc li{font-size:.9rem;line-height:1.45;}
 .doc table{width:100%;font-size:.85rem;}
 .doc td,.doc th{text-align:left;}
@@ -132,12 +134,13 @@ String dotStatusText(const String& label, const String& state) {
     else if (state == "playing") t = "Spielt";
     else if (state == "idle") t = "Leerlauf";
     else if (state == "bad") t = "Fehler";
+    else if (state == "nokey") t = "kein API-Schluessel eingetragen";
     return label + ": " + t;
 }
 
 String statusDotHtml(const String& key, const String& label, const String& state, bool gated, bool present) {
     String title = htmlEsc(dotStatusText(label, state));
-    String cls = state == "na" ? " na" : (state == "ok" ? " ok" : (state == "syncing" ? " syncing" : (state == "playing" ? " playing" : (state == "idle" ? " idle" : ""))));
+    String cls = state == "na" ? " na" : (state == "ok" ? " ok" : (state == "syncing" ? " syncing" : (state == "playing" ? " playing" : (state == "idle" ? " idle" : (state == "nokey" ? " nokey" : "")))));
     String h = "<span class='status' id='status-" + key + "'" + ((gated && !present) ? " hidden" : "") + ">";
     h += "<i id='dot-" + key + "' class='dot" + cls + "' role='img' title='" + title + "' aria-label='" + title + "'></i>" + label + "</span>";
     return h;
@@ -158,7 +161,7 @@ bool mqttGatedPresent() {
 }
 
 bool voiceGatedPresent() {
-    return voiceEver;
+    return voiceEver || cfg.vkey.isEmpty();
 }
 
 // Die Punkte hier und in handleTopbarStatus() muessen dieselben Bedingungen nutzen, sonst stimmen Erstansicht und Abfrage nicht ueberein.
@@ -172,7 +175,7 @@ String topbarHtml() {
     h += "<div class='status-strip'>";
     h += "<span class='status' title='Aktuelle Lautst&auml;rke (0 bis 100)'>Lautst&auml;rke: <span id='value-vol' class='statval'>" + String(cfg.vol) + "/" + String(VOLUME_MAX) + "</span></span>";
     if (cfg.mqttServer.length() > 0) h += statusDotHtml("mqtt", "MQTT", mqttDotState(), true, mqttGatedPresent());
-    if (cfg.vkey.length() > 0) h += statusDotHtml("voice", "VoiceRSS", voiceDotState(), true, voiceGatedPresent());
+    h += statusDotHtml("voice", "VoiceRSS", voiceDotState(), true, voiceGatedPresent());
     h += statusDotHtml("audio", "Audio", audioDotState(), false, true);
     h += statusDotHtml("time", "Zeit", timeDotState(), false, true);
     h += "</div><div id='topbar-datetime' class='datetime'>" + formatNow() + "</div>";
@@ -186,7 +189,7 @@ String topbarHtml() {
 static const char TOPBAR_JS[] PROGMEM = R"js(
 (function(){
   function setStatusDot(id,state,title){var el=document.getElementById(id);if(!el)return;
-    el.classList.toggle('ok',state==='ok');el.classList.toggle('syncing',state==='syncing');el.classList.toggle('playing',state==='playing');el.classList.toggle('idle',state==='idle');el.classList.toggle('na',state==='na');
+    el.classList.toggle('ok',state==='ok');el.classList.toggle('syncing',state==='syncing');el.classList.toggle('playing',state==='playing');el.classList.toggle('idle',state==='idle');el.classList.toggle('na',state==='na');el.classList.toggle('nokey',state==='nokey');
     if(title){el.title=title;el.setAttribute('aria-label',title);}}
   function setPresent(id,p){var el=document.getElementById(id);if(el)el.hidden=!p;}
   function setValue(id,t){var el=document.getElementById(id);if(el)el.textContent=t;}
@@ -317,7 +320,7 @@ String panelRadio() {
     h += "<button type='button' onclick=\"document.getElementById('favFile').click()\" style='width:auto;padding:8px 14px'>Favoriten laden</button><input type='file' id='favFile' accept='.txt' style='display:none' onchange='loadFavorites(this)'> " + infoTip("Ersetzt die Favoriten durch eine zuvor gespeicherte Datei") + "</div>";
     h += "<div id='favResult'></div></div>";
     h += "<div class='card'><h3>Webradio-URL abspielen</h3><div class='row'>";
-    h += "<input id='playUrl' placeholder='https://...' style='width:90%'><button type='button' onclick='playUrlNow()' style='width:150px'>URL abspielen</button> " + infoTip("Adresse eines Webradios oder einer MP3-Datei (http:// oder https://); sie wird jetzt abgespielt, aber nicht gespeichert") + "</div><div id='radioResult'></div></div>";
+    h += "<input id='playUrl' placeholder='https://...' style='width:90%'><button type='button' onclick='playUrlNow()' style='width:150px'>URL abspielen</button> <button type='button' onclick='favAddUrl()' style='width:190px'>Als Favorit speichern</button> " + infoTip("Adresse eines Webradios oder einer MP3-Datei (http:// oder https://); sie wird jetzt abgespielt, aber nicht gespeichert. Mit Als Favorit speichern kommt sie in die Favoriten") + "</div><div id='radioResult'></div></div>";
 
     // Belegte Plaetze plus der erste freie werden angezeigt; nach dem Speichern erscheint der naechste freie.
     // Used slots plus the first free one are shown; after saving the next free one appears.
@@ -344,7 +347,7 @@ String panelRadio() {
         h += "<button type='button' class='copy-btn' style='position:static;margin:2px' title='Nach oben schieben (speichert sofort)' onclick='moveStation(" + n + ",-1)'" + off + ">&#9650;</button>";
         h += "<button type='button' class='copy-btn' style='position:static;margin:2px' title='Nach unten schieben (speichert sofort)' onclick='moveStation(" + n + ",1)'" + off + ">&#9660;</button>";
         h += "<button type='button' class='copy-btn' style='position:static;margin:2px' title='Zu den Favoriten hinzuf&uuml;gen' onclick='favAddStation(" + n + ")'" + off + ">+</button>";
-        h += "<button type='button' class='playbtn' onclick='playStation(" + n + ")' title='Abspielen' style='width:auto;padding:8px 14px'" + off + ">&#9654;</button>";
+        h += "<button type='button' class='playbtn' data-st='" + n + "' onclick='playStation(" + n + ")' title='Abspielen' style='width:auto;padding:8px 14px'" + off + ">&#9654;</button>";
         h += "<button type='button' class='copy-btn' style='position:static;margin:2px' title='Aufruf per REST und MQTT anzeigen' onclick='stationCall(" + n + ",this)'" + off + ">API</button>";
         h += "<button type='button' class='copy-btn' style='position:static;margin:2px' title='Platz l&ouml;schen (Name und URL); die folgenden Pl&auml;tze r&uuml;cken auf' onclick='delStation(" + n + ")'" + off + ">&#10006;</button></div>";
     }
@@ -621,7 +624,7 @@ String panelTime() {
         h += "<div class='row'><select id='timeLang' onchange='timeLangChg()' style='width:210px'>" + selectOptions(LANG_VALUES, LANG_LABELS, LANG_COUNT, cfg.vlang) + "</select> " + infoTip("Sprache und Satz der Ansage; vorbelegt mit der Sprache aus dem Tab Audio") + " ";
         h += "<select id='timeVoice' onchange='voiceChosen(this)' style='width:210px'><option value=''>Standard (VoiceRSS)</option>" + (cfg.vvoice.length() > 0 ? "<option value='" + htmlEsc(cfg.vvoice) + "' selected>" + htmlEsc(cfg.vvoice) + "</option>" : String()) + "</select> " + infoTip("Stimme der Ansage; vorbelegt mit der Standardstimme aus dem Tab Audio") + "</div>";
         h += "<div class='row'>Tempo (-10 bis 10): " + infoTip("Sprechtempo: -10 = sehr langsam, 0 = normal, 10 = sehr schnell") + " <input type='number' id='timeRate' min='-10' max='10' value='" + String(cfg.vrate) + "' style='width:80px'> ";
-        h += "<label style='display:inline-flex;align-items:center;gap:6px;cursor:pointer'><input type='checkbox' id='timeFx' checked style='width:auto;margin:0'>Klangeffekt</label> " + infoTip("Hall, Echo und Klangregler auf die Ansage anwenden; ohne Haken wird die Uhrzeit ohne Klangeffekt gesprochen (fx=0)") + "</div>";
+        h += "<label style='display:inline-flex;align-items:center;gap:6px;cursor:pointer'><input type='checkbox' id='timeFx' style='width:auto;margin:0'>Klangeffekt</label> " + infoTip("Hall, Echo und Klangregler auf die Ansage anwenden; ohne Haken wird die Uhrzeit ohne Klangeffekt gesprochen (fx=0)") + "</div>";
         h += "<div class='row'><button type='button' onclick='timeSay()' style='width:auto;padding:6px 14px'>Uhrzeit ansagen</button> ";
         h += "<button type='button' class='copy-btn' style='position:static;margin:2px' title='Aufruf mit den Werten der Felder als URL kopieren' onclick='timeSayCp(0,this)'>URL</button>";
         h += "<button type='button' class='copy-btn' style='position:static;margin:2px' title='Aufruf mit den Werten der Felder als curl-Befehl kopieren' onclick='timeSayCp(1,this)'>curl</button></div>";
@@ -643,6 +646,7 @@ String panelStatus() {
     h += statusRow("Chip Revision", String(ESP.getChipRevision()));
     h += "<tr><td>Release</td><td>v" PROJECT_VERSION "</td></tr>";
     h += statusRow("Firmware", String(FIRMWARE_MARKER + FIRMWARE_MARKER_PREFIX_LEN));
+    h += statusRow("Board Package", String("Arduino-ESP32 ") + ESP_ARDUINO_VERSION_MAJOR + "." + ESP_ARDUINO_VERSION_MINOR + "." + ESP_ARDUINO_VERSION_PATCH + " (ESP-IDF " + ESP.getSdkVersion() + ")");
     h += statusRow("Uptime", String(up));
     h += statusRow("Free Heap", String(ESP.getFreeHeap()) + " bytes (minimum since boot " + String(ESP.getMinFreeHeap()) + ")");
     h += statusRow("Reset Reason", resetReasonName());
@@ -1007,8 +1011,8 @@ function favRow(name,url,btns,key){var r=document.createElement('div'),s=documen
 function favMarkNow(){var u=window.NOWURL||'',rs=document.querySelectorAll('#favList .row[data-url]'),i,r,s,on;for(i=0;i<rs.length;i++){r=rs[i];s=r.querySelector('span');if(!s)continue;on=u!==''&&r.getAttribute('data-url')===u;s.style.fontWeight=on?'700':'';s.style.color=on?'var(--accent,#2a9d4a)':'';s.textContent=(on?'\u266A ':'')+s.getAttribute('data-n')+(s.getAttribute('data-k')?'  ['+s.getAttribute('data-k')+']':'');}}
 function favHas(u){for(var i=0;i<FAVS.length;i++)if(FAVS[i].url===u)return true;return false;}
 function favRender(){var b=document.getElementById('favList'),inf=document.getElementById('favInfo');if(!b)return;b.textContent='';if(inf)inf.textContent=FAVS.length+' Favoriten';
-  FAVS.forEach(function(f){b.appendChild(favRow(f.name,f.url,[favBtn('▶',function(){postApi('/api/play',{url:f.url},'favResult');}),favBtn('API',function(){favCall(f,this);}),favRenBtn(f),favDelBtn(f)],f.key));});
-  favMarkNow();}
+  FAVS.forEach(function(f){b.appendChild(favRow(f.name,f.url,[favPlayBtn(f),favBtn('API',function(){favCall(f,this);}),favRenBtn(f),favDelBtn(f)],f.key));});
+  favMarkNow();radioMarkNow();}
 function favLoad(){fetch('/api/favorites',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){FAVS=j.favorites||[];favRender();}).catch(function(){});}
 function loadFavorites(inp){var f=inp.files[0];if(!f)return;if(!confirm('Die Favoriten werden durch die Datei ersetzt. Fortfahren?')){inp.value='';return;}
   var rd=new FileReader();rd.onload=function(){fetch('/importfavorites',{method:'POST',headers:{'Content-Type':'text/plain'},body:rd.result}).then(function(r){return r.text();}).then(function(t){
@@ -1017,6 +1021,7 @@ function favAddStation(n){var a=document.querySelector("input[name='rn"+n+"']"),
 function favAdd(name,url){postApi('/api/favoriteadd',{name:name,url:url},'favResult').then(favLoad);}
 function favRen(f){var nm=prompt('Neuer Name f\u00fcr den Favoriten:',f.name);if(nm===null)return;nm=nm.trim()||f.name;var k=prompt('Schl\u00fcssel f\u00fcr den API-Aufruf (a-z, 0-9, - und _; leer = automatisch aus der URL):',f.key||'');if(k===null)k=f.key||'';if(nm===f.name&&k===(f.key||''))return;postApi('/api/favoriterename',{n:f.n,name:nm,key:k},'favResult').then(favLoad);}
 function favRenBtn(f){var b=favBtn('\u270E',function(){favRen(f);});b.title='Umbenennen';return b;}
+function favPlayBtn(f){var b=favBtn('\u25B6',function(){if(window.NOWURL&&window.NOWURL===f.url){radioStop('favResult');return;}postApi('/api/play',{url:f.url},'favResult').then(radioPoll);});b.setAttribute('data-ru',f.url);return b;}
 function favDelBtn(f){return favBtn('✕',function(){favDel(f);});}
 function favDel(f){if(!confirm('Favorit "'+f.name+'" löschen?'))return;postApi('/api/favoritedelete',{n:f.n},'favResult').then(favLoad);}
 function favToList(){if(!confirm('Die gespeicherte Senderliste wird durch die Favoriten ersetzt. Fortfahren?'))return;postApi('/api/favoritestolist',{},'favResult').then(function(j){if(j&&j.ok)setTimeout(function(){location.href='/?tab=radio';},1200);});}
@@ -1172,7 +1177,10 @@ function timeSay(){var p=timeQs();for(var k in p){if(p[k]==='')delete p[k];}post
 function timeSayCp(curl,btn){var p=timeQs(),q=[];for(var k in p){if(p[k]!=='')q.push(k+'='+encodeURIComponent(p[k]));}var u=location.origin+'/api/saytime?'+q.join('&');copyText(curl?'curl "'+u+'"':u,btn);}
 function fadeCp(p,n,curl,btn){var e=document.querySelector("input[name='"+n+"']"),u=location.origin+'/api/fade?'+p+'='+(e?encodeURIComponent(e.value):'');copyText(curl?'curl "'+u+'"':u,btn);}
 function copyPre(btn){copyText(btn.parentNode.querySelector('pre').textContent,btn);}
-function playStation(n){postApi('/api/station',{n:n},'stResult');}
+function radioPoll(){setTimeout(pollPlay,500);setTimeout(pollPlay,1800);}
+function radioStop(res){postApi('/api/stop',{},res).then(radioPoll);}
+function radioMarkNow(){var u=window.NOWURL||'';document.querySelectorAll('button[data-st],button[data-ru]').forEach(function(b){var url=b.getAttribute('data-ru');if(url===null){var e=document.querySelector("input[name='ru"+b.getAttribute('data-st')+"']");url=e?e.value:'';}var on=u!==''&&url===u;b.textContent=on?'\u25A0':'\u25B6';b.classList.toggle('on',on);b.title=on?'Beenden':'Abspielen';});}
+function playStation(n){var e=document.querySelector("input[name='ru"+n+"']");if(e&&window.NOWURL&&e.value===window.NOWURL){radioStop('stResult');return;}postApi('/api/station',{n:n},'stResult').then(radioPoll);}
 function moveStation(n,d){var a=document.querySelector('.stationrow[data-n="'+n+'"]'),b=document.querySelector('.stationrow[data-n="'+(n+d)+'"]');if(!a||!b||!b.getAttribute('data-url')&&d>0)return;['rn','ru','rv'].forEach(function(p){var x=a.querySelector('[name="'+p+n+'"]'),y=b.querySelector('[name="'+p+(n+d)+'"]'),t=x.value;x.value=y.value;y.value=t;});a.closest('form').submit();}
 function delStation(n){if(!confirm('Platz '+n+' (Name und URL) l\u00f6schen?'))return;postApi('/api/stationdelete',{n:n},'stResult').then(function(j){if(j&&j.ok)location.href='/?tab=radio';});}
 function stationLink(n){return location.origin+'/api/station?n='+n+'&vol=60';}
@@ -1197,6 +1205,7 @@ function muteToggle(){fetch('/api/mute',{method:'POST',body:new URLSearchParams(
 function stopNow(){postApi('/api/stop',{},'sayResult');}
 function volShow(v){var s=document.querySelectorAll('.volrange'),e=document.querySelectorAll('.volshow'),i;for(i=0;i<s.length;i++){if(+s[i].value!==+v)s[i].value=v;}for(i=0;i<e.length;i++)e[i].textContent=v+' / '+(s[0]?s[0].max:100);}
 function setVol(v){volShow(v);fetch('/api/volume',{method:'POST',body:new URLSearchParams({v:v})});}
+function favAddUrl(){var u=document.getElementById('playUrl').value.trim();if(!/^https?:\/\//.test(u)){alert('Bitte erst eine URL mit http:// oder https:// eintragen.');return;}var d=u.replace(/^https?:\/\//,'').split('/')[0];var nm=prompt('Name f\u00fcr den Favoriten:',d);if(nm===null)return;postApi('/api/favoriteadd',{name:nm.trim(),url:u},'radioResult').then(favLoad);}
 function playUrlNow(){postApi('/api/play',{url:document.getElementById('playUrl').value},'radioResult');}
 var sdCur='/';
 function checkPins(){var s=document.querySelectorAll('select.pinsel'),seen={},dup=false;s.forEach(function(e){e.classList.remove('dup');});
@@ -1250,7 +1259,7 @@ function sdUploadNow(){var fs=Array.prototype.slice.call(document.getElementById
   next();}
 function playFile(n,res,ex){var p={file:n};if(ex)for(var k in ex)p[k]=ex[k];postApi('/api/play',p,res||'upResult').then(function(){setTimeout(pollPlay,500);setTimeout(pollPlay,1800);});}
 function fileNorm(f){return String(f).replace(/\/{2,}/g,'/').replace(/^\//,'');}
-function fileMarkNow(){var l=(window.NOWFILES||[]).map(fileNorm),bs=document.querySelectorAll('button[data-f]'),i,on;for(i=0;i<bs.length;i++){on=l.indexOf(fileNorm(bs[i].getAttribute('data-f')))>=0;bs[i].textContent=on?'\u25A0':'\u25B6';bs[i].style.color=on?'var(--accent,#f4a02a)':'';}}
+function fileMarkNow(){var l=(window.NOWFILES||[]).map(fileNorm),bs=document.querySelectorAll('button[data-f]'),i,on;for(i=0;i<bs.length;i++){on=l.indexOf(fileNorm(bs[i].getAttribute('data-f')))>=0;bs[i].textContent=on?'\u25A0':'\u25B6';bs[i].classList.toggle('on',on);}}
 function fselChk(td,p,d){var c=document.createElement('input');c.type='checkbox';c.className='fsel';c.style.cssText='width:auto;margin:0 6px 0 0';c.setAttribute('data-p',p);c.setAttribute('data-d',d?'1':'0');td.insertBefore(c,td.firstChild);}
 function fselList(box){var r=[];box.querySelectorAll('input.fsel').forEach(function(c){if(c.checked)r.push({p:c.getAttribute('data-p'),d:c.getAttribute('data-d')==='1'});});return r;}
 function fselBar(box,mode,resId,reload){var bar=document.createElement('div');bar.className='row';bar.style.margin='6px 0';
@@ -1325,7 +1334,7 @@ function pollPlay(){if(document.hidden)return;fetch('/api/status',{cache:'no-sto
   if(j.muted!==undefined)muteShow(!!j.muted);
   saveBannerShow(j.saveErr,j.saveErrN);
   if(j.speechSeq!==undefined)SAYSEQ=j.speechSeq;
-  window.NOWURL=(j.source==='radio'&&j.state==='playing')?(j.url||''):'';if(window.favMarkNow)favMarkNow();
+  window.NOWURL=(j.source==='radio'&&(j.state==='playing'||j.state==='loading'))?(j.url||''):'';if(window.favMarkNow)favMarkNow();if(window.radioMarkNow)radioMarkNow();
   window.NOWFILES=j.files||[];fileMarkNow();
   var el=document.getElementById('playState');if(el)el.textContent='Zustand: '+j.state+(j.error?' ('+j.error+')':'');
   var vs=document.querySelector('.volrange'),ae=document.activeElement;if(vs&&!(ae&&ae.className==='volrange')&&j.volume!==undefined&&+vs.value!==j.volume){volShow(j.volume);}
@@ -1353,7 +1362,7 @@ function pollPlay(){if(document.hidden)return;fetch('/api/status',{cache:'no-sto
           if(r[2]&&/^https?:\/\//i.test(r[1])){var l=document.createElement('a');l.href=r[1];l.target='_blank';l.rel='noopener noreferrer';l.textContent=r[1];b.appendChild(l);}else b.textContent=r[1];
           tr.appendChild(a);tr.appendChild(b);tb.appendChild(tr);});}}
     document.querySelectorAll('.stationrow').forEach(function(r){var on=j.source==='radio'&&j.url&&r.getAttribute('data-url')===j.url;var n=r.firstChild;n.style.color=on?'var(--ok)':'var(--muted)';n.style.fontWeight=on?'bold':'normal';var b=r.querySelector('.playbtn');if(b&&r.getAttribute('data-url')){var num=r.getAttribute('data-n');
-      if(on){b.innerHTML='&#9632;';b.title='Stopp';b.onclick=function(){stopNow();};}
+      b.classList.toggle('on',!!on);if(on){b.innerHTML='&#9632;';b.title='Stopp';b.onclick=function(){stopNow();};}
       else{b.innerHTML='&#9654;';b.title='Abspielen';b.onclick=function(){playStation(num);};}}});
     document.querySelectorAll('.stopbtn').forEach(function(sb){sb.disabled=(j.state==='idle');});}}).catch(function(){});}
 function wifiFill(list){
@@ -2166,19 +2175,32 @@ bool isPrivateClient();
 
 static void backupKey(uint8_t key[32]) {
     const char* secret = "NetSpeaker settings backup v1 / WiFi passwords";
-    mbedtls_sha256((const unsigned char*)secret, strlen(secret), key, 0);
+    size_t hl = 0;
+    psa_crypto_init();
+    psa_hash_compute(PSA_ALG_SHA_256, (const uint8_t*)secret, strlen(secret), key, 32, &hl);
 }
 
 static void backupCrypt(const uint8_t iv[16], const uint8_t* in, uint8_t* out, size_t len) {
-    uint8_t key[32], nonce[16], block[16];
-    memcpy(nonce, iv, 16);
+    uint8_t key[32];
     backupKey(key);
-    size_t off = 0;
-    mbedtls_aes_context ctx;
-    mbedtls_aes_init(&ctx);
-    mbedtls_aes_setkey_enc(&ctx, key, 256);
-    mbedtls_aes_crypt_ctr(&ctx, len, &off, nonce, block, in, out);
-    mbedtls_aes_free(&ctx);
+    psa_crypto_init();
+    psa_key_attributes_t at = PSA_KEY_ATTRIBUTES_INIT;
+    psa_set_key_type(&at, PSA_KEY_TYPE_AES);
+    psa_set_key_bits(&at, 256);
+    psa_set_key_usage_flags(&at, PSA_KEY_USAGE_ENCRYPT);
+    psa_set_key_algorithm(&at, PSA_ALG_CTR);
+    psa_key_id_t kid = 0;
+    if (psa_import_key(&at, key, 32, &kid) != PSA_SUCCESS) { memset(out, 0, len); return; }
+    psa_cipher_operation_t op = PSA_CIPHER_OPERATION_INIT;
+    size_t ol = 0, fl = 0;
+    if (psa_cipher_encrypt_setup(&op, kid, PSA_ALG_CTR) == PSA_SUCCESS && psa_cipher_set_iv(&op, iv, 16) == PSA_SUCCESS &&
+        psa_cipher_update(&op, in, len, out, len, &ol) == PSA_SUCCESS) {
+        psa_cipher_finish(&op, out + ol, len - ol, &fl);
+    } else {
+        memset(out, 0, len);
+    }
+    psa_cipher_abort(&op);
+    psa_destroy_key(kid);
 }
 
 static String backupEncrypt(const String& plain) {

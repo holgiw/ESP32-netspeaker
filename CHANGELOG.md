@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-11-24 - Version 1.6.20
+
+**Deutsch**
+
+- Neu: Im Tab *Webradio* wechselt der ▶-Knopf eines Senders (Senderliste und Favoriten) zu ■, solange dieser Sender läuft oder verbindet; ein Klick darauf beendet das Radio. Läuft ein anderer Sender, startet ▶ ihn wie bisher. Der Stopp-Knopf ■ ist jetzt deutlicher: rot hinterlegt, weiß und größer; das gilt auch für die Listen *MP3 (Flash)* und *SD-Karte*.
+- Neu: Ist kein VoiceRSS-Schlüssel eingetragen, blinkt der Punkt *VoiceRSS* in der Statuszeile rot (Tooltip „kein API-Schlüssel eingetragen“); er wird dann immer gezeigt. Mit Schlüssel verhält er sich wie bisher.
+- Neu: Im Tab *Webradio* hat die Karte *Webradio-URL abspielen* einen Knopf *Als Favorit speichern*; die eingegebene URL kommt in die Favoriten (der Name wird abgefragt, Vorgabe ist der Host).
+- Neu: Der Tab *Status* zeigt das Board-Paket (Arduino-ESP32- und ESP-IDF-Version), mit dem die Firmware gebaut wurde.
+- Geändert: Gebaut mit Arduino-ESP32 4.0.0 (mbedtls 4); die Verschlüsselung der WLAN-Passwörter in der Sicherung nutzt jetzt die PSA-Schnittstelle (gleicher Schlüssel und gleiches Format).
+- Geändert: In der Karte *Uhrzeit ansagen* im Tab *Zeit* ist der Haken *Klangeffekt* jetzt standardmäßig aus (der Aufruf hat dann `fx=0`).
+
+**English**
+
+- New: in the *Webradio* tab the ▶ button of a station (station list and favorites) changes to ■ while that station plays or connects; a click on it stops the radio. If another station is running, ▶ starts it as before. The stop button ■ is now more visible: red background, white and larger; this applies to the *MP3 (Flash)* and *SD card* lists too.
+- New: if no VoiceRSS key is entered, the *VoiceRSS* dot in the status line blinks red (tooltip "no API key entered"); it is always shown then. With a key it behaves as before.
+- New: in the *Webradio* tab, the card *Webradio-URL abspielen* has a button *Als Favorit speichern*; the entered URL goes into the favorites (name asked, default the host).
+- New: the *Status* tab shows the board package (Arduino-ESP32 and ESP-IDF version) the firmware was built with.
+- Changed: built with Arduino-ESP32 4.0.0 (mbedtls 4); the backup encryption of the WiFi passwords uses the PSA interface now (same key and format).
+- Changed: in the *Zeit* tab card *Uhrzeit ansagen* the tick *Klangeffekt* is off by default (the call then has `fx=0`).
+
 ## 2026-11-17 - Version 1.6.19
 
 **Deutsch**
